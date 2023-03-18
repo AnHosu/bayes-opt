@@ -1,10 +1,14 @@
 ---
-title: "Bayesian Optimisation from Scratch in R"
+title: ""
 bibliography: references.bib
 csl: ../citation_style.csl
 format:
   html:
-    theme: default
+    fig-width: 8
+    fig-height: 5
+    theme: none
+html-math-method:
+  method: katex
 ---
 Bayesian optimisation is a powerful technique for optimising expensive functions or processes. In many applications, such as drug discovery, manufacturing, machine learning, or scientific experimentation, the function or process to be optimised may be time consuming or costly to evaluate. Bayesian optimisation provides a framework for sequential experimentation and for finding optima with as few evaluations as possible.
 
@@ -67,7 +71,7 @@ This implementation of Bayesian optimisation mainly explores each component at a
 
 There are many good benchmark functions. One such is the Ackley function. It is defined as:
 
-$$f(\mathbf{x}) = -a\exp\left(-b\sqrt{\frac{1}{d}\sum_{i=1}^dx_i^2}\right) - \exp\left(\frac{1}{d}\sum_{i=1}^d \cos(c x_i)\right) + a + \exp(1)$$
+$$f(\mathbf{x}) = -a\exp\left(-b\sqrt{\frac{1}{d}\sum_{i=1}^dx_i^2}\right) - \exp\left(\frac{1}{d}\sum_{i=1}^d \cos(c x_i)\right) \\ + a + \exp(1)$$
 
 where $d$ is the number of dimensions and $a$, $b$, and $c$ are constants. The global minimum of the Ackley function is $f(\mathbf{x})=0$ at $\mathbf{x}=(0,0,...,0)$.
 
@@ -344,7 +348,7 @@ mu <- c(post$mu)
 sigma <- post$sigma
 n_samples <- 3
 samples <- rmvnorm(n = n_samples, mu, sigma)
-gpr_plot(samples, mu, sigma, X_predict, X_train, y_train, true_function = ackley)
+gpr_plot(samples, mu, sigma, X_predict, X_train, y_train, ackley)
 ```
 
 At this point, the fit is not too great and the sampled functions look nothing like the true function. However, this is only based on three data points and an arbitrary choice of kernel parameters.
@@ -374,7 +378,7 @@ mu <- post$mu
 sigma <- post$sigma
 n_samples <- 3
 samples <- rmvnorm(n = n_samples, mu, sigma)
-gpr_plot(samples, mu, sigma, X_predict, X_train, y_train, true_function = ackley)
+gpr_plot(samples, mu, sigma, X_predict, X_train, y_train, ackley)
 ```
 
 ### Gaussian Process Regression
@@ -430,12 +434,20 @@ opt <- optim(par = c(1, 1), fn = rbf_nll)
 The optimised kernel parameters should improve the GP.
 
 ```{r}
-post <- posterior(rbf_kernel, X_predict, X_train, y_train, noise = noise, l = opt$par[[1]], sigma_f = opt$par[[2]])
+post <- posterior(
+  rbf_kernel,
+  X_predict,
+  X_train,
+  y_train,
+  noise = noise,
+  l = opt$par[[1]],
+  sigma_f = opt$par[[2]]
+)
 mu <- post$mu
 sigma <- post$sigma
 n_samples <- 3
 samples <- rmvnorm(n = n_samples, mu, sigma)
-gpr_plot(samples, mu, sigma, X_predict, X_train, y_train, true_function = ackley)
+gpr_plot(samples, mu, sigma, X_predict, X_train, y_train, ackley)
 ```
 
 With that, all the components for creating a GP surrogate model are in place. For future use, they are collected in a single function that performs GPR.
@@ -495,7 +507,9 @@ tibble::as_tibble(X_predict_2d, .name_repair = ~ c("x1", "x2")) %>%
   dplyr::mutate(y = post$mu) %>%
   ggplot(aes(x = x1, y = x2)) +
   geom_contour_filled(aes(z = y), bins = 8) +
-  geom_point(data = tibble::as_tibble(X_train_2d, .name_repair = ~ c("x1", "x2"))) +
+  geom_point(
+    data = tibble::as_tibble(X_train_2d, .name_repair = ~ c("x1", "x2"))
+  ) +
   theme_minimal() +
   labs(fill = "")
 ```
@@ -553,7 +567,14 @@ expected_improvement <- function(gp, X, X_train, xi = 0.01) {
 When there is only a single input dimension, EI can be plotted next to the GP.
 
 ```{r}
-ei_plot <- function(mu, sigma, X_pred, X_train, y_train, ei, true_function = NULL, title = "") {
+ei_plot <- function(mu,
+                    sigma,
+                    X_pred,
+                    X_train,
+                    y_train,
+                    ei,
+                    true_function = NULL,
+                    title = "") {
   p1 <- tibble::tibble(
     mu = mu,
     uncertainty = 1.96*sqrt(sigma),
@@ -604,7 +625,7 @@ ei_plot <- function(mu, sigma, X_pred, X_train, y_train, ei, true_function = NUL
 mygpr <- gpr(rbf_kernel, X_train, y_train, noise, l = 1, sigma_f = 1)
 ei <- expected_improvement(mygpr, X_predict, X_train, xi = 0.1)
 post <- mygpr(X_predict)
-ei_plot(post$mu, post$sigma, X_predict, X_train, y_train, ei, true_function = ackley)
+ei_plot(post$mu, post$sigma, X_predict, X_train, y_train, ei, ackley)
 ```
 
 In this example, there is some expected improvement near the middle of the input range, but the point expected to bring about the highest improvement is at the right edge of the range.
@@ -686,7 +707,16 @@ plots <- lapply(seq_len(n_rounds), function(i) {
   gp <- gpr(rbf_kernel, X_train, y_train, noise, l = 1, sigma_f = 1)
   ei <- expected_improvement(gp, X_predict, X_train, xi = 0.01)
   post <- gp(X_predict)
-  p <- ei_plot(post$mu, post$sigma, X_predict, X_train, y_train, ei, ackley, title = paste("Round", i))
+  p <- ei_plot(
+    post$mu,
+    post$sigma,
+    X_predict,
+    X_train,
+    y_train,
+    ei,
+    ackley,
+    title = paste("Round", i)
+  )
   x <- X_predict[[which.max(ei)]]
   y <- ackley(x) + noise * rnorm(1)
   X_train <<- rbind(X_train, matrix(x))
@@ -739,8 +769,16 @@ tibble::as_tibble(X_predict, .name_repair = ~ c("x1", "x2")) %>%
   dplyr::mutate(y = post$mu) %>%
   ggplot(aes(x = x1, y = x2)) +
   geom_contour_filled(aes(z = y), bins = 8) +
-  geom_point(data = tibble::as_tibble(X_initial, .name_repair = ~ c("x1", "x2"))) +
-  geom_point(data = tibble::as_tibble(t(X_predict[which.max(ei), ]), .name_repair = ~ c("x1", "x2")), mapping = aes(colour = "max EI")) +
+  geom_point(
+    data = tibble::as_tibble(X_initial, .name_repair = ~ c("x1", "x2"))
+  ) +
+  geom_point(
+    data = tibble::as_tibble(
+      t(X_predict[which.max(ei), ]),
+      .name_repair = ~ c("x1", "x2")
+    ),
+    mapping = aes(colour = "max EI")
+  ) +
   theme_minimal() +
   labs(fill = "", colour = "")
 ```
@@ -774,8 +812,13 @@ plots <- lapply(seq_len(n_rounds), function(i) {
     dplyr::mutate(y = post$mu) %>%
     ggplot(aes(x = x1, y = x2)) +
     geom_contour_filled(aes(z = y), bins = 8) +
-    geom_point(data = tibble::as_tibble(X_train, .name_repair = ~ c("x1", "x2"))) +
-    geom_point(data = tibble::as_tibble(t(x), .name_repair = ~ c("x1", "x2")), mapping = aes(colour = "max EI")) +
+    geom_point(
+      data = tibble::as_tibble(X_train, .name_repair = ~ c("x1", "x2"))
+    ) +
+    geom_point(
+      data = tibble::as_tibble(t(x), .name_repair = ~ c("x1", "x2")),
+      mapping = aes(colour = "max EI")
+    ) +
     theme_minimal() +
     labs(fill = "", colour = "", title = paste("Round", i))
   y <- ackley(x) + noise * rnorm(1)
