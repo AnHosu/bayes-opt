@@ -6,7 +6,6 @@ format:
   html:
     theme: default
 ---
-
 Bayesian optimisation is a powerful technique for optimising expensive functions or processes. In many applications, such as drug discovery, manufacturing, machine learning, or scientific experimentation, the function or process to be optimised may be time consuming or costly to evaluate. Bayesian optimisation provides a framework for sequential experimentation and for finding optima with as few evaluations as possible.
 
 This post seeks to introduce the core ideas and components of Bayesian optimisation. Along with the introduction are implementations of all the core components of Bayesian optimisation in R. The implementations only use base R and Tidyverse - they are designed to be simple and not necessarily efficient.
@@ -15,15 +14,13 @@ This post seeks to introduce the core ideas and components of Bayesian optimisat
 library(ggplot2)
 library(magrittr)
 set.seed(4444)
-
-set_dim <- `dim<-`
 ```
 
-The core idea behind Bayesian optimisation is to use a surrogate model to approximate a true function, and then use this approximation to determine the next point to evaluate. Typically, Gaussian processes or other similar probabilistic models are used as surrogate models.
+The core idea behind Bayesian optimisation is to use a surrogate model to approximate a true objective function or process, and then use this approximation to determine the next experiment to perform. Typically, Gaussian processes or other similar probabilistic models are used as surrogate models.
 
 The surrogate model is initialised with a few points and an acquisition function is then used to determine the next point to evaluate. The acquisition function balances exploration, ie. searching the regions of covariate space where the uncertainty is high, and exploitation  ie. searching the regions where the surrogate model predicts a high value.
 
-After the next point is evaluated, it is added to the existing data and the surrogate model is updated. The process of selecting the next point to evaluate and updating the surrogate model is repeated until a stopping criterion is met. This could be when subsequent experiments stop yielding significantly different or better results. In real-world applications, a budget might only allow for so many experiments.
+After the next point is evaluated, it is added to the existing data and the surrogate model is updated. The process of selecting the next point to evaluate and updating the surrogate model is repeated until a stopping criterion is met. This could be when subsequent experiments stop yielding significantly different or better results. In real-world applications, a budget might only allow for limited number of experiments.
 
 Bayesian optimisation has several advantages over other optimisation methods, including its ability to handle expensive functions and processes with a small number of evaluations. It also performs well in cases with noisy or uncertain data. However, while it can be considered a machine learning model, the surrogate model obtained through Bayesian optimisation is not a universally good approximation of the objective function and is not necessarily suitable for cases where extensive inference or interpretation is needed.
 
@@ -35,10 +32,10 @@ There are five main components to Bayesian optimisation
 The objective function is the function or process that needs to be optimised, but which is expensive or time consuming to evaluate. The objective function is typically a black box, meaning that its mathematical form is unknown, and only its inputs and outputs can be observed.
 
 ##### Surrogate Model
-The surrogate is a regression model that is used to approximate the objective function. The most commonly used surrogate model in Bayesian optimization is a Gaussian process, which is a flexible, non-parametric model that can capture complex, non-linear relationships between the inputs and outputs of the objective function.
+The surrogate is a regression model that is used to approximate the objective function. The most commonly used surrogate model in Bayesian optimisation is a Gaussian process, which is a flexible, non-parametric model that can capture complex, non-linear relationships between the inputs and outputs of the objective function.
 
 ##### Acquisition Function
-The acquisition function is a function that is used to determine the next point to evaluate in the search space. The acquisition function balances exploration and exploitation.
+The acquisition function is used to determine the next point to evaluate in the search space. The acquisition function balances exploration and exploitation.
 
 ##### Initial Training Data
 Bayesian optimisation requires some initial data to construct the surrogate model. This data can be obtained by evaluating the objective function at a few points in the search space. Given that the total experiment budget is often limited, much consideration often goes into deciding these initial training points.
@@ -46,11 +43,11 @@ Bayesian optimisation requires some initial data to construct the surrogate mode
 ##### Stopping Criterion
 Bayesian optimisation might require a stopping criterion to determine when to stop the search. This could be some measure of convergence, but often the number of experiments or deadlines set the constraints.
 
-In the following sections, each of these components are discussed in greater detail and are implemented in R.
+In the following sections, each component is discussed in greater detail, accompanied by implementations in R.
 
 ## Objective Function
 
-Bayesian optimization can be applied to optimise any function or process that can be thought of as a black box function, $f$, that takes as input a set of covariates, $\mathbf{x}$, and returns a scalar, $y$. Sometimes the actual readings from such function are noisy, i.e.
+Bayesian optimisation can be applied to optimise any function or process that can be thought of as a black box function, $f$, that takes as input a set of covariates, $\mathbf{x}$, and returns a scalar, $y$. Sometimes the actual readings from such function are noisy, i.e.
 
 $$y = f(\mathbf{x}) + \epsilon$$
 
@@ -58,7 +55,7 @@ where $\epsilon$ is the noise, often assumed to be Gaussian $\epsilon \sim \math
 
 Some common examples of real world objective functions include
 
-**ML Hyperparameters**. Machine learning model hyperparameters such as learning rate or regularisation strength are expensive to optimise, since they require retraining the model for each iteration. Here the model hyperparameters would be the input and the model output would be the scalar objective for Bayesian optimisation.
+**ML Hyperparameters**. Machine learning model hyperparameters such as learning rate or regularisation strength are expensive to optimise, since they require retraining the model for each iteration. In the context of Bayesian optimisation, the model hyperparameters would be the input $\mathbf{x}$ and the model output would be the scalar objective $y$.
 
 **Design of experiments**. Optimising the parameters of chemical or biological experiments can save both time and money, or even accelerate the discovery of new drugs or products.
 
@@ -66,7 +63,7 @@ Some common examples of real world objective functions include
 
 ### Benchmarking Functions
 
-Since we are just exploring Bayesian optimisation at a high level, we will not have an actual black box process to optimise. Instead, we will use a benchmark function to test our implementation of Bayesian optimisation.
+This implementation of Bayesian optimisation mainly explores each component at a high level so there will not be an actual black box process to optimise. Instead, a benchmark function is used to demonstrate the implementation.
 
 There are many good benchmark functions. One such is the Ackley function. It is defined as:
 
@@ -96,7 +93,7 @@ Formally, a GP is defined by a mean function and a covariance function, also cal
 
 $$p(f | \mathbf{X}) = \mathcal{N}(f | \mathbf{\mu}, \mathbf{\Sigma})$$
 
-$f$ is the objective function and $\mathbf{X}$ is a set of observations for the covariates of $f$. The mean function, $\mathbf{\mu}$, specifies the expected value of the function at each point in the covariate space, while the covariance matrix, $\mathbf{\Sigma}$, specifies how the function values at any two points in the covariate space are correlated. The covariance matrix is calculated using a kernel function and, in practice, the choice of kernel function is important for obtaining good and interpretable results with Bayesian optimisation, whereas the mean function is of much lesser consequence and is often set to $\mathbf{\mu} = \mathbf{0}$.
+$f$ is the objective function and $\mathbf{X}$ is a set of observations for the covariates of $f$. The mean function, $\mathbf{\mu}$, specifies the expected value of the function at each point in the covariate space, while the covariance matrix, $\mathbf{\Sigma}$, specifies how the function values at any two points in the covariate space are correlated. The covariance matrix is calculated using a kernel function and, in practice, the choice of kernel function is important for obtaining good and interpretable results with Bayesian optimisation. The mean function is of much lesser consequence and is often set to $\mathbf{\mu} = \mathbf{0}$.
 
 ### Kernels
 
@@ -171,7 +168,10 @@ In practice, this amounts to plugging the mean and the covariance (kernel) into 
 ```{r}
 #' Random Samples from a Multivariate Gaussian
 #' 
-#' Implementation inspired by https://juanitorduz.github.io/multivariate_normal/
+#' This implementation is similar to MASS::mvrnorm, but uses chlosky
+#' decomposition instead. This should be more stable but is less efficient than
+#' the MASS implementation, which recycles the eigen decomposition for the
+#' sampling part.
 #'
 #' @param n number of samples to sample
 #' @param mu the mean of each input dimension
@@ -182,7 +182,7 @@ In practice, this amounts to plugging the mean and the covariance (kernel) into 
 #' @return numerical vector of n samples
 rmvnorm <- function(n = 1, mu, sigma, epsilon = 1e-6) {
     p <- length(mu)
-    if(!all(dim(sigma) == c(p,p))) stop("incompatible arguments")
+    if(!all(dim(sigma) == c(p, p))) stop("incompatible dimensions of arguments")
     ev <- eigen(sigma, symmetric = TRUE)$values
     if(!all(ev >= -epsilon*abs(ev[1L]))) {
       stop("The covariance matrix (sigma) is not positive definite")
@@ -259,7 +259,7 @@ gpr_plot <- function(samples,
 }
 ```
 
-This bit is at the core of Gaussian processes. Given a set of points, the corresponding $\mathbf{\mu}$ and $\mathbf{\Sigma}$ are calculated. Then those are plugged into a multivariate Gaussian to obtain predicted function values. In this case, $\mathbf{\mu}$ has just been set to $\mathbf{0}$.
+This bit is at the core of Gaussian processes. Given a set of points, the corresponding $\mathbf{\Sigma}$ is calculated. Then this are plugged into a multivariate Gaussian to obtain predicted function values. In this case, $\mathbf{\mu}$ has just been set to $\mathbf{0}$.
 
 ```{r}
 n_samples <- 5
@@ -272,9 +272,9 @@ gpr_plot(samples, mu, sigma, X_predict)
 
 ### Conditioning the Gaussian process
 
-Until now, the GP has just represented a prior belief for the surrogate functions that might model the objective function. It is not a surrogate function yet.
+Until now, the GP has just represented a prior belief for the surrogate functions that might model the objective function. It is not a surrogate model yet.
 
-In order for the GP to be a useful surrogate model, it should provide posterior predictions for proposed points, given the available training data, i.e. a pair of $\mathbf{X}$ and $\mathbf{y}$. For a GP, the joint distribution of training points and new proposed points is itself a GP. Consequently, it is possible to compute the joint distribution of training data and posterior prediction points directly.
+In order for the GP to be a useful surrogate model, it should provide posterior predictions for proposed points, given the available training data. I.e. for a set of training data, $\mathbf{X}_t$ and $\mathbf{y}_t$, as well as a set of proposed points $\mathbf{X}_p$, the GP should yield a posterior predictive distribution for the proposed/predicted outputs $\mathbf{y}_p$. For a GP, the joint distribution of training points and new proposed points is itself a GP. Consequently, it is possible to compute the joint distribution of training data and posterior prediction points directly.
 
 The mean and covariance of this joint distribution have well defined expressions. Given a set of training data, $\mathbf{X}_t, \mathbf{y}_t$, and set of points on which to make predictions, $\mathbf{X}_p$, the mean of the posterior predictive distribution is
 
@@ -381,13 +381,13 @@ gpr_plot(samples, mu, sigma, X_predict, X_train, y_train, true_function = ackley
 
 Until now, the kernel parameters have been set at fixed, arbitrary values. This is a waste of good parameters, and it is possible to do something better. The core idea of Gaussian process regression (GPR) is that the kernel parameters can be adapted to fit the training data.
 
-A common approach to estimating the parameters of a kernel function in GPR is Maximum likelihood estimation (MLE).
+A common approach to estimating the parameters of a kernel function in GPR is Maximum Likelihood Estimation (MLE).
 
 The likelihood function for a Gaussian process is given by
 
 $$p(\mathbf{y}_t \mid \mathbf{X}_t, \theta) = \mathcal{N}(\mathbf{y}_t \mid \mathbf{\mu}, \mathbf{\Sigma}_{tt} + \sigma_{\epsilon}^2 \mathbf{I})$$
 
-where $\mathbf{\Sigma}_{tt}$ is the covariance matrix computed using some kernel with parameters $\theta$. In the case of the RBF kernel, the parameters to estimate are $\theta = (\sigma_f, l)$. Notice that the noise has been added to the diagonal of the covariance matrix to account noisy training data.
+where $\mathbf{\Sigma}_{tt}$ is the covariance matrix computed on training data using some kernel with parameters $\theta$. In the case of the RBF kernel, the parameters to estimate are $\theta = (\sigma_f, l)$. Notice that the noise has been added to the diagonal of the covariance matrix to account for noisy training data.
 
 The corresponding log likelihood function is
 
@@ -397,9 +397,18 @@ where $n$ is the number of data points.
 
 The optimal values of the kernel parameters are the values that maximise the log likelihood or, equivalently, minimise the negative log likelihood.
 
-To implement Gaussian process regression, two components are needed: the likelihood and an optimiser. Here is an implementation of a negative log likelihood function for any kernel.
+To implement Gaussian process regression, two components are needed: the likelihood and an optimiser. Here is an implementation of a negative log likelihood function, for any kernel. The implementation follows Algorithm 2.1 from chapter 2 of [@Rasmussen:2006].
 
 ```{r}
+#' Negative log-Likelihood of a Kernel
+#'
+#' @param kernel kernel function
+#' @param X_train matrix (n, d) of training points
+#' @param y_train column vector (n, d) of training observations
+#' @param noise scalar of observation noise
+#'
+#' @return function with kernel parameters as input and negative log likelihood
+#' as output
 nll <- function(kernel, X_train, y_train, noise) {
   function(params) {
     n <- dim(X_train)[[1]]
@@ -414,8 +423,8 @@ nll <- function(kernel, X_train, y_train, noise) {
 There are many ways to minimise the function. Since there are only two parameters for the RBF kernel, the built in optimiser will do just fine.
 
 ```{r}
-rbf_nll <- nll(rbf_kernel, X_train, y_train, 1e-8)
-opt <- optim(par = c(1,1), fn = rbf_nll)
+rbf_nll <- nll(rbf_kernel, X_train, y_train, noise)
+opt <- optim(par = c(1, 1), fn = rbf_nll)
 ```
 
 The optimised kernel parameters should improve the GP.
@@ -432,6 +441,18 @@ gpr_plot(samples, mu, sigma, X_predict, X_train, y_train, true_function = ackley
 With that, all the components for creating a GP surrogate model are in place. For future use, they are collected in a single function that performs GPR.
 
 ```{r}
+#' Gaussian Process Regression
+#'
+#' @param kernel kernel function
+#' @param X_train matrix (n, d) of training points
+#' @param y_train column vector (n, d) of training observations
+#' @param noise scalar of observation noise
+#' @param ... parameters of the kernel function with initial guesses. Due to the
+#' optimiser used, all parameters must be given and the order unfortunately
+#' matters
+#'
+#' @return function that takes a matrix of prediction points as input and
+#' returns the posterior predictive distribution for the output
 gpr <- function(kernel, X_train, y_train, noise = 1e-8, ...) {
   kernel_nll <- nll(kernel, X_train, y_train, noise)
   param <- list(...)
@@ -458,7 +479,7 @@ gpr <- function(kernel, X_train, y_train, noise = 1e-8, ...) {
 
 #### Applying GP in more Dimensions
 
-A GP surrogate model is great for problems with many dimensions and relatively few observations. Here is an example in 2D with just 5 training points.
+A GP surrogate model is great for problems with many dimensions and relatively few observations. Here is an example in 2D with just 10 training points.
 
 ```{r}
 noise_2d <- 1
@@ -483,11 +504,11 @@ Even with just a few training points, some general tendencies of the objective f
 
 ## Acquisition Function
 
-An acquisition function is a function used to determine the next point at which to evaluate the objective function. The goal of the acquisition function is to balance exploration, i.e. sampling points in unexplored regions, and exploitation, i.e. sampling points that are likely to be optimal. The acquisition function takes into account the posterior distribution of the surrogate model and provides a quantitative measure of the value of evaluating the objective function at a given point. Some common acquisition functions used in Bayesian optimization include expected improvement, probability of improvement, and upper confidence bound.
+An acquisition function is used to determine the next point at which to evaluate the objective function. The goal of the acquisition function is to balance exploration, i.e. sampling points in unexplored regions, and exploitation, i.e. sampling points that are likely to be optimal. The acquisition function takes into account the posterior predictive distribution of the surrogate model and provides a quantitative measure of the value of evaluating the objective function at a given point. Some common acquisition functions used in Bayesian optimisation include expected improvement, probability of improvement, and upper confidence bound.
 
 ### Implementing Expected Improvement
 
-The basic idea behind Expected Improvement (EI) is to search for the point in the search space that has the highest probability of improving the current best solution. The expected improvement is defined as the expected value of the improvement over the current best solution, where the improvement is defined as the difference between the function value at the candidate point and the current best value. In other words, EI measures how much better the objective function is expected to be at the candidate point compared to the current best value, weighted by the probability of achieving that improvement.
+The basic idea behind Expected Improvement (EI) is to search for the point in the search space that has the highest probability of improving the current best solution. EI is defined as the expected value of the improvement over the current best solution, where the improvement is defined as the difference between the function value at the candidate point and the current best value. In other words, EI measures how much better the objective function is expected to be at the candidate point compared to the current best value, weighted by the probability of achieving that improvement.
 
 Formally, the expected improvement acquisition function for a minimisation problem is defined as:
 
@@ -507,11 +528,20 @@ $\mu(\mathbf{x})$ and $\sigma(\mathbf{x})$ are the mean and standard deviation o
 The formulas can be implemented directly.
 
 ```{r}
+#' Expected Improvement
+#'
+#' @param gp a conditioned Gaussian process
+#' @param X matrix (m, d) of points where EI should be evaluated
+#' @param X_train matrix (n, d) of training points
+#' @param xi scalar, exploration/exploitation trade off
+#'
+#' @return EI, vector of length m
 expected_improvement <- function(gp, X, X_train, xi = 0.01) {
   post_pred <- gp(X)
   post_train <- gp(X_train)
   min_train <- min(post_train$mu)
-  sigma <- set_dim(post_pred$sigma, c(length(post_pred$sigma), 1))
+  sigma <- post_pred$sigma
+  dim(sigma) <- c(length(post_pred$sigma), 1)
   imp <- min_train - post_pred$mu - xi
   Z <- imp / sigma
   ei <- imp * pnorm(Z) + sigma * dnorm(Z)
@@ -596,6 +626,7 @@ For the demonstration of Bayesian optimisation with the Ackley function in just 
 The final component of Bayesian optimisation is a stopping criterion. Depending on the application, a good stopping criterion might be more or less obvious. In settings where a real life process is optimised, time and money are common constraints. In ML or other theoretical applications, a mathematically defined criterion might be preferred.
 
 Examples of stopping criteria include
+
 - Maximum number of objective function evaluations.
 - When the improvement in objective function value falls below a threshold.
 - Project time limits or deadlines.
