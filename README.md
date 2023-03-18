@@ -15,7 +15,7 @@ With this project, I aim to introduce and discuss the components of Bayesian opt
 
 ## Posts on Bayesian Optimisation
 
-**[Bayesian Optimisation from Scratch in R](https://anhosu.com/post/bayesian-optimisation)**
+**[Bayesian Optimisation from Scratch in R](https://anhosu.com/post/bayesian-opt-r)**
 
 This post introduces and demonstrates all the core components of Bayesian optimisation and implements them from scratch in R. This is a great place to start.
 
