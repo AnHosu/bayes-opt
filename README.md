@@ -19,6 +19,7 @@ With this project, I aim to introduce and discuss the components of Bayesian opt
 
 This post introduces and demonstrates all the core components of Bayesian optimisation and implements them from scratch in R. This is a great place to start.
 
+
 **Kernel Functions**
 
 This post is coming soon.
@@ -42,3 +43,7 @@ This post is coming soon.
 **Benchmarking Bayesian Optimisation**
 
 This post is coming soon.
+
+## License
+
+The content of this project itself is licensed under the [Creative Commons Attribution-ShareAlike 4.0 International license](https://creativecommons.org/licenses/by-sa/4.0/), and the underlying code is licensed under the [GNU General Public License v3.0 license](LICENSE).
