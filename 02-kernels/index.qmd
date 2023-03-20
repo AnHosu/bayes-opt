@@ -1,0 +1,31 @@
+---
+title: ""
+bibliography: references.bib
+csl: ../citation_style.csl
+format:
+  html:
+    fig-width: 8
+    fig-height: 5
+    theme: none
+html-math-method:
+  method: katex
+---
+## What role do kernels play in Gaussian processes and Bayesian optimisation?
+
+## What are some examples of kernel functions? What are their virtues?
+
+### Linear Kernel
+
+### RBF Kernel
+
+### Matérn Kernel
+
+### Periodic Kernels
+
+### Discrete Kernels
+
+## What are anisotropic kernels and how to implement them?
+
+## Adding Noise to Kernels
+
+## Combining Kernels
