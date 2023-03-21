@@ -12,13 +12,110 @@ html-math-method:
 ---
 ## What role do kernels play in Gaussian processes and Bayesian optimisation?
 
+Kernels, also known as covariance functions, are central to Gaussian processes and Bayesian optimization.
+
+In Gaussian processes, a kernel function defines the covariance between any two points in a dataset, where the covariance describes how much two points are correlated with each other. The kernel function determines the smoothness and complexity of the resulting Gaussian process model, and it controls how much weight is given to different regions of the input space. Different types of kernel functions can be used to model different types of data, such as periodic or spatial data.
+
+In Bayesian optimization, kernels are used to define a prior distribution over the objective function being optimized. The choice of kernel function reflects our prior belief about the shape and characteristics of the function.
+
 ## What are some examples of kernel functions? What are their virtues?
+
+There are many types of kernel functions that can be used in Gaussian processes and Bayesian optimization. Here are some examples:
+
+Radial basis function (RBF) kernel: The RBF kernel is a popular choice for Gaussian processes and Bayesian optimization. It is defined as k(x, x') = exp(-||x - x'||^2 / (2 * lengthscale^2)), where x and x' are input vectors, and lengthscale is a hyperparameter that controls the smoothness of the resulting function. The RBF kernel is infinitely differentiable, which makes it a good choice for modelling smooth functions.
+
+Matérn kernel: The Matérn kernel is a generalization of the RBF kernel that can handle non-smooth functions. It is defined as k(x, x') = σ^2 * (1 + √(3) * ||x - x'|| / lengthscale) * exp(-√(3) * ||x - x'|| / lengthscale), where σ^2 is a variance hyperparameter. The Matérn kernel has a tunable parameter ν that determines the smoothness of the resulting function, and it can take on different values for differentiability levels.
+
+Periodic kernel: The periodic kernel is used for modeling periodic functions. It is defined as k(x, x') = exp(-2 * sin^2(π * ||x - x'|| / period) / lengthscale^2), where period is the period of the function and lengthscale controls the smoothness. The periodic kernel can be combined with other kernels to model functions with both periodic and non-periodic components.
+
+Linear kernel: The linear kernel is defined as k(x, x') = x^T x', where x and x' are input vectors. It is useful for modelling functions that are linear or close to linear.
+
+The virtues of different kernel functions depend on the nature of the data being modelled and the optimization problem being solved. In general, a good kernel function should be flexible enough to capture the underlying structure of the data, but not so flexible that it overfits the data. The choice of kernel function and its hyperparameters can have a significant impact on the performance of Gaussian processes and Bayesian optimization, so it is important to choose them carefully and experiment with different options.
+
+### Discrete kernels
+
+Kernels for discrete inputs are used in cases where the input variables are categorical or discrete, rather than continuous. These kernels are also known as similarity functions or distance measures. Here are some examples of kernels for discrete inputs:
+
+Hamming kernel: The Hamming kernel is a common kernel for discrete inputs. It measures the similarity between two input vectors by counting the number of positions where they differ. The Hamming kernel is defined as k(x, x') = ∑(i=1 to n) (x_i != x'_i), where x and x' are input vectors of length n, and != denotes inequality.
+
+Jaccard kernel: The Jaccard kernel is another kernel that is used for binary or categorical inputs. It measures the similarity between two input vectors by computing the ratio of the number of positions where they agree to the total number of positions. The Jaccard kernel is defined as k(x, x') = |x ∩ x'| / |x ∪ x'|, where x and x' are input vectors, and ∩ and ∪ denote the intersection and union operations, respectively.
+
+Cosine kernel: The cosine kernel is commonly used for text data or other high-dimensional sparse data. It measures the similarity between two input vectors as the cosine of the angle between them. The cosine kernel is defined as k(x, x') = (x · x') / (||x|| ||x'||), where x and x' are input vectors, · denotes the dot product, and ||·|| denotes the Euclidean norm.
+
+Levenshtein kernel: The Levenshtein kernel is used for measuring the similarity between two strings or sequences. It is based on the Levenshtein distance, which is the minimum number of insertions, deletions, or substitutions needed to transform one string into another. The Levenshtein kernel is defined as k(x, x') = 1 - d(x, x') / max(|x|, |x'|), where d(x, x') is the Levenshtein distance between x and x', and |·| denotes the length of a string or sequence.
+
+These are just a few examples of kernels for discrete inputs. The choice of kernel depends on the nature of the data being modeled and the specific problem being solved. In general, the kernel should be chosen to capture the relevant similarity or distance between the input variables.
 
 ### Linear Kernel
 
+$$ K_L(\boldsymbol{x}, \boldsymbol{x'}) = \boldsymbol{x}^T \boldsymbol{x'} $$
+
+It is appropriate to use the linear kernel in cases where the relationship between the input variables is believed to be roughly linear.
+
+Unlike some other kernel functions, such as the Gaussian kernel or the polynomial kernel, the linear kernel does not have any hyperparameters that need to be set or tuned. This can make it a convenient and efficient choice for certain applications, as it requires less computational resources and does not require extensive parameter tuning.
+
+```{r}
+linear_kernel <- function(X1, X2) {
+  if (is.vector(X1)) {
+    X1 <- matrix(X1, nrow = length(X1), ncol = 1)
+  }
+  if (is.vector(X2)) {
+    X2 <- matrix(X2, nrow = length(X2), ncol = 1)
+  }
+  return(X1 %*% t(X2))
+}
+```
+
+
 ### RBF Kernel
 
+$$k(\mathbf{x}_i, \mathbf{x}_j) = \sigma_f^2 \exp\left(-\frac{1}{2}\frac{\lVert \mathbf{x}_i - \mathbf{x}_j\rVert^2}{l^2}\right)$$
+
+The length scale parameter $l$ in the RBF kernel controls the smoothness and the range of influence of the kernel. It determines how quickly the similarity between two input points decreases as their distance increases.
+
+Intuitively, the length scale parameter $l$ can be thought of as the characteristic length scale of the underlying function that generates the data. If the length scale is small, it implies that the function varies rapidly over small distances, and the kernel will be sensitive to small changes in the input. On the other hand, if the length scale is large, it implies that the function varies slowly over large distances, and the kernel will be less sensitive to small changes in the input.
+
+For example, consider the case of modelling a spatial process with the RBF kernel. If the length scale is small, it implies that nearby locations have very different values, and the kernel will assign a low similarity between them. In contrast, if the length scale is large, it implies that nearby locations have similar values, and the kernel will assign a high similarity between them. Similarly, in the case of time series data, a smaller length scale implies that the kernel is more sensitive to rapid changes in the signal, while a larger length scale implies that the kernel is more sensitive to slower trends and patterns.
+
+```{r}
+rbf_kernel <- function(X1, X2, l) {
+  # Compute pairwise Euclidean distance between X1 and X2
+  dist_mat <- as.matrix(dist(rbind(X1, X2)))
+  K <- exp(- dist_mat^2 / (2 * l^2))
+  
+  # Extract the submatrices corresponding to K(X1, X1), K(X1, X2), K(X2, X1), K(X2, X2)
+  n1 <- nrow(X1)
+  n2 <- nrow(X2)
+  K11 <- K[1:n1, 1:n1]
+  K12 <- K[1:n1, (n1 + 1):(n1 + n2)]
+  K21 <- K[(n1 + 1):(n1 + n2), 1:n1]
+  K22 <- K[(n1 + 1):(n1 + n2), (n1 + 1):(n1 + n2)]
+  
+  # Return the kernel matrix K
+  return(K)
+}
+```
+
 ### Matérn Kernel
+
+$$ k_{\mathrm{Matern}}(r) = \frac{1}{\Gamma(\nu)2^{\nu-1}}\left(\frac{\sqrt{2\nu}r}{l}\right)^\nu K_\nu\left(\frac{\sqrt{2\nu}r}{l}\right) $$
+
+```{r}
+matern_kernel <- function(X1, X2, nu, l) {
+  # Compute Euclidean distance between each pair of rows
+  dist_mat <- as.matrix(dist(rbind(X1, X2)))
+  dist_X1X2 <- dist_mat[1:nrow(X1), (nrow(X1)+1):nrow(dist_mat)]
+
+  # Compute the kernel
+  sqrt_2nu_over_l <- sqrt(2 * nu) / l
+  term1 <- ((2^(1 - nu)) / gamma(nu)) * ((sqrt_2nu_over_l) ^ nu) * dist_X1X2 ^ nu
+  term2 <- besselK(sqrt_2nu_over_l * dist_X1X2, nu)
+  K <- term1 * term2
+
+  return(K)
+}
+```
+
 
 ### Periodic Kernels
 
