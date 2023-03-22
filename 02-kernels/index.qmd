@@ -6,7 +6,7 @@ format:
   html:
     fig-width: 8
     fig-height: 5
-    theme: none
+    theme: default
 html-math-method:
   method: katex
 ---
@@ -32,19 +32,33 @@ Linear kernel: The linear kernel is defined as k(x, x') = x^T x', where x and x'
 
 The virtues of different kernel functions depend on the nature of the data being modelled and the optimization problem being solved. In general, a good kernel function should be flexible enough to capture the underlying structure of the data, but not so flexible that it overfits the data. The choice of kernel function and its hyperparameters can have a significant impact on the performance of Gaussian processes and Bayesian optimization, so it is important to choose them carefully and experiment with different options.
 
-### Discrete kernels
+```{r}
+library(ggplot2)
 
-Kernels for discrete inputs are used in cases where the input variables are categorical or discrete, rather than continuous. These kernels are also known as similarity functions or distance measures. Here are some examples of kernels for discrete inputs:
+# Define kernel function
+my_kernel <- function(x, y) {
+  exp(-0.5 * sum((x - y)^2))
+}
 
-Hamming kernel: The Hamming kernel is a common kernel for discrete inputs. It measures the similarity between two input vectors by counting the number of positions where they differ. The Hamming kernel is defined as k(x, x') = ∑(i=1 to n) (x_i != x'_i), where x and x' are input vectors of length n, and != denotes inequality.
+# Set range of distances to evaluate
+distances <- seq(0, 3, by = 0.05)
 
-Jaccard kernel: The Jaccard kernel is another kernel that is used for binary or categorical inputs. It measures the similarity between two input vectors by computing the ratio of the number of positions where they agree to the total number of positions. The Jaccard kernel is defined as k(x, x') = |x ∩ x'| / |x ∪ x'|, where x and x' are input vectors, and ∩ and ∪ denote the intersection and union operations, respectively.
+# Compute kernel values for each distance
+kernel_values <- sapply(distances, function(d) my_kernel(c(0, 0), c(d, 0)))
 
-Cosine kernel: The cosine kernel is commonly used for text data or other high-dimensional sparse data. It measures the similarity between two input vectors as the cosine of the angle between them. The cosine kernel is defined as k(x, x') = (x · x') / (||x|| ||x'||), where x and x' are input vectors, · denotes the dot product, and ||·|| denotes the Euclidean norm.
+# Combine distances and kernel values into a data frame
+df <- data.frame(distance = distances, kernel_value = kernel_values)
 
-Levenshtein kernel: The Levenshtein kernel is used for measuring the similarity between two strings or sequences. It is based on the Levenshtein distance, which is the minimum number of insertions, deletions, or substitutions needed to transform one string into another. The Levenshtein kernel is defined as k(x, x') = 1 - d(x, x') / max(|x|, |x'|), where d(x, x') is the Levenshtein distance between x and x', and |·| denotes the length of a string or sequence.
+# Create plot using ggplot2
+ggplot(df, aes(x = distance, y = kernel_value)) + 
+  geom_line() + 
+  labs(x = "Distance", y = "Kernel Value") +
+  theme_minimal()
 
-These are just a few examples of kernels for discrete inputs. The choice of kernel depends on the nature of the data being modeled and the specific problem being solved. In general, the kernel should be chosen to capture the relevant similarity or distance between the input variables.
+
+```
+
+
 
 ### Linear Kernel
 
@@ -116,13 +130,214 @@ matern_kernel <- function(X1, X2, nu, l) {
 }
 ```
 
+#### Rational Quadratic Kernel
+
+The Rational Quadratic Kernel is a stationary kernel that is often used in Gaussian process regression to model functions with a mixture of different length scales. It is defined as:
+
+$$k_{\text{RQ}}(x, x') = \left(1 + \frac{(x - x')^2}{2\alpha \ell^2}\right)^{-\alpha}$$
+
+Advantages:
+
+The Rational Quadratic Kernel can model functions with a mixture of different length scales, making it useful for problems where the function may have both local and global variations.
+The shape parameter $\alpha$ controls the smoothness of the function, allowing the kernel to model both smooth and non-smooth functions.
+The Rational Quadratic Kernel is flexible and can be combined with other kernel functions to create more complex covariance structures.
+
+Pitfalls:
+
+The Rational Quadratic Kernel has an additional hyperparameter, $\alpha$, that needs to be tuned. This can make the kernel more difficult to use in practice.
+The Rational Quadratic Kernel can be sensitive to the choice of length scale parameter $\ell$. Choosing an appropriate length scale can be challenging, especially when the input space is high-dimensional.
+The Rational Quadratic Kernel can be computationally expensive to evaluate, especially for large datasets, since it involves computing pairwise distances between all pairs of input points.
+
+
 
 ### Periodic Kernels
 
+$$k_{\mathrm{per}}(\mathbf{x}_i, \mathbf{x}_j) = \sigma^2 \exp\left(-\frac{2\sin^2\left(\frac{\pi}{p}\|\mathbf{x}_i-\mathbf{x}_j\|\right)}{\ell^2}\right)$$
+
+```{r}
+# Define the Periodic Kernel function
+periodic_kernel <- function(X1, X2, sigma2, length_scale, period) {
+  # Calculate pairwise distances between input points
+  D <- as.matrix(dist(rbind(X1, X2)))
+  
+  # Calculate the kernel matrix element for each pair of input points
+  K <- sigma2 * exp(-2 * sin(pi * D / period)^2 / length_scale^2)
+  
+  # Return the covariance matrix
+  return(K[1:length(X1), (length(X1)+1):(length(X1)+length(X2))])
+}
+
+```
+
+Advantages:
+
+The Periodic Kernel can model functions with periodic behavior, such as seasonal trends in time series data or oscillatory patterns in spatial data.
+The Periodic Kernel is able to capture long-term periodicity and short-term variations in the function.
+The Periodic Kernel can be combined with other kernel functions to model more complex covariance structures.
+
+Pitfalls:
+
+The Periodic Kernel has an additional hyperparameter, the period parameter, that needs to be tuned. The choice of period can have a significant impact on the model performance, and finding an appropriate value can be challenging.
+The Periodic Kernel may not be suitable for modeling functions with non-periodic behavior. If the function being modeled does not exhibit periodicity, using the Periodic Kernel may lead to poor model performance.
+The Periodic Kernel can be computationally expensive to evaluate, especially for large datasets, since it involves computing pairwise distances between all pairs of input points.
+
 ### Discrete Kernels
 
+Kronecker Delta Kernel: This kernel assigns a value of 1 to pairs of input points that are equal and a value of 0 otherwise. It is often used to model categorical data.
+
+Ordinal Kernel
+
+Histogram Intersection Kernel
+
+Spectral Kernel
+
+Dirichlet Process Kernel
+
+Jaccard kernel
+
+Cosine kernel
+
+Levenshtein kernel
+
+#### Hamming kernel
+
+$$k(x, x') = \frac{1}{L}\sum_{i=1}^{L} [x_i = x'_i]$$
+
+The Hamming Kernel is a discrete kernel function that is commonly used for modeling binary data, such as DNA sequences. It assigns a value of 1 to pairs of input points that have the same binary code and a value of 0 otherwise. The Hamming distance between two binary strings is the number of positions in which they differ.
+
+```{r}
+hamming_kernel <- function(x, y) {
+  L <- length(x)
+  kernel <- sum(x == y) / L
+  return(kernel)
+}
+
+```
+
+
+Chi-squared Kernel
+
+$$K(\mathbf{x}, \mathbf{y}) = \exp\left(-\frac{1}{2}\sum_{i=1}^{n} \frac{(x_i-y_i)^2}{x_i+y_i}\right)$$
+
+Intuitively, the chi-squared kernel measures the similarity between two histograms by comparing the differences between their corresponding bins, taking into account the size of each bin. The kernel is normalized so that its values lie between 0 and 1, where a value of 1 indicates identical histograms and a value of 0 indicates completely dissimilar histograms.
+
+```{r}
+chi_squared_kernel <- function(x, y) {
+  # x: vector of histogram bin counts or probabilities
+  # y: vector of histogram bin counts or probabilities
+  
+  # Check that x and y have the same length
+  if (length(x) != length(y)) {
+    stop("Input vectors must have the same length")
+  }
+  
+  # Compute chi-squared distance between x and y
+  dist <- sum((x - y)^2 / (x + y))
+  
+  # Compute chi-squared kernel using distance
+  kernel <- exp(-0.5 * dist)
+  
+  return(kernel)
+}
+
+```
+
+
+Lattice Kernel
+
+Product Kernel
+
 ## What are anisotropic kernels and how to implement them?
+
+Anisotropic kernels are covariance functions in Gaussian process regression that allow for different levels of smoothness in different directions or dimensions of the input space. In other words, the kernel is "stretched" or "compressed" in certain directions, which can be useful when the input variables have different units or scales.
+
+The anisotropy of a kernel is controlled by one or more length scales, which specify the characteristic length of variations in the input space along each dimension. In isotropic kernels, there is a single length scale that controls the smoothness in all dimensions, whereas in anisotropic kernels there can be multiple length scales, one for each dimension.
+
+Examples of anisotropic kernels include the RBF kernel and the Matern kernel with anisotropic length scales.
+
+The use of anisotropic kernels can improve the predictive accuracy of Gaussian process models when the input variables have different levels of variability or when the correlations between variables vary in different directions. However, anisotropic kernels can also increase the complexity of the model and require more computational resources for optimization and inference.
+
+```{r}
+# Anisotropic RBF kernel (vectorized)
+aniso_rbf_kernel <- function(X1, X2, gamma, l) {
+  # X1: n x p matrix
+  # X2: m x p matrix
+  # gamma: scalar, the kernel width parameter
+  # l: p-dimensional vector, the length scale parameter
+  
+  n <- nrow(X1)
+  m <- nrow(X2)
+  
+  # Compute the squared Euclidean distance between every pair of points
+  D <- -2 * crossprod(X1, X2, sparse = TRUE) +
+    rowSums(X1^2) %*% rep(1, m) +
+    rep(1, n) %*% t(colSums(X2^2))
+  D <- sqrt(max(0, D))
+  
+  # Compute the kernel matrix using the RBF kernel function
+  K <- exp(-gamma * (D^2 / outer(l^2, rep(1, m), "*")))
+  
+  return(K)
+}
+
+```
+
 
 ## Adding Noise to Kernels
 
 ## Combining Kernels
+
+Kernels can be combined in several ways to create more powerful and flexible kernel functions. Here are some common ways to combine kernels:
+
+### Combined Homogenous Kernels
+
+Summation: Two or more kernels can be added together to create a new kernel that captures the features of both. For example, if you have two kernels K1 and K2, you can combine them as K = K1 + K2. The resulting kernel K will assign high values to pairs of points that are similar in either K1 or K2.
+
+Product: Two or more kernels can be multiplied together to create a new kernel that captures the features of both. For example, if you have two kernels K1 and K2, you can combine them as K = K1 * K2. The resulting kernel K will assign high values to pairs of points that are similar in both K1 and K2.
+
+Convolution: Two or more kernels can be convolved together to create a new kernel that captures the features of both. For example, if you have two kernels K1 and K2, you can combine them as K = K1 * K2, where * represents convolution. The resulting kernel K will assign high values to pairs of points that are similar in both K1 and K2, but will also capture more complex patterns that cannot be captured by either kernel alone.
+
+Weighted combination: Two or more kernels can be combined as a weighted sum to create a new kernel that assigns different weights to each kernel. For example, if you have two kernels K1 and K2, you can combine them as K = w1 * K1 + w2 * K2, where w1 and w2 are the weights assigned to K1 and K2, respectively. The resulting kernel K will assign high values to pairs of points that are similar in either K1 or K2, but the weights can be adjusted to give more importance to one kernel over the other.
+
+Power: A kernel can be raised to a power to create a new kernel that captures higher-order patterns. For example, if you have a kernel K, you can raise it to the power of p as K = K^p. The resulting kernel K will assign high values to pairs of points that are similar in K, but will also capture higher-order patterns that cannot be captured by K alone.
+
+By combining kernels in different ways, you can create more complex and flexible kernel functions that can capture a wide range of patterns in the input data.
+
+### Combined Heterogenous Kernels
+
+The idea behind using heterogeneous kernels is to allow the model to capture different types of patterns in different dimensions of the input data. For example, if you have a dataset with features that have different types of scales, you might want to use a linear kernel for the features that are on a similar scale and a radial basis function (RBF) kernel for the features that have a different scale. Another example is in natural language processing, where a bag-of-words representation can be combined with a kernel that captures syntactic or semantic relations between words.
+
+```{r}
+mixed_kernel <- function(X1, X2, gamma, l, kernel_type) {
+  # X1: n x p matrix
+  # X2: m x p matrix
+  # gamma: scalar, the kernel width parameter
+  # l: p-dimensional vector, the length scale parameter
+  # kernel_type: p-dimensional vector, specifies the kernel type for each dimension
+  
+  n <- nrow(X1)
+  m <- nrow(X2)
+  p <- ncol(X1)
+  
+  # Initialize kernel matrix to zeros
+  K <- matrix(0, n, m)
+  
+  for (i in 1:p) {
+    # Compute kernel matrix for current dimension
+    if (kernel_type[i] == "rbf") {
+      K_i <- exp(-gamma * ((X1[,i] %*% t(rep(1,m)))^2 + (rep(1,n) %*% t(X2[,i]))^2 - 2*X1[,i] %*% t(X2[,i])) / l[i]^2)
+    } else if (kernel_type[i] == "linear") {
+      K_i <- X1[,i] %*% t(X2[,i])
+    } else {
+      stop("Unsupported kernel type")
+    }
+    
+    # Add kernel matrix to mixed kernel matrix
+    K <- K + K_i
+  }
+  
+  return(K)
+}
+
+```
+
