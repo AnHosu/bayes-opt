@@ -10,25 +10,50 @@ format:
 html-math-method:
   method: katex
 ---
-## What role do kernels play in Gaussian processes and Bayesian optimisation?
 
-Kernels, also known as covariance functions, are central to Gaussian processes and Bayesian optimization.
+This post takes an extensive look at kernels and discusses the rationales, applications, and limitations of some popular kernels.
 
-In Gaussian processes, a kernel function defines the covariance between any two points in a dataset, where the covariance describes how much two points are correlated with each other. The kernel function determines the smoothness and complexity of the resulting Gaussian process model, and it controls how much weight is given to different regions of the input space. Different types of kernel functions can be used to model different types of data, such as periodic or spatial data.
+Kernels, also known as covariance functions or kernel functions, are central to Gaussian processes and Bayesian optimisation. They provide the main means of implementing prior knowledge about the modelled process into Bayesian optimisation or any other machine learning procedure that takes advantage of kernels.
 
-In Bayesian optimization, kernels are used to define a prior distribution over the objective function being optimized. The choice of kernel function reflects our prior belief about the shape and characteristics of the function.
+In Gaussian processes, kernel functions define the covariance between any two points in a dataset. Intuitively, kernels quantify how similar two points are, given just their position in input space. The kernel function determines the smoothness and complexity of the resulting Gaussian process model, and it controls how much weight is given to different regions of the input space. Different types of kernel functions can be used to model different types of data, such as periodic or spatial data.
 
-## What are some examples of kernel functions? What are their virtues?
+Bayesian optimisation, extensively employs Gaussian processes, so kernels provide the main means of define a prior distribution over the objective function being optimised. There are a plethora of kernels available, and for successful implementations of Bayesian optimisation, selecting the right one is essential but difficult.
 
-There are many types of kernel functions that can be used in Gaussian processes and Bayesian optimization. Here are some examples:
+## Types of Kernels
 
-Radial basis function (RBF) kernel: The RBF kernel is a popular choice for Gaussian processes and Bayesian optimization. It is defined as k(x, x') = exp(-||x - x'||^2 / (2 * lengthscale^2)), where x and x' are input vectors, and lengthscale is a hyperparameter that controls the smoothness of the resulting function. The RBF kernel is infinitely differentiable, which makes it a good choice for modelling smooth functions.
+Formally, a kernel function $k(\mathbf{x},\mathbf{x'})$ takes two inputs, $\mathbf{x}$ and $\mathbf{x'}$, and returns a real-valued scalar that represents a similarity or dissimilarity measure between them.
 
-Matérn kernel: The Matérn kernel is a generalization of the RBF kernel that can handle non-smooth functions. It is defined as k(x, x') = σ^2 * (1 + √(3) * ||x - x'|| / lengthscale) * exp(-√(3) * ||x - x'|| / lengthscale), where σ^2 is a variance hyperparameter. The Matérn kernel has a tunable parameter ν that determines the smoothness of the resulting function, and it can take on different values for differentiability levels.
+A kernel function must be positive semi-definite (PSD) and symmetric. This means that for any set of $n$ input vectors ${\mathbf{x}_1, \ldots, \mathbf{x}n}$, the kernel matrix $\mathbf{\Sigma}$, defined as $\mathbf{\Sigma}{i,j} = k(\mathbf{x}_i, \mathbf{x}_j)$, must be PSD and symmetric. The PSD property ensures that the kernel matrix can be used in positive semidefinite programming formulations, such as in SVMs and kernel ridge regression, while the symmetry property ensures that the kernel measures similarity in a symmetric way between the two objects.
 
-Periodic kernel: The periodic kernel is used for modeling periodic functions. It is defined as k(x, x') = exp(-2 * sin^2(π * ||x - x'|| / period) / lengthscale^2), where period is the period of the function and lengthscale controls the smoothness. The periodic kernel can be combined with other kernels to model functions with both periodic and non-periodic components.
+#### Stationary Kernels
 
-Linear kernel: The linear kernel is defined as k(x, x') = x^T x', where x and x' are input vectors. It is useful for modelling functions that are linear or close to linear.
+Stationary kernels are a class of kernel functions that are invariant to translations in the input space. Mathematically, a kernel function $k(\mathbf{x}, \mathbf{x'})$ is stationary if it depends only on the difference between its arguments, $\mathbf{x}-\mathbf{x'}$, and not on their absolute values. Formally, a kernel function $k(\mathbf{x}, \mathbf{x'})$ is stationary if and only if:
+
+$$k(\mathbf{x}, \mathbf{x'}) = k(\mathbf{x} + a, \mathbf{x'} + a)$$
+
+for all inputs $\mathbf{x}$ and $\mathbf{x'}$ and all $a$.
+
+Exampels include the Radial Basis Function (RBF) kernel and the Rational Quadratic (RQ) kernel.
+
+#### Periodic Kernels
+
+Periodic kernels are a class of kernel functions that exhibit periodicity in the input space. Mathematically, a periodic kernel function $k(\mathbf{x}, \mathbf{x'})$ is periodic if it depends on the difference between its arguments, $\mathbf{x}-\mathbf{x'}$, as well as their absolute values. Formally, a periodic kernel function $k(\mathbf{x}, \mathbf{x'})$ is periodic if and only if:
+
+$$k(\mathbf{x}, \mathbf{x'}) = k(\mathbf{x}-\mathbf{x'}) = k(\mathbf{x}+n\omega, \mathbf{x'}+n\omega)$$
+
+for all inputs $\mathbf{x}$ and $\mathbf{x'}$ and all integers $n$, where $omega$ is the period of the kernel.
+
+Exampels
+
+#### Other Non-stationary Kernels
+
+Unlike stationary kernels, non-stationary kernels can depend on the absolute values of their inputs, and their correlation function may vary with the location of the inputs.
+
+Non-stationary kernels are often used when the underlying function being modelled exhibits varying behaviour or has different characteristics in different regions of the input space. For example, if the function being modelled changes rapidly in some regions and slowly in others, a non-stationary kernel may be more appropriate than a stationary kernel.
+
+An example of a non-stationary kernel is the linear kernel.
+
+## Choosing the right kernel
 
 The virtues of different kernel functions depend on the nature of the data being modelled and the optimization problem being solved. In general, a good kernel function should be flexible enough to capture the underlying structure of the data, but not so flexible that it overfits the data. The choice of kernel function and its hyperparameters can have a significant impact on the performance of Gaussian processes and Bayesian optimization, so it is important to choose them carefully and experiment with different options.
 
