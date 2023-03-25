@@ -69,30 +69,89 @@ However, without knowing the virtues, pitfalls, and assumptions of a kernel, it 
 Before going there, however, two things are needed. First, we need a nice way to plot the kernel function
 
 ```{r}
-# Define kernel function
-my_kernel <- function(x, y) {
-  exp(-0.5 * sum((x - y)^2))
+plot_kernel_value <- function(kernel, ...) {
+  tibble::tibble(
+    X1 = seq(0, 5, by = 0.05),
+    X2 = rep(0, length(X1)),
+    kv = purrr::map2_dbl(X1, X2, kernel, ...)
+  ) %>%
+    ggplot(aes(x = X1, y = kv)) +
+    geom_line() +
+    labs(x = "1st dimension", y = "kernel value") +
+    theme_minimal()
 }
-
-# Set range of distances to evaluate
-distances <- seq(0, 3, by = 0.05)
-
-# Compute kernel values for each distance
-kernel_values <- sapply(distances, function(d) my_kernel(c(0, 0), c(d, 0)))
-
-# Combine distances and kernel values into a data frame
-df <- data.frame(distance = distances, kernel_value = kernel_values)
-
-# Create plot using ggplot2
-ggplot(df, aes(x = distance, y = kernel_value)) + 
-  geom_line() + 
-  labs(x = "Distance", y = "Kernel Value") +
-  theme_minimal()
-
-
 ```
 
+```{r}
+#' Random Samples from a Multivariate Gaussian
+#' 
+#' This implementation is similar to MASS::mvrnorm, but uses chlosky
+#' decomposition instead. This should be more stable but is less efficient than
+#' the MASS implementation, which recycles the eigen decomposition for the
+#' sampling part.
+#'
+#' @param n number of samples to sample
+#' @param mu the mean of each input dimension
+#' @param sigma the covariance matrix
+#' @param epsilon numerical tolerance added to the diagonal of the covariance
+#'  matrix. This is necessary for the Cholesky decomposition, in some cases.
+#'
+#' @return numerical vector of n samples
+rmvnorm <- function(n = 1, mu, sigma, epsilon = 1e-6) {
+    p <- length(mu)
+    if(!all(dim(sigma) == c(p, p))) stop("incompatible dimensions of arguments")
+    ev <- eigen(sigma, symmetric = TRUE)$values
+    if(!all(ev >= -epsilon*abs(ev[1L]))) {
+      stop("The covariance matrix (sigma) is not positive definite")
+    }
+    cholesky <- chol(sigma + diag(p)*epsilon)
+    sample <- rnorm(p*n, 0, 1)
+    dim(sample) <- c(n, p)
+    sweep(sample %*% cholesky, 2, mu, FUN = `+`)
+}
 
+plot_gp <- function(kernel, ...) {
+  n_samples <- 5
+  X_predict <- matrix(seq(-5, 5, length.out = 100), 100, 1)
+  mu <- rep(0, times = length(X_predict))
+  sigma <- rlang::exec(kernel, X1 = X_predict, X2 = X_predict, ...)
+  samples <- rmvnorm(n = n_samples, mu, sigma)
+  p <- tibble::as_tibble(
+    t(samples),
+    .name_repair = ~ paste("sample", seq(1, n_samples))
+  ) %>%
+    dplyr::mutate(
+    x = X_predict,
+    uncertainty = 1.6*sqrt(diag(sigma)),
+    mu = mu,
+    lower = mu - uncertainty,
+    upper = mu + uncertainty
+  ) %>%
+    ggplot(aes(x = x)) +
+    geom_ribbon(
+      aes(ymin = lower, ymax = upper, fill = "89% interval"),
+      alpha = 0.2
+    ) +
+    geom_line(aes(y = mu, colour = "Mean")) +
+    theme_minimal() +
+    labs(
+      y = "y",
+      x = "x",
+      colour = "",
+      fill = ""
+    ) +
+    theme(panel.grid = element_blank())
+  Reduce(
+    `+`,
+    init = p,
+    x = lapply(paste("sample", seq(1, n_samples)), function(s) {
+      geom_line(aes(y = .data[[s]], colour = s), linetype = 2)
+    })
+  ) +
+    scale_colour_brewer(palette = "YlGnBu") +
+    scale_fill_manual(values = list("89% interval" = "#219ebc"))
+}
+```
 
 ### Linear Kernel
 
@@ -103,15 +162,19 @@ It is appropriate to use the linear kernel in cases where the relationship betwe
 Unlike some other kernel functions, such as the Gaussian kernel or the polynomial kernel, the linear kernel does not have any hyperparameters that need to be set or tuned. This can make it a convenient and efficient choice for certain applications, as it requires less computational resources and does not require extensive parameter tuning.
 
 ```{r}
-linear_kernel <- function(X1, X2) {
-  if (is.vector(X1)) {
-    X1 <- matrix(X1, nrow = length(X1), ncol = 1)
-  }
-  if (is.vector(X2)) {
-    X2 <- matrix(X2, nrow = length(X2), ncol = 1)
-  }
-  return(X1 %*% t(X2))
+linear_kernel <- function(X1, X2, alpha = 0, sigma = 0) {
+  if (is.null(dim(X1))) dim(X1) <- c(1, length(X1))
+  if (is.null(dim(X2))) dim(X2) <- c(1, length(X2))
+  sigma^2 + (X1 - alpha) %*% t(X2 - alpha)
 }
+```
+
+```{r plot-linear-kernel}
+plot_kernel_value(linear_kernel, alpha = 1, sigma = 0)
+```
+
+```{r}
+plot_gp(linear_kernel)
 ```
 
 
@@ -126,22 +189,30 @@ Intuitively, the length scale parameter $l$ can be thought of as the characteris
 For example, consider the case of modelling a spatial process with the RBF kernel. If the length scale is small, it implies that nearby locations have very different values, and the kernel will assign a low similarity between them. In contrast, if the length scale is large, it implies that nearby locations have similar values, and the kernel will assign a high similarity between them. Similarly, in the case of time series data, a smaller length scale implies that the kernel is more sensitive to rapid changes in the signal, while a larger length scale implies that the kernel is more sensitive to slower trends and patterns.
 
 ```{r}
-rbf_kernel <- function(X1, X2, l) {
-  # Compute pairwise Euclidean distance between X1 and X2
-  dist_mat <- as.matrix(dist(rbind(X1, X2)))
-  K <- exp(- dist_mat^2 / (2 * l^2))
-  
-  # Extract the submatrices corresponding to K(X1, X1), K(X1, X2), K(X2, X1), K(X2, X2)
-  n1 <- nrow(X1)
-  n2 <- nrow(X2)
-  K11 <- K[1:n1, 1:n1]
-  K12 <- K[1:n1, (n1 + 1):(n1 + n2)]
-  K21 <- K[(n1 + 1):(n1 + n2), 1:n1]
-  K22 <- K[(n1 + 1):(n1 + n2), (n1 + 1):(n1 + n2)]
-  
-  # Return the kernel matrix K
-  return(K)
+#' RBF Kernel
+#'
+#' @param X1 matrix of dimensions (n, d). Vectors are coerced to (1, d).
+#' @param X2 matrix of dimensions (m, d). Vectors are coerced to (1, d).
+#' @param l length scale
+#' @param sigma_f scale parameter 
+#'
+#' @return matrix of dimensions (n, m)
+rbf_kernel <- function(X1, X2, l = 1.0, sigma_f = 1.0) {
+  if (is.null(dim(X1))) dim(X1) <- c(1, length(X1))
+  if (is.null(dim(X2))) dim(X2) <- c(1, length(X2))
+  sqdist <- (- 2*(X1 %*% t(X2))) %>%
+    add(rowSums(X1**2, dims = 1)) %>%
+    sweep(2, rowSums(X2**2, dims = 1), `+`)
+  sigma_f**2 * exp(-0.5 / l**2 * sqdist)
 }
+```
+
+```{r}
+plot_kernel_value(rbf_kernel)
+```
+
+```{r}
+plot_gp(rbf_kernel)
 ```
 
 ### Matérn Kernel
