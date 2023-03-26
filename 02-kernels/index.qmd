@@ -29,7 +29,7 @@ Bayesian optimisation, extensively employs Gaussian processes, so kernels provid
 
 Formally, a kernel function $k(\mathbf{x},\mathbf{x'})$ takes two inputs, $\mathbf{x}$ and $\mathbf{x'}$, and returns a real-valued scalar that represents a similarity measure between them.
 
-A kernel function must be positive semi-definite (PSD) and symmetric. This means that for any set of $n$ input vectors ${\mathbf{x}_1, \ldots, \mathbf{x}n}$, the kernel matrix $\mathbf{\Sigma}$, defined as $\mathbf{\Sigma}{i,j} = k(\mathbf{x}_i, \mathbf{x}_j)$, must be PSD and symmetric. The PSD property ensures that the kernel matrix can be applied as the covariance matrix in a Gaussian process.
+A kernel function must be positive semi-definite (PSD). This means that the kernel matrix, $\mathbf{\Sigma}$, constructed from any set of $n$ input row vectors ${\mathbf{x}_1, \ldots, \mathbf{x}_n}$, must be PSD. The entries of the kernel matrix are defined as $\mathbf{\Sigma}_{i,j} = k(\mathbf{x}_i, \mathbf{x}_j)$, for all combinations of $i, j \in (1, \ldots, n)$. The PSD property ensures that the kernel matrix can be applied as the covariance matrix in a Gaussian process.
 
 There are several categories of functions that adhere to these general definitions, and some of them add additional conditions.
 
@@ -49,7 +49,7 @@ Periodic kernels are a class of kernel functions that exhibit periodicity in the
 
 $$k(\mathbf{x}, \mathbf{x'}) = k(\mathbf{x}-\mathbf{x'}) = k(\mathbf{x}+n\omega, \mathbf{x'}+n\omega)$$
 
-for all inputs $\mathbf{x}$ and $\mathbf{x'}$ and all integers $n$, where $omega$ is the period of the kernel.
+for all inputs $\mathbf{x}$ and $\mathbf{x'}$ and all integers $n$, where $\omega$ is the period of the kernel.
 
 An example of a periodic kernel is the locally periodic kernel.
 
