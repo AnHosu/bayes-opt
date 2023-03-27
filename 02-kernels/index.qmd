@@ -21,13 +21,13 @@ This post takes an extensive look at kernels and discusses the rationales, appli
 
 Kernels, also known as covariance functions or kernel functions, are central to Gaussian processes and Bayesian optimisation. They provide the main means of implementing prior knowledge about the modelled process into Bayesian optimisation or any other machine learning procedure that takes advantage of kernels.
 
-In Gaussian processes, kernel functions define the covariance between any two points in a dataset. Intuitively, kernels quantify how similar two points are, given just their position in input space. The kernel function determines the smoothness and complexity of the resulting Gaussian process model, and it controls how much weight is given to different regions of the input space. Different types of kernel functions can be used to model different types of data, such as periodic or spatial data.
+Intuitively, kernels quantify how similar two points are, given just their position in input space. The kernel function determines the smoothness and complexity of the resulting Gaussian process model, and it controls how much weight is given to different regions of the input space. Different types of kernel functions can be used to model different types of data, such as periodic or spatial data.
 
-Bayesian optimisation, extensively employs Gaussian processes, so kernels provide the main means of define a prior distribution over the objective function being optimised. There are a plethora of kernels available, and for successful implementations of Bayesian optimisation, selecting the right one is essential but difficult.
+Bayesian optimisation extensively employs Gaussian processes, so kernels provide the main means of define a prior distribution over the objective function being optimised. There are a plethora of kernels available, and for successful implementations of Bayesian optimisation, selecting the right one is essential but difficult.
 
 ## Types of Kernels
 
-Formally, a kernel function $k(\mathbf{x},\mathbf{x'})$ takes two inputs, $\mathbf{x}$ and $\mathbf{x'}$, and returns a real-valued scalar that represents a similarity measure between them.
+Formally, a kernel function $k(\mathbf{x},\mathbf{x'})$ takes two inputs, $\mathbf{x}$ and $\mathbf{x'}$, and returns a real-valued scalar that represents a similarity measure between the inputs.
 
 A kernel function must be positive semi-definite (PSD). This means that the kernel matrix, $\mathbf{\Sigma}$, constructed from any set of $n$ input row vectors ${\mathbf{x}_1, \ldots, \mathbf{x}_n}$, must be PSD. The entries of the kernel matrix are defined as $\mathbf{\Sigma}_{i,j} = k(\mathbf{x}_i, \mathbf{x}_j)$, for all combinations of $i, j \in (1, \ldots, n)$. The PSD property ensures that the kernel matrix can be applied as the covariance matrix in a Gaussian process.
 
@@ -35,7 +35,7 @@ There are several categories of functions that adhere to these general definitio
 
 #### Stationary Kernels
 
-Stationary kernels are a class of kernel functions that are invariant to translations in the input space. Mathematically, a kernel function $k(\mathbf{x}, \mathbf{x'})$ is stationary if it depends only on the difference between its arguments, $\mathbf{x}-\mathbf{x'}$, and not on their absolute values. Formally, a kernel function $k(\mathbf{x}, \mathbf{x'})$ is stationary if and only if:
+Stationary kernels are a class of kernel functions that are invariant to translations in the input space. Mathematically, a kernel function is stationary if it depends only on the difference between its arguments, $\mathbf{x}-\mathbf{x'}$, and not on their absolute values. Formally, a kernel function $k(\mathbf{x}, \mathbf{x'})$ is stationary if and only if:
 
 $$k(\mathbf{x}, \mathbf{x'}) = k(\mathbf{x} + a, \mathbf{x'} + a)$$
 
@@ -65,8 +65,9 @@ An example of a non-stationary kernel is the linear kernel.
 
 In the context of a Gaussian process that should approximate an objective function, a good kernel function should be flexible enough to capture the underlying structure of the data, but not so flexible that it overfits the data. The choice of kernel function and its hyperparameters can have a significant impact on the performance of the Gaussian process and its application in Bayesian optimisation, so it is important to choose carefully and experiment with different options.
 
-However, without knowing the virtues, pitfalls, and assumptions of a kernel, it is difficult to assess its quality for a given problem. In the following sections, a selection of kernels and their virtues are discussed. 
-Before going there, however, two things are needed. First, we need a nice way to plot the kernel function
+However, without knowing the virtues, pitfalls, and assumptions of a kernel, it is difficult to assess its quality for a given problem. In the following sections, a selection of kernels and their virtues are discussed.
+
+To demonstrate the kernels, two plots are defined. The first plot simply draws the kernel function as a function of a hypothetical 1D input vector, with the other vector held constant.
 
 ```{r}
 plot_kernel_value <- function(kernel, ...) {
@@ -81,6 +82,8 @@ plot_kernel_value <- function(kernel, ...) {
     theme_minimal()
 }
 ```
+
+The next plot samples from the Gaussian process that uses the kernel function to calculate its covariance matrix. This essentially translates to sampling random functions.
 
 ```{r}
 #' Random Samples from a Multivariate Gaussian
@@ -170,7 +173,7 @@ linear_kernel <- function(X1, X2, alpha = 0, sigma = 0) {
 ```
 
 ```{r plot-linear-kernel}
-plot_kernel_value(linear_kernel, alpha = 1, sigma = 0)
+plot_kernel_value(linear_kernel, alpha = 1)
 ```
 
 ```{r}
