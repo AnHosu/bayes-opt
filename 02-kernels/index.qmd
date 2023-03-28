@@ -11,13 +11,13 @@ html-math-method:
   method: katex
 ---
 
+This post takes an extensive look at kernels and discusses the rationales, applications, and limitations of some popular kernels. Along with the discussion are implementations of many of the kernels with R and the Tidyverse.
+
 ```{r func, echo=TRUE}
 library(ggplot2)
 library(magrittr)
 set.seed(4444)
 ```
-
-This post takes an extensive look at kernels and discusses the rationales, applications, and limitations of some popular kernels.
 
 Kernels, also known as covariance functions or kernel functions, are central to Gaussian processes and Bayesian optimisation. They provide the main means of implementing prior knowledge about the modelled process into Bayesian optimisation or any other machine learning procedure that takes advantage of kernels.
 
@@ -25,43 +25,11 @@ Intuitively, kernels quantify how similar two points are, given just their posit
 
 Bayesian optimisation extensively employs Gaussian processes, so kernels provide the main means of define a prior distribution over the objective function being optimised. There are a plethora of kernels available, and for successful implementations of Bayesian optimisation, selecting the right one is essential but difficult.
 
-## Types of Kernels
+## Applying Kernels in Gaussian Processes
 
 Formally, a kernel function $k(\mathbf{x},\mathbf{x'})$ takes two inputs, $\mathbf{x}$ and $\mathbf{x'}$, and returns a real-valued scalar that represents a similarity measure between the inputs.
 
 A kernel function must be positive semi-definite (PSD). This means that the kernel matrix, $\mathbf{\Sigma}$, constructed from any set of $n$ input row vectors ${\mathbf{x}_1, \ldots, \mathbf{x}_n}$, must be PSD. The entries of the kernel matrix are defined as $\mathbf{\Sigma}_{i,j} = k(\mathbf{x}_i, \mathbf{x}_j)$, for all combinations of $i, j \in (1, \ldots, n)$. The PSD property ensures that the kernel matrix can be applied as the covariance matrix in a Gaussian process.
-
-There are several categories of functions that adhere to these general definitions, and some of them add additional conditions.
-
-#### Stationary Kernels
-
-Stationary kernels are a class of kernel functions that are invariant to translations in the input space. Mathematically, a kernel function is stationary if it depends only on the difference between its arguments, $\mathbf{x}-\mathbf{x'}$, and not on their absolute values. Formally, a kernel function $k(\mathbf{x}, \mathbf{x'})$ is stationary if and only if:
-
-$$k(\mathbf{x}, \mathbf{x'}) = k(\mathbf{x} + a, \mathbf{x'} + a)$$
-
-for all inputs $\mathbf{x}$ and $\mathbf{x'}$ and all $a$.
-
-Examples include the Radial Basis Function (RBF) kernel and the Rational Quadratic (RQ) kernel.
-
-#### Periodic Kernels
-
-Periodic kernels are a class of kernel functions that exhibit periodicity in the input space. Mathematically, a periodic kernel function $k(\mathbf{x}, \mathbf{x'})$ is periodic if it depends on the difference between its arguments, $\mathbf{x}-\mathbf{x'}$, as well as their absolute values. Formally, a periodic kernel function $k(\mathbf{x}, \mathbf{x'})$ is periodic if and only if:
-
-$$k(\mathbf{x}, \mathbf{x'}) = k(\mathbf{x}-\mathbf{x'}) = k(\mathbf{x}+n\omega, \mathbf{x'}+n\omega)$$
-
-for all inputs $\mathbf{x}$ and $\mathbf{x'}$ and all integers $n$, where $\omega$ is the period of the kernel.
-
-An example of a periodic kernel is the locally periodic kernel.
-
-#### Other Non-stationary Kernels
-
-Unlike stationary kernels, non-stationary kernels can depend on the absolute values of their inputs, and their correlation function may vary with the location of the inputs.
-
-Non-stationary kernels are often used when the underlying function being modelled exhibits varying behaviour or has different characteristics in different regions of the input space. For example, if the function being modelled changes rapidly in some regions and slowly in others, a non-stationary kernel may be more appropriate than a stationary kernel.
-
-An example of a non-stationary kernel is the linear kernel.
-
-## Choosing the right kernel
 
 In the context of a Gaussian process that should approximate an objective function, a good kernel function should be flexible enough to capture the underlying structure of the data, but not so flexible that it overfits the data. The choice of kernel function and its hyperparameters can have a significant impact on the performance of the Gaussian process and its application in Bayesian optimisation, so it is important to choose carefully and experiment with different options.
 
@@ -83,7 +51,7 @@ plot_kernel_value <- function(kernel, ...) {
 }
 ```
 
-The next plot samples from the Gaussian process that uses the kernel function to calculate its covariance matrix. This essentially translates to sampling random functions.
+The next plot samples from the Gaussian process that uses the kernel function to calculate its covariance matrix. This essentially translates to sampling random functions from the Gaussian process. See the post on [Bayesian optimisation](../bayesian-opt-r) for details.
 
 ```{r}
 #' Random Samples from a Multivariate Gaussian
@@ -156,6 +124,73 @@ plot_gp <- function(kernel, ...) {
 }
 ```
 
+## Stationary Kernels
+
+Stationary kernels are a class of kernel functions that are invariant to translations in the input space. Mathematically, a kernel function is stationary if it depends only on the difference between its arguments, $\mathbf{x}-\mathbf{x'}$, and not on their absolute values. Formally, a kernel function $k(\mathbf{x}, \mathbf{x'})$ is stationary if and only if:
+
+$$k(\mathbf{x}, \mathbf{x'}) = k(\mathbf{x} + a, \mathbf{x'} + a)$$
+
+for all inputs $\mathbf{x}$ and $\mathbf{x'}$ and all $a$.
+
+### RBF Kernel
+
+The Radial Basis Function (RBF) kernel is a popular choice in Gaussian processes. Its definition is
+
+$$k(\mathbf{x}, \mathbf{x'}) = \sigma^2 \exp\left(-\frac{1}{2}\frac{\lVert \mathbf{x} - \mathbf{x'}\rVert^2}{l^2}\right)$$
+
+$\lVert \mathbf{x} - \mathbf{x'}\rVert^2$ is the squared Euclidean distance between the two vectors. $\sigma_f^2$ is a variance parameter that simply scales the kernel. More interestingly, the length scale parameter, $l$, controls the smoothness and the range of influence of the kernel. It determines how quickly the similarity between two input points decreases as their distance increases.
+
+Intuitively, small length scales mean that two points have to be very close to have any correlation. This results in very flexible functions that do not expect much correlation between data points. For a large length scale, however, points that are far apart are still expected to behave in a similar way. This results in very smooth functions that expect similar output values across the entire covariate space.
+
+The flexibility and interpretability of the length scale parameter makes the RBF kernel a good starting point, when exploring Gaussian processes.
+
+```{r}
+#' RBF Kernel
+#'
+#' @param X1 matrix of dimensions (n, d). Vectors are coerced to (1, d).
+#' @param X2 matrix of dimensions (m, d). Vectors are coerced to (1, d).
+#' @param l length scale
+#' @param sigma_f scale parameter 
+#'
+#' @return matrix of dimensions (n, m)
+rbf_kernel <- function(X1, X2, l = 1.0, sigma_f = 1.0) {
+  if (is.null(dim(X1))) dim(X1) <- c(1, length(X1))
+  if (is.null(dim(X2))) dim(X2) <- c(1, length(X2))
+  sqdist <- (- 2*(X1 %*% t(X2))) %>%
+    add(rowSums(X1**2, dims = 1)) %>%
+    sweep(2, rowSums(X2**2, dims = 1), `+`)
+  sigma_f**2 * exp(-0.5 / l**2 * sqdist)
+}
+```
+
+Here is an example of of the covariance tapers off between two vectors, as their Euclidean distance increases
+
+```{r}
+plot_kernel_value(rbf_kernel)
+```
+
+Random functions pulled from a Gaussian process that employs the RBF kernel are quite flexible.
+
+```{r}
+plot_gp(rbf_kernel)
+```
+
+## Periodic Kernels
+
+Periodic kernels are a class of kernel functions that exhibit periodicity in the input space. Mathematically, a periodic kernel function $k(\mathbf{x}, \mathbf{x'})$ is periodic if it depends on the difference between its arguments, $\mathbf{x}-\mathbf{x'}$, as well as their absolute values. Formally, a periodic kernel function $k(\mathbf{x}, \mathbf{x'})$ is periodic if and only if:
+
+$$k(\mathbf{x}, \mathbf{x'}) = k(\mathbf{x}-\mathbf{x'}) = k(\mathbf{x}+n\omega, \mathbf{x'}+n\omega)$$
+
+for all inputs $\mathbf{x}$ and $\mathbf{x'}$ and all integers $n$, where $\omega$ is the period of the kernel.
+
+
+
+## Other Non-stationary Kernels
+
+Unlike stationary kernels, non-stationary kernels can depend on the absolute values of their inputs, and their correlation function may vary with the location of the inputs.
+
+Non-stationary kernels are often used when the underlying function being modelled exhibits varying behaviour or has different characteristics in different regions of the input space. For example, if the function being modelled changes rapidly in some regions and slowly in others, a non-stationary kernel may be more appropriate than a stationary kernel.
+
 ### Linear Kernel
 
 $$ K_L(\boldsymbol{x}, \boldsymbol{x'}) = \boldsymbol{x}^T \boldsymbol{x'} $$
@@ -181,42 +216,7 @@ plot_gp(linear_kernel)
 ```
 
 
-### RBF Kernel
 
-$$k(\mathbf{x}_i, \mathbf{x}_j) = \sigma_f^2 \exp\left(-\frac{1}{2}\frac{\lVert \mathbf{x}_i - \mathbf{x}_j\rVert^2}{l^2}\right)$$
-
-The length scale parameter $l$ in the RBF kernel controls the smoothness and the range of influence of the kernel. It determines how quickly the similarity between two input points decreases as their distance increases.
-
-Intuitively, the length scale parameter $l$ can be thought of as the characteristic length scale of the underlying function that generates the data. If the length scale is small, it implies that the function varies rapidly over small distances, and the kernel will be sensitive to small changes in the input. On the other hand, if the length scale is large, it implies that the function varies slowly over large distances, and the kernel will be less sensitive to small changes in the input.
-
-For example, consider the case of modelling a spatial process with the RBF kernel. If the length scale is small, it implies that nearby locations have very different values, and the kernel will assign a low similarity between them. In contrast, if the length scale is large, it implies that nearby locations have similar values, and the kernel will assign a high similarity between them. Similarly, in the case of time series data, a smaller length scale implies that the kernel is more sensitive to rapid changes in the signal, while a larger length scale implies that the kernel is more sensitive to slower trends and patterns.
-
-```{r}
-#' RBF Kernel
-#'
-#' @param X1 matrix of dimensions (n, d). Vectors are coerced to (1, d).
-#' @param X2 matrix of dimensions (m, d). Vectors are coerced to (1, d).
-#' @param l length scale
-#' @param sigma_f scale parameter 
-#'
-#' @return matrix of dimensions (n, m)
-rbf_kernel <- function(X1, X2, l = 1.0, sigma_f = 1.0) {
-  if (is.null(dim(X1))) dim(X1) <- c(1, length(X1))
-  if (is.null(dim(X2))) dim(X2) <- c(1, length(X2))
-  sqdist <- (- 2*(X1 %*% t(X2))) %>%
-    add(rowSums(X1**2, dims = 1)) %>%
-    sweep(2, rowSums(X2**2, dims = 1), `+`)
-  sigma_f**2 * exp(-0.5 / l**2 * sqdist)
-}
-```
-
-```{r}
-plot_kernel_value(rbf_kernel)
-```
-
-```{r}
-plot_gp(rbf_kernel)
-```
 
 ### Matérn Kernel
 
