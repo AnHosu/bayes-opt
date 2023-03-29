@@ -175,6 +175,26 @@ Random functions pulled from a Gaussian process that employs the RBF kernel are 
 plot_gp(rbf_kernel)
 ```
 
+#### Rational Quadratic Kernel
+
+The Rational Quadratic Kernel is a stationary kernel that is often used in Gaussian process regression to model functions with a mixture of different length scales. It is defined as:
+
+$$k(x, x') = \sigma^2\left(1 + \frac{\Vert x - x'\Vert^2}{2\alpha \ell^2}\right)^{-\alpha}$$
+
+Advantages:
+
+The Rational Quadratic Kernel can model functions with a mixture of different length scales, making it useful for problems where the function may have both local and global variations.
+The shape parameter $\alpha$ controls the smoothness of the function, allowing the kernel to model both smooth and non-smooth functions.
+The Rational Quadratic Kernel is flexible and can be combined with other kernel functions to create more complex covariance structures.
+
+Pitfalls:
+
+The Rational Quadratic Kernel has an additional hyperparameter, $\alpha$, that needs to be tuned. This can make the kernel more difficult to use in practice.
+The Rational Quadratic Kernel can be sensitive to the choice of length scale parameter $\ell$. Choosing an appropriate length scale can be challenging, especially when the input space is high-dimensional.
+The Rational Quadratic Kernel can be computationally expensive to evaluate, especially for large datasets, since it involves computing pairwise distances between all pairs of input points.
+
+
+
 ## Periodic Kernels
 
 Periodic kernels are a class of kernel functions that exhibit periodicity in the input space. Mathematically, a periodic kernel function $k(\mathbf{x}, \mathbf{x'})$ is periodic if it depends on the difference between its arguments, $\mathbf{x}-\mathbf{x'}$, as well as their absolute values. Formally, a periodic kernel function $k(\mathbf{x}, \mathbf{x'})$ is periodic if and only if:
@@ -183,7 +203,42 @@ $$k(\mathbf{x}, \mathbf{x'}) = k(\mathbf{x}-\mathbf{x'}) = k(\mathbf{x}+n\omega,
 
 for all inputs $\mathbf{x}$ and $\mathbf{x'}$ and all integers $n$, where $\omega$ is the period of the kernel.
 
+#### The Basic Periodic Kernel
 
+The basic periodic kernel is defined as:
+
+$$k(x, x') = \exp \left( -\frac{2 \sin^2\left(\pi \frac{\|x-x'\|}{p}\right)}{l^2} \right)$$
+
+Where $p$ is the period and $l$ is the length scale.
+
+
+
+```{r}
+# Define the Periodic Kernel function
+periodic_kernel <- function(X1, X2, sigma2, length_scale, period) {
+  # Calculate pairwise distances between input points
+  D <- as.matrix(dist(rbind(X1, X2)))
+  
+  # Calculate the kernel matrix element for each pair of input points
+  K <- sigma2 * exp(-2 * sin(pi * D / period)^2 / length_scale^2)
+  
+  # Return the covariance matrix
+  return(K[1:length(X1), (length(X1)+1):(length(X1)+length(X2))])
+}
+
+```
+
+Advantages:
+
+The Periodic Kernel can model functions with periodic behavior, such as seasonal trends in time series data or oscillatory patterns in spatial data.
+The Periodic Kernel is able to capture long-term periodicity and short-term variations in the function.
+The Periodic Kernel can be combined with other kernel functions to model more complex covariance structures.
+
+Pitfalls:
+
+The Periodic Kernel has an additional hyperparameter, the period parameter, that needs to be tuned. The choice of period can have a significant impact on the model performance, and finding an appropriate value can be challenging.
+The Periodic Kernel may not be suitable for modeling functions with non-periodic behavior. If the function being modeled does not exhibit periodicity, using the Periodic Kernel may lead to poor model performance.
+The Periodic Kernel can be computationally expensive to evaluate, especially for large datasets, since it involves computing pairwise distances between all pairs of input points.
 
 ## Other Non-stationary Kernels
 
@@ -217,79 +272,7 @@ plot_gp(linear_kernel)
 
 
 
-
-### Matérn Kernel
-
-$$ k_{\mathrm{Matern}}(r) = \frac{1}{\Gamma(\nu)2^{\nu-1}}\left(\frac{\sqrt{2\nu}r}{l}\right)^\nu K_\nu\left(\frac{\sqrt{2\nu}r}{l}\right) $$
-
-```{r}
-matern_kernel <- function(X1, X2, nu, l) {
-  # Compute Euclidean distance between each pair of rows
-  dist_mat <- as.matrix(dist(rbind(X1, X2)))
-  dist_X1X2 <- dist_mat[1:nrow(X1), (nrow(X1)+1):nrow(dist_mat)]
-
-  # Compute the kernel
-  sqrt_2nu_over_l <- sqrt(2 * nu) / l
-  term1 <- ((2^(1 - nu)) / gamma(nu)) * ((sqrt_2nu_over_l) ^ nu) * dist_X1X2 ^ nu
-  term2 <- besselK(sqrt_2nu_over_l * dist_X1X2, nu)
-  K <- term1 * term2
-
-  return(K)
-}
-```
-
-#### Rational Quadratic Kernel
-
-The Rational Quadratic Kernel is a stationary kernel that is often used in Gaussian process regression to model functions with a mixture of different length scales. It is defined as:
-
-$$k_{\text{RQ}}(x, x') = \left(1 + \frac{(x - x')^2}{2\alpha \ell^2}\right)^{-\alpha}$$
-
-Advantages:
-
-The Rational Quadratic Kernel can model functions with a mixture of different length scales, making it useful for problems where the function may have both local and global variations.
-The shape parameter $\alpha$ controls the smoothness of the function, allowing the kernel to model both smooth and non-smooth functions.
-The Rational Quadratic Kernel is flexible and can be combined with other kernel functions to create more complex covariance structures.
-
-Pitfalls:
-
-The Rational Quadratic Kernel has an additional hyperparameter, $\alpha$, that needs to be tuned. This can make the kernel more difficult to use in practice.
-The Rational Quadratic Kernel can be sensitive to the choice of length scale parameter $\ell$. Choosing an appropriate length scale can be challenging, especially when the input space is high-dimensional.
-The Rational Quadratic Kernel can be computationally expensive to evaluate, especially for large datasets, since it involves computing pairwise distances between all pairs of input points.
-
-
-
-### Periodic Kernels
-
-$$k_{\mathrm{per}}(\mathbf{x}_i, \mathbf{x}_j) = \sigma^2 \exp\left(-\frac{2\sin^2\left(\frac{\pi}{p}\|\mathbf{x}_i-\mathbf{x}_j\|\right)}{\ell^2}\right)$$
-
-```{r}
-# Define the Periodic Kernel function
-periodic_kernel <- function(X1, X2, sigma2, length_scale, period) {
-  # Calculate pairwise distances between input points
-  D <- as.matrix(dist(rbind(X1, X2)))
-  
-  # Calculate the kernel matrix element for each pair of input points
-  K <- sigma2 * exp(-2 * sin(pi * D / period)^2 / length_scale^2)
-  
-  # Return the covariance matrix
-  return(K[1:length(X1), (length(X1)+1):(length(X1)+length(X2))])
-}
-
-```
-
-Advantages:
-
-The Periodic Kernel can model functions with periodic behavior, such as seasonal trends in time series data or oscillatory patterns in spatial data.
-The Periodic Kernel is able to capture long-term periodicity and short-term variations in the function.
-The Periodic Kernel can be combined with other kernel functions to model more complex covariance structures.
-
-Pitfalls:
-
-The Periodic Kernel has an additional hyperparameter, the period parameter, that needs to be tuned. The choice of period can have a significant impact on the model performance, and finding an appropriate value can be challenging.
-The Periodic Kernel may not be suitable for modeling functions with non-periodic behavior. If the function being modeled does not exhibit periodicity, using the Periodic Kernel may lead to poor model performance.
-The Periodic Kernel can be computationally expensive to evaluate, especially for large datasets, since it involves computing pairwise distances between all pairs of input points.
-
-### Discrete Kernels
+## Discrete Kernels
 
 Kronecker Delta Kernel: This kernel assigns a value of 1 to pairs of input points that are equal and a value of 0 otherwise. It is often used to model categorical data.
 
