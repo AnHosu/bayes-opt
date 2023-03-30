@@ -175,9 +175,9 @@ Random functions pulled from a Gaussian process that employs the RBF kernel are 
 plot_gp(rbf_kernel)
 ```
 
-#### Rational Quadratic Kernel
+#### RQ Kernel
 
-The Rational Quadratic Kernel is a stationary kernel that is often used in Gaussian process regression to model functions with a mixture of different length scales. It is defined as:
+The Rational Quadratic (RQ) Kernel is a stationary kernel that is often used in Gaussian process regression to model functions with a mixture of different length scales. It is defined as:
 
 $$k(x, x') = \sigma^2\left(1 + \frac{\Vert x - x'\Vert^2}{2\alpha \ell^2}\right)^{-\alpha}$$
 
@@ -193,7 +193,7 @@ The Rational Quadratic Kernel has an additional hyperparameter, $\alpha$, that n
 The Rational Quadratic Kernel can be sensitive to the choice of length scale parameter $\ell$. Choosing an appropriate length scale can be challenging, especially when the input space is high-dimensional.
 The Rational Quadratic Kernel can be computationally expensive to evaluate, especially for large datasets, since it involves computing pairwise distances between all pairs of input points.
 
-
+#### Matérn Kernel
 
 ## Periodic Kernels
 
