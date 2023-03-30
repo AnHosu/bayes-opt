@@ -1,0 +1,74 @@
+---
+title: ""
+bibliography: references.bib
+csl: ../citation_style.csl
+format:
+  html:
+    fig-width: 8
+    fig-height: 5
+    theme: default
+html-math-method:
+  method: katex
+---
+
+The Matérn kernel is a popular choice for Gaussian process regression and other machine learning tasks. It is a flexible and versatile kernel that can model a wide range of functions. The Matérn kernel is given by:
+
+$$k(\mathbf{x},\mathbf{x'}) = \sigma^2\frac{2^{1-\nu}}{\Gamma(v)}\left(\frac{\sqrt{2v}\lVert\mathbf{x}-\mathbf{x'}\rVert}{l}\right)^{\nu} K_{\nu}\left(\frac{\sqrt{2\nu}\lVert\mathbf{x}-\mathbf{x'}\rVert}{l}\right)$$
+
+where $\sigma^2$ is the variance, $l$ is the length scale parameter, $\nu$ is the smoothness parameter, $\lVert\mathbf{x}-\mathbf{x'}\rVert$ is the distance between the two vectors, $\Gamma(\cdot)$ is the gamma function, and $K_v(\cdot)$ is the modified Bessel function of the second kind with order $\nu$.
+
+```{r}
+matern_kernel <- function(x, x_prime, nu, lengthscale) {
+  distance <- dist(x, x_prime)  # Calculate Euclidean distance
+  common_term <- sqrt(2 * nu) * distance / lengthscale
+  (2^(1 - nu) / gamma(nu)) * (common_term^nu) * besselK(common_term, nu)
+}
+```
+
+The rationale behind the Matérn kernel is to provide a more flexible and general class of covariance functions for modeling different degrees of smoothness in the underlying function. In Gaussian process regression, the choice of covariance (kernel) function plays a crucial role in determining the properties of the modeled functions, such as smoothness, periodicity, and how quickly the function changes.
+
+The Matérn kernel is particularly useful because it allows you to control the smoothness of the function explicitly via the smoothness parameter ν (nu). This makes it more versatile than some other popular kernels, like the squared exponential (also called the Gaussian or Radial Basis Function kernel), which implicitly assumes an infinitely differentiable function.
+
+The Matérn kernel has the following properties:
+
+- It is a stationary kernel, meaning that its output only depends on the relative distance between input points, rather than their absolute positions.
+
+- It is isotropic, so it treats all input dimensions equally.
+
+- As ν increases, the Matérn kernel approaches the squared exponential kernel, meaning that the modelled function becomes increasingly smooth. Conversely, as $\nu$ decreases, the function becomes less smooth, allowing for more flexible modelling of non-smooth phenomena.
+
+- When $\nu$ is a non-integer value, the kernel leads to non-differentiable functions, which can be useful for modelling phenomena with abrupt changes or discontinuities.
+
+- The length scale parameter $l$ allows control over how quickly the correlation between points decays with increasing distance, providing further flexibility in capturing different spatial patterns.
+
+
+### Smoothness and differentiability
+
+smoothness refers to the degree of differentiability or the number of continuous derivatives a function has. The smoothness of a function is related to how wiggly, rough, or irregular it appears.
+
+A function is considered smooth if it has continuous derivatives up to a certain order. The more continuous derivatives a function has, the smoother it is. The smoothness parameter ν (nu) in the Matérn kernel controls the degree of smoothness of the modeled functions.
+
+Here's a more concrete explanation of smoothness levels:
+
+If ν = 0.5, the Matérn kernel corresponds to the exponential kernel. In this case, the resulting function is continuous but not differentiable, meaning it has abrupt changes in its slope.
+
+If ν = 1.5, the resulting function is once differentiable, which means it has continuous first-order derivatives. The function is smoother than when ν = 0.5, but it can still exhibit some sudden changes in curvature.
+
+If ν = 2.5, the resulting function is twice differentiable, meaning it has continuous first- and second-order derivatives. The function is even smoother and has a more regular appearance.
+
+As ν approaches infinity, the Matérn kernel converges to the squared exponential kernel, which implies an infinitely differentiable function. In this case, the function is extremely smooth, with no abrupt changes in curvature.
+
+
+### Bessel function
+
+The modified Bessel function of the second kind, denoted by K_ν(x), is a special function that appears in various mathematical contexts, including probability theory, statistical physics, and partial differential equations. It is a solution to the modified Bessel differential equation, which is a variation of the standard Bessel differential equation.
+
+The modified Bessel function of the second kind has the following properties:
+
+It is a smooth function, with continuous derivatives of all orders.
+It is symmetric around the origin, i.e., K_ν(-x) = K_ν(x).
+It is non-negative and monotonically decreasing for positive x.
+
+In the context of the Matérn kernel, the modified Bessel function of the second kind appears due to the underlying stochastic process, called the Matérn covariance process. The Matérn covariance process is a solution to a stochastic partial differential equation (SPDE) that has a spectral density proportional to the product of the power of the frequency and the modified Bessel function of the second kind.
+
+The modified Bessel function plays a crucial role in determining the smoothness properties of the Matérn covariance process and, subsequently, the Matérn kernel. The parameter ν (nu) in the Matérn kernel, which controls the smoothness, is also the order of the modified Bessel function of the second kind. The smoothness of the modeled function is influenced by the behavior of the modified Bessel function as a function of the distance between input points
