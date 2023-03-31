@@ -18,10 +18,17 @@ $$k(\mathbf{x},\mathbf{x'}) = \sigma^2\frac{2^{1-\nu}}{\Gamma(v)}\left(\frac{\sq
 where $\sigma^2$ is the variance, $l$ is the length scale parameter, $\nu$ is the smoothness parameter, $\lVert\mathbf{x}-\mathbf{x'}\rVert$ is the distance between the two vectors, $\Gamma(\cdot)$ is the gamma function, and $K_v(\cdot)$ is the modified Bessel function of the second kind with order $\nu$.
 
 ```{r}
-matern_kernel <- function(x, x_prime, nu, lengthscale) {
-  distance <- dist(x, x_prime)  # Calculate Euclidean distance
-  common_term <- sqrt(2 * nu) * distance / lengthscale
-  (2^(1 - nu) / gamma(nu)) * (common_term^nu) * besselK(common_term, nu)
+matern_kernel <- function(X1, X2, nu = 2.5, lengthscale = 1, sigma = 1) {
+  if (is.null(dim(X1))) dim(X1) <- c(1, length(X1))
+  if (is.null(dim(X2))) dim(X2) <- c(1, length(X2))
+  distance <- (- 2*(X1 %*% t(X2))) %>%
+    add(rowSums(X1**2, dims = 1)) %>%
+    sweep(2, rowSums(X2**2, dims = 1), `+`) %>%
+    sqrt()
+  term <- sqrt(2 * nu) * distance / lengthscale
+  K <- sigma * (2^(1 - nu) / gamma(nu)) * (term^nu) * besselK(term, nu)
+  K[distance == 0] <- 1
+  K
 }
 ```
 

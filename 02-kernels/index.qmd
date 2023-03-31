@@ -163,6 +163,7 @@ rbf_kernel <- function(X1, X2, l = 1.0, sigma_f = 1.0) {
 }
 ```
 
+
 Here is an example of of the covariance tapers off between two vectors, as their Euclidean distance increases
 
 ```{r}
@@ -194,6 +195,25 @@ The Rational Quadratic Kernel can be sensitive to the choice of length scale par
 The Rational Quadratic Kernel can be computationally expensive to evaluate, especially for large datasets, since it involves computing pairwise distances between all pairs of input points.
 
 #### Matérn Kernel
+
+$$k(\mathbf{x},\mathbf{x'}) = \sigma^2\frac{2^{1-\nu}}{\Gamma(v)}\left(\frac{\sqrt{2v}\lVert\mathbf{x}-\mathbf{x'}\rVert}{l}\right)^{\nu} K_{\nu}\left(\frac{\sqrt{2\nu}\lVert\mathbf{x}-\mathbf{x'}\rVert}{l}\right)$$
+
+```{r}
+matern_kernel <- function(X1, X2, nu = 2.5, lengthscale = 1, sigma = 1) {
+  if (is.null(dim(X1))) dim(X1) <- c(1, length(X1))
+  if (is.null(dim(X2))) dim(X2) <- c(1, length(X2))
+  distance <- (- 2*(X1 %*% t(X2))) %>%
+    add(rowSums(X1**2, dims = 1)) %>%
+    sweep(2, rowSums(X2**2, dims = 1), `+`) %>%
+    sqrt()
+  term <- sqrt(2 * nu) * distance / lengthscale
+  K <- sigma * (2^(1 - nu) / gamma(nu)) * (term^nu) * besselK(term, nu)
+  K[distance == 0] <- 1
+  K
+}
+
+plot_gp(matern_kernel, nu = 10)
+```
 
 ## Periodic Kernels
 
