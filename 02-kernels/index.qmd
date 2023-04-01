@@ -134,11 +134,11 @@ for all inputs $\mathbf{x}$ and $\mathbf{x'}$ and all $a$.
 
 ### RBF Kernel
 
-The Radial Basis Function (RBF) kernel is a popular choice in Gaussian processes. Its definition is
+The Radial Basis Function (RBF) kernel is also known as the Squared Exponential kernel or the Gaussian kernel. It is a popular choice in Gaussian processes because of its simplicity and interpretability. The RBF kernel is defined as
 
 $$k(\mathbf{x}, \mathbf{x'}) = \sigma^2 \exp\left(-\frac{1}{2}\frac{\lVert \mathbf{x} - \mathbf{x'}\rVert^2}{l^2}\right)$$
 
-$\lVert \mathbf{x} - \mathbf{x'}\rVert^2$ is the squared Euclidean distance between the two vectors. $\sigma_f^2$ is a variance parameter that simply scales the kernel. More interestingly, the length scale parameter, $l$, controls the smoothness and the range of influence of the kernel. It determines how quickly the similarity between two input points decreases as their distance increases.
+where $\lVert \mathbf{x} - \mathbf{x'}\rVert^2$ is the squared Euclidean distance between the two vectors. $\sigma_f^2$ is a variance parameter that simply scales the kernel. More interestingly, the length scale parameter, $l$, controls the smoothness and the range of influence of the kernel. It determines how quickly the similarity between two input points decreases as their distance increases.
 
 Intuitively, small length scales mean that two points have to be very close to have any correlation. This results in very flexible functions that do not expect much correlation between data points. For a large length scale, however, points that are far apart are still expected to behave in a similar way. This results in very smooth functions that expect similar output values across the entire covariate space.
 
@@ -163,7 +163,6 @@ rbf_kernel <- function(X1, X2, l = 1.0, sigma_f = 1.0) {
 }
 ```
 
-
 Here is an example of of the covariance tapers off between two vectors, as their Euclidean distance increases
 
 ```{r}
@@ -178,21 +177,40 @@ plot_gp(rbf_kernel)
 
 #### RQ Kernel
 
-The Rational Quadratic (RQ) Kernel is a stationary kernel that is often used in Gaussian process regression to model functions with a mixture of different length scales. It is defined as:
+The Rational Quadratic (RQ) Kernel is a generalisation of the RBF kernel in the sense that it can be interpreted as an infinite sum of RBF kernels with different length scales. The RQ kernel is defined as:
 
 $$k(x, x') = \sigma^2\left(1 + \frac{\Vert x - x'\Vert^2}{2\alpha \ell^2}\right)^{-\alpha}$$
 
-Advantages:
+where $\lVert \mathbf{x} - \mathbf{x'}\rVert^2$ is the squared Euclidean distance between the two vectors. $\sigma_f^2$ is a variance parameter that simply scales the kernel. The length scale parameter, $l$, determines how quickly the similarity between two input points decreases as their distance increases, just like for the RBF kernel. The mixture parameter, $\alpha$, can be viewed as controlling how much local variation the kernel allows. When drawing functions from a Gaussian process that employs the RQ kernel, small values of $\alpha$ will yield functions with more local variation while still displaying the overall length scaling defined by $l$. On the other hand, larger values of $\alpha$ will yield functions with less local variation. In fact as $\alpha \to \infty$ the RQ kernel converges to the RBF kernel with the same $l$.
 
-The Rational Quadratic Kernel can model functions with a mixture of different length scales, making it useful for problems where the function may have both local and global variations.
-The shape parameter $\alpha$ controls the smoothness of the function, allowing the kernel to model both smooth and non-smooth functions.
-The Rational Quadratic Kernel is flexible and can be combined with other kernel functions to create more complex covariance structures.
+Since the RQ Kernel can model functions with a mixture of different length scales, it is useful for problems where the function may have both local and global variations. However, the RQ kernel needs tuning of two hyperparameters, $\alpha$ and $l$, which in turn requires more data. The addition of $\alpha$ also arguably decreases the interpretability of $l$.
 
-Pitfalls:
+The added flexibility compared to the RBF kernel without too much added complexity, makes the RQ kernel a good alternative, when exploring Gaussian processes.
 
-The Rational Quadratic Kernel has an additional hyperparameter, $\alpha$, that needs to be tuned. This can make the kernel more difficult to use in practice.
-The Rational Quadratic Kernel can be sensitive to the choice of length scale parameter $\ell$. Choosing an appropriate length scale can be challenging, especially when the input space is high-dimensional.
-The Rational Quadratic Kernel can be computationally expensive to evaluate, especially for large datasets, since it involves computing pairwise distances between all pairs of input points.
+```{r}
+rq_kernel <- function(X1, X2, sigma = 1, l = 1, alpha = 1) {
+  if (is.null(dim(X1))) dim(X1) <- c(1, length(X1))
+  if (is.null(dim(X2))) dim(X2) <- c(1, length(X2))
+  sqdist <- (- 2*(X1 %*% t(X2))) %>%
+    add(rowSums(X1**2, dims = 1)) %>%
+    sweep(2, rowSums(X2**2, dims = 1), `+`)
+  sigma^2 * (1 + sqdist / (2 * alpha * l^2))^(-alpha)
+}
+```
+
+Here is an example of of the covariance tapers off between two vectors, as their Euclidean distance increases. Notice how much more local variation is allowed
+
+```{r}
+plot_kernel_value(rq_kernel, alpha = 0.5, l = 0.5)
+```
+
+The emphasis on local variation yields functions which are much more flexible:
+
+```{r}
+plot_gp(rq_kernel, alpha = 0.5, l = 0.5)
+```
+
+
 
 #### Matérn Kernel
 
