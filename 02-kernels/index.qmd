@@ -210,7 +210,39 @@ The emphasis on local variation yields functions which are much more flexible:
 plot_gp(rq_kernel, alpha = 0.5, l = 0.5)
 ```
 
+#### Exponential Kernel
 
+The RBF and RQ kernels represent smooth kernels, i.e. kernels that are differentiable and, when applied in Gaussian processes, yield functions that are less prone to abrupt changes. The exponential kernel, on the other hand, is not differentiable. The exponential kernel is defined as
+
+$$k(\mathbf{x}, \mathbf{x'}) = \sigma^2 \exp\left(-\frac{\lVert \mathbf{x} - \mathbf{x'}\rVert}{l}\right)$$
+
+where $\lVert \mathbf{x} - \mathbf{x'}\rVert^2$ is the squared Euclidean distance between the two vectors. $\sigma_f^2$ is a variance parameter that simply scales the kernel. The length scale parameter, $l$, determines how quickly the similarity between two input points decreases as their distance increases, just like for the RBF kernel.
+
+When applied in Gaussian processes, the exponential kernel yields functions that are much less smooth compared to the RBF kernel. This is useful when trying to model functions that exhibit abrupt changes.
+
+```{r}
+exponential_kernel <- function(X1, X2, l = 1, sigma = 1) {
+  if (is.null(dim(X1))) dim(X1) <- c(1, length(X1))
+  if (is.null(dim(X2))) dim(X2) <- c(1, length(X2))
+  distance <- (- 2*(X1 %*% t(X2))) %>%
+    add(rowSums(X1**2, dims = 1)) %>%
+    sweep(2, rowSums(X2**2, dims = 1), `+`) %>%
+    sqrt()
+  sigma^2 * exp(-distance / l)
+}
+```
+
+Here is an example of of the covariance tapers off between two vectors, as their Euclidean distance increases. Notice the abrupt decline in covariance.
+
+```{r}
+plot_kernel_value(exponential_kernel, l = 1)
+```
+
+The Gaussian process yields functions which are prone to abrupt changes and thus look very rough
+
+```{r}
+plot_gp(exponential_kernel, l = 5)
+```
 
 #### Matérn Kernel
 
@@ -229,8 +261,11 @@ matern_kernel <- function(X1, X2, nu = 2.5, lengthscale = 1, sigma = 1) {
   K[distance == 0] <- 1
   K
 }
+```
 
-plot_gp(matern_kernel, nu = 10)
+
+```{r}
+plot_gp(matern_kernel, nu = 2)
 ```
 
 ## Periodic Kernels
