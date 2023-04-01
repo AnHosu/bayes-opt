@@ -246,26 +246,43 @@ plot_gp(exponential_kernel, l = 5)
 
 #### Matérn Kernel
 
+The Matérn kernel is a flexible and versatile stationary kernel that can model a wide range of functions. The Matérn kernel is given by:
+
 $$k(\mathbf{x},\mathbf{x'}) = \sigma^2\frac{2^{1-\nu}}{\Gamma(v)}\left(\frac{\sqrt{2v}\lVert\mathbf{x}-\mathbf{x'}\rVert}{l}\right)^{\nu} K_{\nu}\left(\frac{\sqrt{2\nu}\lVert\mathbf{x}-\mathbf{x'}\rVert}{l}\right)$$
 
+where $\sigma^2$ is a variance parameter that scales the kernel, $l$ is the length scale parameter, $\nu$ is the smoothness parameter, $\lVert\mathbf{x}-\mathbf{x'}\rVert$ is the distance between the two vectors, $\Gamma(\cdot)$ is the gamma function, and $K_v(\cdot)$ is a modified Bessel function of the second kind with order $\nu$.
+
+The RBF kernel yields smooth functions when applied in a Gaussian process, and the exponential kernel yields rugged functions. The Matérn kernel is a generalisation of the RBF kernel, where the parameter $\nu$ controls the differentiability, and thus smoothness, of the kernel. In fact, setting $\nu = 0.5$ results in the exponential kernel, and as $\nu \to \infty$ the Matérn kernel converges to the RBF kernel.
+
+The Matérn kernel is a popular choice for Gaussian processes, as it takes very weak assumptions about the function being modelled. The length scale and smoothness parameters allow for modelling smooth functions with long-range covariance as well as functions with abrupt changes. The downside is that the kernel is very flexible and it takes data and effort to avoid overfitting.
+
+Base R includes functions for the gamma function as well as a Bessel function of the second kind with given order.
+
 ```{r}
-matern_kernel <- function(X1, X2, nu = 2.5, lengthscale = 1, sigma = 1) {
+matern_kernel <- function(X1, X2, nu = 2.5, l = 1, sigma = 1) {
   if (is.null(dim(X1))) dim(X1) <- c(1, length(X1))
   if (is.null(dim(X2))) dim(X2) <- c(1, length(X2))
   distance <- (- 2*(X1 %*% t(X2))) %>%
     add(rowSums(X1**2, dims = 1)) %>%
     sweep(2, rowSums(X2**2, dims = 1), `+`) %>%
     sqrt()
-  term <- sqrt(2 * nu) * distance / lengthscale
+  term <- sqrt(2 * nu) * distance / l
   K <- sigma * (2^(1 - nu) / gamma(nu)) * (term^nu) * besselK(term, nu)
   K[distance == 0] <- 1
   K
 }
 ```
 
+The kernel value looks like the RBF kernel or the exponential kernel, depending on the smoothness parameter
 
 ```{r}
-plot_gp(matern_kernel, nu = 2)
+plot_kernel_value(matern_kernel, nu = 100)
+```
+
+The Matérn kernel can yield functions that strike a balance between smoothness and flexibility
+
+```{r}
+plot_gp(matern_kernel, nu = 1.5)
 ```
 
 ## Periodic Kernels
