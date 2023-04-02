@@ -299,7 +299,7 @@ The basic periodic kernel is a simple periodic kernel that can be used to model 
 
 The basic periodic kernel is somewhat similar to the RBF kernel with an additional trigonometric term that introduces periodicity. The definition is:
 
-$$k(x, x') = \exp \left( -\frac{2 \sin^2\left(\pi \frac{\|x-x'\|}{\omega}\right)}{l^2} \right)$$
+$$k(\mathbf{x}, \mathbf{x'}) = \exp \left( -\frac{2 \sin^2\left(\pi \frac{\lVert\mathbf{x}-\mathbf{x'}\rVert}{\omega}\right)}{l^2} \right)$$
 
 Where $\lVert\mathbf{x}-\mathbf{x'}\rVert$ is the distance between the two vectors, $\omega$ is the period, and $l$ is the length scale.
 
@@ -332,7 +332,7 @@ The basic periodic kernel can be combined with other kernels to create a very po
 
 #### Locally Periodic Kernel
 
-$$k(x, x') = \sigma^2\exp \left( -\frac{2 \sin^2\left(\pi \frac{\|x-x'\|}{\omega}\right)}{l_p^2} \right) \exp \left( -\frac{\|x-x'\|^2}{2 l_v^2} \right)$$
+$$k(\mathbf{x}, \mathbf{x'}) = \sigma^2\exp \left( -\frac{2 \sin^2\left(\pi \frac{\lVert\mathbf{x}-\mathbf{x'}\rVert}{\omega}\right)}{l_p^2} \right) \exp \left( -\frac{\lVert\mathbf{x}-\mathbf{x'}\rVert^2}{2 l_v^2} \right)$$
 
 ```{r}
 locally_periodic_kernel <- function(X1,
@@ -386,6 +386,42 @@ plot_kernel_value(linear_kernel, alpha = 1)
 plot_gp(linear_kernel)
 ```
 
+#### Gibbs Kernel
+
+The RBF kernel has a single parameter that determines the length scale across the entire function. What if that length scale were a function of the input vectors as well?
+
+$$k(x, x') = \sqrt{\frac{l(x)l(x')}{l^2(x) + l^2(x')}} \exp\left(-\frac{(x - x')^2}{l^2(x) + l^2(x')}\right)$$
+
+```{r}
+# Define the linear length scale function
+length_scale_function <- function(x, a, b) {
+  return(a + b * x)
+}
+
+# Define the Gibbs kernel
+gibbs_kernel <- function(X1, X2, a, b) {
+  lx1 <- length_scale_function(X1, a, b)
+  lx2 <- length_scale_function(X2, a, b)
+  
+  diff_squared <- outer(X1, X2, FUN = function(x, y) (x - y)^2)
+  lx1_lx2 <- outer(lx1, lx2)
+  lx1_sq_plus_lx2_sq <- outer(lx1^2, lx2^2, FUN = "+")
+  
+  K <- sqrt(lx1_lx2 / lx1_sq_plus_lx2_sq) * exp(-diff_squared / lx1_sq_plus_lx2_sq)
+  
+  return(K)
+}
+
+# Example usage
+X1 <- c(1, 2, 3)
+X2 <- c(1.5, 2.5, 3.5)
+a <- 1
+b <- 0.5
+
+K <- gibbs_kernel(X1, X2, a, b)
+print(K)
+
+```
 
 
 ## Discrete Kernels
