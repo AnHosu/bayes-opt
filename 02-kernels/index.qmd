@@ -287,48 +287,53 @@ plot_gp(matern_kernel, nu = 1.5)
 
 ## Periodic Kernels
 
-Periodic kernels are a class of kernel functions that exhibit periodicity in the input space. Mathematically, a periodic kernel function $k(\mathbf{x}, \mathbf{x'})$ is periodic if it depends on the difference between its arguments, $\mathbf{x}-\mathbf{x'}$, as well as their absolute values. Formally, a periodic kernel function $k(\mathbf{x}, \mathbf{x'})$ is periodic if and only if:
+Periodic kernels are a class of kernel functions that exhibit periodicity. Mathematically, a periodic kernel function $k(\mathbf{x}, \mathbf{x'})$ is periodic if it depends on the difference between its arguments, $\mathbf{x}-\mathbf{x'}$, as well as their absolute values. Formally, a periodic kernel function $k(\mathbf{x}, \mathbf{x'})$ is periodic if and only if:
 
-$$k(\mathbf{x}, \mathbf{x'}) = k(\mathbf{x}-\mathbf{x'}) = k(\mathbf{x}+n\omega, \mathbf{x'}+n\omega)$$
+$$k(\mathbf{x}, \mathbf{x'}) = k(\mathbf{x}+n\omega, \mathbf{x'}+n\omega)$$
 
 for all inputs $\mathbf{x}$ and $\mathbf{x'}$ and all integers $n$, where $\omega$ is the period of the kernel.
 
 #### The Basic Periodic Kernel
 
-The basic periodic kernel is defined as:
+The basic periodic kernel is a simple periodic kernel that can be used to model functions that exhibit periodic behaviour, i.e., functions that repeat their values in regular intervals. This especially useful when dealing with time series data or spatial data that exhibit cyclical patterns. The rationale behind the basic periodic kernel is to implement a simple periodic component into a kernel function, while complying with the PSD requirement of a kernel function.
 
-$$k(x, x') = \exp \left( -\frac{2 \sin^2\left(\pi \frac{\|x-x'\|}{p}\right)}{l^2} \right)$$
+The basic periodic kernel is somewhat similar to the RBF kernel with an additional trigonometric term that introduces periodicity. The definition is:
 
-Where $p$ is the period and $l$ is the length scale.
+$$k(x, x') = \exp \left( -\frac{2 \sin^2\left(\pi \frac{\|x-x'\|}{\omega}\right)}{l^2} \right)$$
 
-
+Where $\lVert\mathbf{x}-\mathbf{x'}\rVert$ is the distance between the two vectors, $\omega$ is the period, and $l$ is the length scale.
 
 ```{r}
 # Define the Periodic Kernel function
-periodic_kernel <- function(X1, X2, sigma2, length_scale, period) {
-  # Calculate pairwise distances between input points
-  D <- as.matrix(dist(rbind(X1, X2)))
-  
-  # Calculate the kernel matrix element for each pair of input points
-  K <- sigma2 * exp(-2 * sin(pi * D / period)^2 / length_scale^2)
-  
-  # Return the covariance matrix
-  return(K[1:length(X1), (length(X1)+1):(length(X1)+length(X2))])
+periodic_kernel <- function(X1, X2, l = 1, omega = 1, sigma = 1) {
+  if (is.null(dim(X1))) dim(X1) <- c(1, length(X1))
+  if (is.null(dim(X2))) dim(X2) <- c(1, length(X2))
+  distance <- (- 2*(X1 %*% t(X2))) %>%
+    add(rowSums(X1**2, dims = 1)) %>%
+    sweep(2, rowSums(X2**2, dims = 1), `+`) %>%
+    sqrt()
+  sigma * exp(-2 * sin(pi * distance / omega)^2 / l^2)
 }
-
 ```
 
-Advantages:
+Plotting the kernel value shows how the kernel value repeats with a regular 
 
-The Periodic Kernel can model functions with periodic behavior, such as seasonal trends in time series data or oscillatory patterns in spatial data.
-The Periodic Kernel is able to capture long-term periodicity and short-term variations in the function.
-The Periodic Kernel can be combined with other kernel functions to model more complex covariance structures.
+```{r}
+plot_kernel_value(periodic_kernel, l = 0.5, omega = 1.5)
+```
 
-Pitfalls:
+The functions drawn from a Gaussian process that utilises the basic periodic kernel display periodicity
 
-The Periodic Kernel has an additional hyperparameter, the period parameter, that needs to be tuned. The choice of period can have a significant impact on the model performance, and finding an appropriate value can be challenging.
-The Periodic Kernel may not be suitable for modeling functions with non-periodic behavior. If the function being modeled does not exhibit periodicity, using the Periodic Kernel may lead to poor model performance.
-The Periodic Kernel can be computationally expensive to evaluate, especially for large datasets, since it involves computing pairwise distances between all pairs of input points.
+```{r}
+plot_gp(periodic_kernel, l = 0.5, omega = 1.5)
+```
+
+The basic periodic kernel can be combined with other kernels to create a very powerful model for objective functions with periodicity. However, compared to simpler kernels, the basic periodic kernel has an additional hyperparameter, the period parameter $\omega$, that needs to be tuned. The choice of period can have a significant impact on the model performance, and finding an appropriate value can be challenging. If the function being modelled does not exhibit periodic behaviour, applying this kernel could be detrimental.
+
+#### Locally Periodic Kernel
+
+$$k(x, x') = \exp \left( -\frac{2 \sin^2\left(\pi \frac{\|x-x'\|}{p}\right)}{l_p^2} \right) \exp \left( -\frac{\|x-x'\|^2}{2 l_s^2} \right)$$
+
 
 ## Other Non-stationary Kernels
 
