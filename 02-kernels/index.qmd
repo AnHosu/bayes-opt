@@ -295,7 +295,7 @@ for all inputs $\mathbf{x}$ and $\mathbf{x'}$ and all integers $n$, where $\omeg
 
 #### The Basic Periodic Kernel
 
-The basic periodic kernel is a simple periodic kernel that can be used to model functions that exhibit periodic behaviour, i.e., functions that repeat their values in regular intervals. This especially useful when dealing with time series data or spatial data that exhibit cyclical patterns. The rationale behind the basic periodic kernel is to implement a simple periodic component into a kernel function, while complying with the PSD requirement of a kernel function.
+The basic periodic kernel is a simple periodic kernel that can be used to model functions that exhibit periodic behaviour, i.e., functions that repeat their values in regular intervals. This especially useful when dealing with time series data or spatial data that exhibit cyclical patterns. The rationale behind the basic periodic kernel is to implement a simple periodic component into a kernel function, while complying with the PSD requirement of a kernel function [@MacKay:1998].
 
 The basic periodic kernel is somewhat similar to the RBF kernel with an additional trigonometric term that introduces periodicity. The definition is:
 
@@ -548,3 +548,10 @@ mixed_kernel <- function(X1, X2, gamma, l, kernel_type) {
 
 ```
 
+# References {-}
+
+<div id="refs"></div>
+
+# License
+
+The content of this project itself is licensed under the [Creative Commons Attribution-ShareAlike 4.0 International license](https://creativecommons.org/licenses/by-sa/4.0/), and the underlying code is licensed under the [GNU General Public License v3.0 license](https://github.com/AnHosu/bespoke-bayesian-biochem/blob/main/LICENSE).
