@@ -136,9 +136,9 @@ for all inputs $\mathbf{x}$ and $\mathbf{x'}$ and all $a$.
 
 The Radial Basis Function (RBF) kernel is also known as the Squared Exponential kernel or the Gaussian kernel. It is a popular choice in Gaussian processes because of its simplicity and interpretability. The RBF kernel is defined as
 
-$$k(\mathbf{x}, \mathbf{x'}) = \sigma^2 \exp\left(-\frac{1}{2}\frac{\lVert \mathbf{x} - \mathbf{x'}\rVert^2}{l^2}\right)$$
+$$k(\mathbf{x}, \mathbf{x'}) = \sigma^2 \exp\left(-\frac{\lVert \mathbf{x} - \mathbf{x'}\rVert^2}{2l^2}\right)$$
 
-where $\lVert \mathbf{x} - \mathbf{x'}\rVert^2$ is the squared Euclidean distance between the two vectors. $\sigma_f^2$ is a variance parameter that simply scales the kernel. More interestingly, the length scale parameter, $l$, controls the smoothness and the range of influence of the kernel. It determines how quickly the similarity between two input points decreases as their distance increases.
+where $\lVert \mathbf{x} - \mathbf{x'}\rVert^2$ is the squared Euclidean distance between the two vectors. $\sigma^2$ is a variance parameter that simply scales the kernel. More interestingly, the length scale parameter, $l$, controls the smoothness and the range of influence of the kernel. It determines how quickly the similarity between two input points decreases as their distance increases.
 
 Intuitively, small length scales mean that two points have to be very close to have any correlation. This results in very flexible functions that do not expect much correlation between data points. For a large length scale, however, points that are far apart are still expected to behave in a similar way. This results in very smooth functions that expect similar output values across the entire covariate space.
 
@@ -150,16 +150,16 @@ The flexibility and interpretability of the length scale parameter makes the RBF
 #' @param X1 matrix of dimensions (n, d). Vectors are coerced to (1, d).
 #' @param X2 matrix of dimensions (m, d). Vectors are coerced to (1, d).
 #' @param l length scale
-#' @param sigma_f scale parameter 
+#' @param sigma scale parameter 
 #'
 #' @return matrix of dimensions (n, m)
-rbf_kernel <- function(X1, X2, l = 1.0, sigma_f = 1.0) {
+rbf_kernel <- function(X1, X2, l = 1.0, sigma = 1.0) {
   if (is.null(dim(X1))) dim(X1) <- c(1, length(X1))
   if (is.null(dim(X2))) dim(X2) <- c(1, length(X2))
   sqdist <- (- 2*(X1 %*% t(X2))) %>%
     add(rowSums(X1**2, dims = 1)) %>%
     sweep(2, rowSums(X2**2, dims = 1), `+`)
-  sigma_f**2 * exp(-0.5 / l**2 * sqdist)
+  sigma**2 * exp(-0.5 / l**2 * sqdist)
 }
 ```
 
@@ -332,7 +332,28 @@ The basic periodic kernel can be combined with other kernels to create a very po
 
 #### Locally Periodic Kernel
 
-$$k(x, x') = \exp \left( -\frac{2 \sin^2\left(\pi \frac{\|x-x'\|}{p}\right)}{l_p^2} \right) \exp \left( -\frac{\|x-x'\|^2}{2 l_s^2} \right)$$
+$$k(x, x') = \sigma^2\exp \left( -\frac{2 \sin^2\left(\pi \frac{\|x-x'\|}{\omega}\right)}{l_p^2} \right) \exp \left( -\frac{\|x-x'\|^2}{2 l_v^2} \right)$$
+
+```{r}
+locally_periodic_kernel <- function(X1,
+                                    X2,
+                                    l_period = 1,
+                                    l_var = 1,
+                                    omega = 1,
+                                    sigma = 1) {
+  periodic_kernel(X1, X2, l = l_period, omega = omega, sigma = sigma) *
+    rbf_kernel(X1, X2, l = l_period, sigma = 1)
+}
+```
+
+```{r}
+plot_kernel_value(locally_periodic_kernel)
+```
+
+```{r}
+plot_gp(locally_periodic_kernel)
+```
+
 
 
 ## Other Non-stationary Kernels
