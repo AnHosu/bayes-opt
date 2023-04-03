@@ -392,6 +392,8 @@ plot_gp(linear_kernel)
 
 The RBF kernel has a single parameter that determines the length scale across the entire function. What if that length scale were a function of the input vectors as well?
 
+The Gibbs kernel is a generalisation of the RBF kernel where the length scale is a function of the input vectors rather than a scalar [Paciorek:2003].
+
 $$k(x, x') = \sqrt{\frac{l(x)l(x')}{l^2(x) + l^2(x')}} \exp\left(-\frac{(x - x')^2}{l^2(x) + l^2(x')}\right)$$
 
 $$k(x, x') = \prod_{i = 1}^d\sqrt{\frac{2\ell(x)\ell(x')}{\ell^2(x) + \ell^2(x')}}\mathrm{exp}\left[ -\frac{(x_i - x_i')^2}{\ell^2(x) + \ell^2(x')} \right]
