@@ -364,17 +364,19 @@ Non-stationary kernels are often used when the underlying function being modelle
 
 ### Linear Kernel
 
-$$ K_L(\boldsymbol{x}, \boldsymbol{x'}) = \boldsymbol{x}^T \boldsymbol{x'} $$
+The linear kernel, also known as a dot product kernel or an inner product kernel, is a non-stationary kernel function.
+
+$$ K(\mathbf{x}, \mathbf{x'}) = \alpha\mathbf{x}^T \mathbf{x'} + \beta $$
 
 It is appropriate to use the linear kernel in cases where the relationship between the input variables is believed to be roughly linear.
 
 Unlike some other kernel functions, such as the Gaussian kernel or the polynomial kernel, the linear kernel does not have any hyperparameters that need to be set or tuned. This can make it a convenient and efficient choice for certain applications, as it requires less computational resources and does not require extensive parameter tuning.
 
 ```{r}
-linear_kernel <- function(X1, X2, alpha = 0, sigma = 0) {
+linear_kernel <- function(X1, X2, alpha = 0, beta = 0) {
   if (is.null(dim(X1))) dim(X1) <- c(1, length(X1))
   if (is.null(dim(X2))) dim(X2) <- c(1, length(X2))
-  sigma^2 + (X1 - alpha) %*% t(X2 - alpha)
+  beta + (X1 - alpha) %*% t(X2 - alpha)
 }
 ```
 
@@ -392,16 +394,19 @@ The RBF kernel has a single parameter that determines the length scale across th
 
 $$k(x, x') = \sqrt{\frac{l(x)l(x')}{l^2(x) + l^2(x')}} \exp\left(-\frac{(x - x')^2}{l^2(x) + l^2(x')}\right)$$
 
+$$k(x, x') = \prod_{i = 1}^d\sqrt{\frac{2\ell(x)\ell(x')}{\ell^2(x) + \ell^2(x')}}\mathrm{exp}\left[ -\frac{(x_i - x_i')^2}{\ell^2(x) + \ell^2(x')} \right]
+$$
+
 ```{r}
 # Define the linear length scale function
-length_scale_function <- function(x, a, b) {
-  return(a + b * x)
+length_scale_function <- function(X, a, b) {
+  a + b * X
 }
 
 # Define the Gibbs kernel
-gibbs_kernel <- function(X1, X2, a, b) {
-  lx1 <- length_scale_function(X1, a, b)
-  lx2 <- length_scale_function(X2, a, b)
+gibbs_kernel <- function(X1, X2, l ,...) {
+  lx1 <- l(X1, ...)
+  lx2 <- l(X2, ...)
   
   diff_squared <- outer(X1, X2, FUN = function(x, y) (x - y)^2)
   lx1_lx2 <- outer(lx1, lx2)
@@ -411,16 +416,6 @@ gibbs_kernel <- function(X1, X2, a, b) {
   
   return(K)
 }
-
-# Example usage
-X1 <- c(1, 2, 3)
-X2 <- c(1.5, 2.5, 3.5)
-a <- 1
-b <- 0.5
-
-K <- gibbs_kernel(X1, X2, a, b)
-print(K)
-
 ```
 
 
