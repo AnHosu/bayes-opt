@@ -19,11 +19,11 @@ library(magrittr)
 set.seed(4444)
 ```
 
-Kernels, also known as covariance functions or kernel functions, are central to Gaussian processes and Bayesian optimisation. They provide the main means of implementing prior knowledge about the modelled process into Bayesian optimisation or any other machine learning procedure that takes advantage of kernels.
+Kernels, also known as covariance functions, are central to Gaussian processes and other machine learning methods, where they provide the main means of implementing prior knowledge about the modelled process.
 
 Intuitively, kernels quantify how similar two points are, given just their position in input space. The kernel function determines the smoothness and complexity of the resulting Gaussian process model, and it controls how much weight is given to different regions of the input space. Different types of kernel functions can be used to model different types of data, such as periodic or spatial data.
 
-Bayesian optimisation extensively employs Gaussian processes, so kernels provide the main means of define a prior distribution over the objective function being optimised. There are a plethora of kernels available, and for successful implementations of Bayesian optimisation, selecting the right one is essential but difficult.
+Bayesian optimisation extensively employs Gaussian processes, so kernels provide the means to define a prior distribution over the objective function being optimised. There are a plethora of kernels available, and for successful implementations of Bayesian optimisation, selecting the right one is essential but difficult.
 
 ## Applying Kernels in Gaussian Processes
 
@@ -285,6 +285,38 @@ The Matérn kernel can yield functions that strike a balance between smoothness 
 plot_gp(matern_kernel, nu = 1.5)
 ```
 
+#### Constant Kernl
+
+The constant kernel, also known as the bias kernel, is a simple kernel defined as
+
+$$k(\mathbf{x}, \mathbf{x'}) = c$$
+
+where $c$ is a constant value.
+
+The constant kernel is characterised by its simplicity, as it assumes a constant function, meaning the output is the same for all input points. The constant kernel can be used alone or combined with other kernels to model more complex relationships between data points. In Gaussian process regression, this kernel can capture constant offsets in the function being learned.
+
+The kernel is mostly useful in combination with other kernels, where it adds an offset or bias to the kernel value.
+
+```{r}
+constant_kernel <- function(X1, X2, c = 1) {
+  if (is.null(dim(X1))) dim(X1) <- c(1, length(X1))
+  if (is.null(dim(X2))) dim(X2) <- c(1, length(X2))
+  matrix(c, dim(X1)[[1]], dim(X2)[[1]])
+}
+```
+
+The constant kernel function is just a flat, two-dimensional surface parallel to the input space. The height of the surface is equal to the constant value $c$.
+
+```{r}
+plot_kernel_value(constant_kernel)
+```
+
+Sampled functions from a Gaussian process that utilises the constant kernel are just constant functions. The functions are flat, horizontal lines parallel to the x-axis. There is still variance - each function has a different constant value, determined variance specified by the kernel. If the Gaussian process has a zero mean function, the sampled functions will be horizontal lines with y-values centred around zero, and their heights will be determined by the constant kernel value according to $y = \beta$ where $\beta \sim \mathcal{N}(0, c)$.
+
+```{r}
+plot_gp(constant_kernel)
+```
+
 ## Periodic Kernels
 
 Periodic kernels are a class of kernel functions that exhibit periodicity. Mathematically, a periodic kernel function $k(\mathbf{x}, \mathbf{x'})$ is periodic if it depends on the difference between its arguments, $\mathbf{x}-\mathbf{x'}$, as well as their absolute values. Formally, a periodic kernel function $k(\mathbf{x}, \mathbf{x'})$ is periodic if and only if:
@@ -316,7 +348,7 @@ periodic_kernel <- function(X1, X2, l = 1, omega = 1, sigma = 1) {
 }
 ```
 
-Plotting the kernel value shows how the kernel value repeats with a regular 
+Plotting the basic periodic kernel function would displays a periodic pattern with peaks and valleys, where the peaks occur when the inputs are multiples of the period, $\omega$ apart. The covariance between input points is highest when the points are separated by multiples of the period length and decreases as the distance between the points deviates from multiples of the period.
 
 ```{r}
 plot_kernel_value(periodic_kernel, l = 0.5, omega = 1.5)
@@ -387,6 +419,7 @@ plot_kernel_value(linear_kernel, alpha = 1)
 ```{r}
 plot_gp(linear_kernel)
 ```
+
 
 #### Gibbs Kernel
 
