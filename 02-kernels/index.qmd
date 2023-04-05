@@ -412,7 +412,7 @@ Non-stationary kernels are often used when the underlying function being modelle
 
 The linear kernel, also known as the dot product kernel, is a simple non-stationary kernel function.
 
-$$ K(\mathbf{x}, \mathbf{x'}) = \alpha\mathbf{x}^T \mathbf{x'} + \beta $$
+$$ K(\mathbf{x}, \mathbf{x'}) = \mathbf{x}^T \mathbf{x'} + \c $$
 
 It is appropriate to use the linear kernel in cases where the relationship between the input variables is believed to be roughly linear.
 
@@ -426,10 +426,23 @@ linear_kernel <- function(X1, X2, c = 0) {
 }
 ```
 
+Sampled functions from a Gaussian process that utilises the linear kernel exhibit linear behaviour. These sampled functions, appear as straight lines with varying slopes and intercepts.
+
+Indeed, applying a Gaussian process with a linear kernel to data is equivalent to doing Bayesian linear regression.
+
 ```{r}
 plot_gp(linear_kernel)
 ```
 
+The linear kernel models a linear relationship between the input vectors. Since this kernel is only able to capture linear patterns in the data, the sampled functions will always be straight lines and will not be able to model other types of variation. However, it can be combined with other kernels to increase its utility.
+
+#### Polynomial Kernel
+
+The polynomial kernel is a generalisation of the linear kernel and is defined as
+
+$$ K(\mathbf{x}, \mathbf{x'}) = (\mathbf{x}^T \mathbf{x'} + \c)^{\nu} $$
+
+Where $c$ is a constant that determines the shape of the kernel function and $\nu$ is the degree of the polynomial.
 
 ```{r}
 polynomial_kernel <- function(X1, X2, c = 0, nu = 2) {
@@ -439,9 +452,13 @@ polynomial_kernel <- function(X1, X2, c = 0, nu = 2) {
 }
 ```
 
+Sampled functions from a Gaussian process that utilises the polynomial kernel will exhibit polynomial behaviour. The functions appear as smooth curves with varying shapes, depending on the degree and the parameters of the polynomial kernel. When $\nu = 2$, the functions are parabolas.
+
 ```{r}
 plot_gp(polynomial_kernel, c = 1, nu = 2)
 ```
+
+Applying a Gaussian process with the polynomial kernel corresponds to doing Bayesian polynomial regression. This means that the kernel can be applied to model non-linear relationships, but it will also be subject to the same constraints and overfitting challenges of regular polynomial regression.
 
 #### Gibbs Kernel
 
@@ -451,8 +468,7 @@ The Gibbs kernel is a generalisation of the RBF kernel where the length scale is
 
 $$k(x, x') = \sqrt{\frac{l(x)l(x')}{l^2(x) + l^2(x')}} \exp\left(-\frac{(x - x')^2}{l^2(x) + l^2(x')}\right)$$
 
-$$k(x, x') = \prod_{i = 1}^d\sqrt{\frac{2\ell(x)\ell(x')}{\ell^2(x) + \ell^2(x')}}\mathrm{exp}\left[ -\frac{(x_i - x_i')^2}{\ell^2(x) + \ell^2(x')} \right]
-$$
+$$k(x, x') = \prod_{i = 1}^d\sqrt{\frac{2\ell(x)\ell(x')}{\ell^2(x) + \ell^2(x')}}\mathrm{exp}\left[ -\frac{(x_i - x_i')^2}{\ell^2(x) + \ell^2(x')} \right]$$
 
 ```{r}
 # Define the linear length scale function
