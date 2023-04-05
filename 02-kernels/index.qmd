@@ -285,7 +285,7 @@ The Matérn kernel can yield functions that strike a balance between smoothness 
 plot_gp(matern_kernel, nu = 1.5)
 ```
 
-#### Constant Kernl
+#### Constant Kernel
 
 The constant kernel, also known as the bias kernel, is a simple kernel defined as
 
@@ -412,7 +412,7 @@ Non-stationary kernels are often used when the underlying function being modelle
 
 The linear kernel, also known as the dot product kernel, is a simple non-stationary kernel function.
 
-$$ K(\mathbf{x}, \mathbf{x'}) = \mathbf{x}^T \mathbf{x'} + \c $$
+$$ K(\mathbf{x}, \mathbf{x'}) = \mathbf{x}^T \mathbf{x'} + c $$
 
 It is appropriate to use the linear kernel in cases where the relationship between the input variables is believed to be roughly linear.
 
@@ -440,7 +440,7 @@ The linear kernel models a linear relationship between the input vectors. Since 
 
 The polynomial kernel is a generalisation of the linear kernel and is defined as
 
-$$ K(\mathbf{x}, \mathbf{x'}) = (\mathbf{x}^T \mathbf{x'} + \c)^{\nu} $$
+$$ K(\mathbf{x}, \mathbf{x'}) = (\mathbf{x}^T \mathbf{x'} + c)^{\nu} $$
 
 Where $c$ is a constant that determines the shape of the kernel function and $\nu$ is the degree of the polynomial.
 
@@ -464,7 +464,7 @@ Applying a Gaussian process with the polynomial kernel corresponds to doing Baye
 
 The RBF kernel has a single parameter that determines the length scale across the entire function. What if that length scale were a function of the input vectors as well?
 
-The Gibbs kernel is a generalisation of the RBF kernel where the length scale is a function of the input vectors rather than a scalar [Paciorek:2003].
+The Gibbs kernel is a generalisation of the RBF kernel where the length scale is a function of the input vectors rather than a scalar [@Paciorek:2003].
 
 $$k(x, x') = \sqrt{\frac{l(x)l(x')}{l^2(x) + l^2(x')}} \exp\left(-\frac{(x - x')^2}{l^2(x) + l^2(x')}\right)$$
 
