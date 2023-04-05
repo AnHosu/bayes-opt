@@ -348,21 +348,31 @@ periodic_kernel <- function(X1, X2, l = 1, omega = 1, sigma = 1) {
 }
 ```
 
-Plotting the basic periodic kernel function would displays a periodic pattern with peaks and valleys, where the peaks occur when the inputs are multiples of the period, $\omega$ apart. The covariance between input points is highest when the points are separated by multiples of the period length and decreases as the distance between the points deviates from multiples of the period.
+Plotting the basic periodic kernel function results in a periodic pattern with peaks and valleys, where the peaks occur when the inputs are multiples of the period, $\omega$ apart. The covariance between input points is highest when the points are separated by multiples of the period length and decreases as the distance between the points deviates from multiples of the period.
 
 ```{r}
 plot_kernel_value(periodic_kernel, l = 0.5, omega = 1.5)
 ```
 
-The functions drawn from a Gaussian process that utilises the basic periodic kernel display periodicity
+Sampled functions from a Gaussian process that utilises the basic periodic kernel exhibit periodic behaviour. Such functions, when plotted, appear as smooth, oscillating curves that repeat their patterns over regular intervals.
+
+The properties of the basic periodic kernel, i.e. the period $\omega$ and the length scale $l$, determine the characteristics of the sampled functions.
+
+The period, $\omega$ controls the distance between repetitions of the pattern in the sampled functions. A smaller period length will result in more frequent repetitions, while a larger period length will cause the repetitions to be spaced further apart.
+
+The length scale, $l$, determines how smooth or wiggly the sampled functions are, just like it does for the RBF kernel. A smaller length scale will produce more wiggly functions, while a larger length scale will yield smoother functions with fewer oscillations within each period.
 
 ```{r}
 plot_gp(periodic_kernel, l = 0.5, omega = 1.5)
 ```
 
-The basic periodic kernel can be combined with other kernels to create a very powerful model for objective functions with periodicity. However, compared to simpler kernels, the basic periodic kernel has an additional hyperparameter, the period parameter $\omega$, that needs to be tuned. The choice of period can have a significant impact on the model performance, and finding an appropriate value can be challenging. If the function being modelled does not exhibit periodic behaviour, applying this kernel could be detrimental.
+The basic periodic kernel alone cannot capture trends or non-periodic variations in the data, but can be combined with other kernels to create a very powerful model for objective functions with periodicity.
+
+However, compared to simpler kernels, the basic periodic kernel has an additional hyperparameter, the period parameter $\omega$, that needs to be tuned. The choice of period can have a significant impact on the model performance, and finding an appropriate value can be challenging. As with any periodic kernel, applying the basic periodic kernel comes with the assumption that the underlying objective function being modelled exhibits periodic behaviour. If the assumption does not hold true, applying this kernel could be detrimental.
 
 #### Locally Periodic Kernel
+
+An example of the basic periodic kernel working in tandem with a non-periodic kernel is the locally periodic kernel, which is the product of the basic periodic kernel and the RBF kernel.
 
 $$k(\mathbf{x}, \mathbf{x'}) = \sigma^2\exp \left( -\frac{2 \sin^2\left(\pi \frac{\lVert\mathbf{x}-\mathbf{x'}\rVert}{\omega}\right)}{l_p^2} \right) \exp \left( -\frac{\lVert\mathbf{x}-\mathbf{x'}\rVert^2}{2 l_v^2} \right)$$
 
@@ -378,15 +388,19 @@ locally_periodic_kernel <- function(X1,
 }
 ```
 
-```{r}
-plot_kernel_value(locally_periodic_kernel)
-```
+Plotting the locally periodic kernel results a series of peaks, reflecting the periodic behaviour captured by the periodic kernel. The peaks are highest when the Euclidean distance between the input vectors is a multiple of the period length. The periodic effect is dampened over longer distances due to the length scaling of the RBF kernel.
 
 ```{r}
-plot_gp(locally_periodic_kernel)
+plot_kernel_value(locally_periodic_kernel, omega = 0.5)
 ```
 
+Sample functions from a Gaussian process that utilises the locally periodic kernel exhibit both periodic behaviour and local variations. The functions appear as smooth, oscillating curves that repeat their patterns over regular intervals, but with varying amplitude and local changes.
 
+```{r}
+plot_gp(locally_periodic_kernel, omega = 0.5)
+```
+
+The locally periodic kernel could be combined with other non-periodic kernel like the Matérn kernel to create even more complex dynamics. However, applying a periodic kernel comes with the assumption that the underlying objective function being modelled exhibits periodic behaviour. If the assumption does not hold true, applying a periodic kernel could be detrimental.
 
 ## Other Non-stationary Kernels
 
@@ -396,7 +410,7 @@ Non-stationary kernels are often used when the underlying function being modelle
 
 ### Linear Kernel
 
-The linear kernel, also known as a dot product kernel or an inner product kernel, is a non-stationary kernel function.
+The linear kernel, also known as the dot product kernel, is a simple non-stationary kernel function.
 
 $$ K(\mathbf{x}, \mathbf{x'}) = \alpha\mathbf{x}^T \mathbf{x'} + \beta $$
 
@@ -405,21 +419,29 @@ It is appropriate to use the linear kernel in cases where the relationship betwe
 Unlike some other kernel functions, such as the Gaussian kernel or the polynomial kernel, the linear kernel does not have any hyperparameters that need to be set or tuned. This can make it a convenient and efficient choice for certain applications, as it requires less computational resources and does not require extensive parameter tuning.
 
 ```{r}
-linear_kernel <- function(X1, X2, alpha = 0, beta = 0) {
+linear_kernel <- function(X1, X2, c = 0) {
   if (is.null(dim(X1))) dim(X1) <- c(1, length(X1))
   if (is.null(dim(X2))) dim(X2) <- c(1, length(X2))
-  beta + (X1 - alpha) %*% t(X2 - alpha)
+  c + X1 %*% t(X2)
 }
-```
-
-```{r plot-linear-kernel}
-plot_kernel_value(linear_kernel, alpha = 1)
 ```
 
 ```{r}
 plot_gp(linear_kernel)
 ```
 
+
+```{r}
+polynomial_kernel <- function(X1, X2, c = 0, nu = 2) {
+  if (is.null(dim(X1))) dim(X1) <- c(1, length(X1))
+  if (is.null(dim(X2))) dim(X2) <- c(1, length(X2))
+  (c + X1 %*% t(X2))^nu
+}
+```
+
+```{r}
+plot_gp(polynomial_kernel, c = 1, nu = 2)
+```
 
 #### Gibbs Kernel
 
