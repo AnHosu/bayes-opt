@@ -216,7 +216,7 @@ The RBF and RQ kernels represent smooth kernels, i.e. kernels that are different
 
 $$k(\mathbf{x}, \mathbf{x'}) = \sigma^2 \exp\left(-\frac{\lVert \mathbf{x} - \mathbf{x'}\rVert}{l}\right)$$
 
-where $\lVert \mathbf{x} - \mathbf{x'}\rVert^2$ is the squared Euclidean distance between the two vectors. $\sigma_f^2$ is a variance parameter that simply scales the kernel. The length scale parameter, $l$, determines how quickly the similarity between two input points decreases as their distance increases, just like for the RBF kernel.
+where $\lVert \mathbf{x} - \mathbf{x'}\rVert$ is the Euclidean distance between the two vectors. $\sigma_f^2$ is a variance parameter that simply scales the kernel. The length scale parameter, $l$, determines how quickly the similarity between two input points decreases as their distance increases, just like for the RBF kernel.
 
 When applied in Gaussian processes, the exponential kernel yields functions that are much less smooth compared to the RBF kernel. This is useful when trying to model functions that exhibit abrupt changes.
 
@@ -474,6 +474,26 @@ $$k(x, x') = \prod_{i = 1}^d\sqrt{\frac{2\ell(x)\ell(x')}{\ell^2(x) + \ell^2(x')
 # Define the linear length scale function
 length_scale_function <- function(X, a, b) {
   a + b * X
+}
+
+l <- function(X, ...) {
+  X0 <- matrix(0, dim(X)[[1]], dim(X)[[2]])
+  rbf_kernel(X, X0, ...)
+}
+
+σ2|Σi| 1
+4 |Σj | 1
+4 | (Σi + Σj ) /2|− 1
+2 
+gibbs_kernel <- function(X1, X2, l, sigma = 1, ...) {
+  # only n = m = 1 is supported for now
+  if (is.null(dim(X1))) dim(X1) <- c(1, length(X1))
+  if (is.null(dim(X2))) dim(X2) <- c(1, length(X2))
+  lX1 <- l(X1, ...)
+  lX2 <- l(X2, ...)
+  dist <- X2 - X1
+  Q <- dist %*% t(dist) * ((lX2 - lX1) / 2)
+  sigma * lX1^(1 / 4) * lX2^(1 /4) * exp(-Q)
 }
 
 # Define the Gibbs kernel
