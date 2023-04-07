@@ -179,7 +179,7 @@ plot_gp(rbf_kernel)
 
 The Rational Quadratic (RQ) Kernel is a generalisation of the RBF kernel in the sense that it can be interpreted as an infinite sum of RBF kernels with different length scales. The RQ kernel is defined as:
 
-$$k(x, x') = \sigma^2\left(1 + \frac{\Vert x - x'\Vert^2}{2\alpha \ell^2}\right)^{-\alpha}$$
+$$k(\mathbf{x}, \mathbf{x'}) = \sigma^2\left(1 + \frac{\Vert x - x'\Vert^2}{2\alpha \ell^2}\right)^{-\alpha}$$
 
 where $\lVert \mathbf{x} - \mathbf{x'}\rVert^2$ is the squared Euclidean distance between the two vectors. $\sigma_f^2$ is a variance parameter that simply scales the kernel. The length scale parameter, $l$, determines how quickly the similarity between two input points decreases as their distance increases, just like for the RBF kernel. The mixture parameter, $\alpha$, can be viewed as controlling how much local variation the kernel allows. When drawing functions from a Gaussian process that employs the RQ kernel, small values of $\alpha$ will yield functions with more local variation while still displaying the overall length scaling defined by $l$. On the other hand, larger values of $\alpha$ will yield functions with less local variation. In fact as $\alpha \to \infty$ the RQ kernel converges to the RBF kernel with the same $l$.
 
@@ -402,7 +402,7 @@ plot_gp(locally_periodic_kernel, omega = 0.5)
 
 The locally periodic kernel could be combined with other non-periodic kernel like the Matérn kernel to create even more complex dynamics. However, applying a periodic kernel comes with the assumption that the underlying objective function being modelled exhibits periodic behaviour. If the assumption does not hold true, applying a periodic kernel could be detrimental.
 
-## Other Non-stationary Kernels
+## Non-stationary Kernels
 
 Unlike stationary kernels, non-stationary kernels can depend on the absolute values of their inputs, and their correlation function may vary with the location of the inputs.
 
@@ -460,59 +460,12 @@ plot_gp(polynomial_kernel, c = 1, nu = 2)
 
 Applying a Gaussian process with the polynomial kernel corresponds to doing Bayesian polynomial regression. This means that the kernel can be applied to model non-linear relationships, but it will also be subject to the same constraints and overfitting challenges of regular polynomial regression.
 
-#### Gibbs Kernel
-
-The RBF kernel has a single parameter that determines the length scale across the entire function. What if that length scale were a function of the input vectors as well?
-
-The Gibbs kernel is a generalisation of the RBF kernel where the length scale is a function of the input vectors rather than a scalar [@Paciorek:2003].
-
-$$k(x, x') = \sqrt{\frac{l(x)l(x')}{l^2(x) + l^2(x')}} \exp\left(-\frac{(x - x')^2}{l^2(x) + l^2(x')}\right)$$
-
-$$k(x, x') = \prod_{i = 1}^d\sqrt{\frac{2\ell(x)\ell(x')}{\ell^2(x) + \ell^2(x')}}\mathrm{exp}\left[ -\frac{(x_i - x_i')^2}{\ell^2(x) + \ell^2(x')} \right]$$
-
-```{r}
-# Define the linear length scale function
-length_scale_function <- function(X, a, b) {
-  a + b * X
-}
-
-l <- function(X, ...) {
-  X0 <- matrix(0, dim(X)[[1]], dim(X)[[2]])
-  rbf_kernel(X, X0, ...)
-}
-
-σ2|Σi| 1
-4 |Σj | 1
-4 | (Σi + Σj ) /2|− 1
-2 
-gibbs_kernel <- function(X1, X2, l, sigma = 1, ...) {
-  # only n = m = 1 is supported for now
-  if (is.null(dim(X1))) dim(X1) <- c(1, length(X1))
-  if (is.null(dim(X2))) dim(X2) <- c(1, length(X2))
-  lX1 <- l(X1, ...)
-  lX2 <- l(X2, ...)
-  dist <- X2 - X1
-  Q <- dist %*% t(dist) * ((lX2 - lX1) / 2)
-  sigma * lX1^(1 / 4) * lX2^(1 /4) * exp(-Q)
-}
-
-# Define the Gibbs kernel
-gibbs_kernel <- function(X1, X2, l ,...) {
-  lx1 <- l(X1, ...)
-  lx2 <- l(X2, ...)
-  
-  diff_squared <- outer(X1, X2, FUN = function(x, y) (x - y)^2)
-  lx1_lx2 <- outer(lx1, lx2)
-  lx1_sq_plus_lx2_sq <- outer(lx1^2, lx2^2, FUN = "+")
-  
-  K <- sqrt(lx1_lx2 / lx1_sq_plus_lx2_sq) * exp(-diff_squared / lx1_sq_plus_lx2_sq)
-  
-  return(K)
-}
-```
-
 
 ## Discrete Kernels
+
+Discrete kernels quantify the similarity or correlation between data points with discrete features. These kernels are particularly useful in modelling non-continuous data, such as count data, rankings, or time series with irregular intervals.
+
+Discrete kernels still map to a continuous variable and can be applied in Gaussian processes and Bayesian optimisation. However, in contrast to the continuous case where some good general-purpose kernels are available, the discrete kernels tend to be more bespoke.
 
 Kronecker Delta Kernel: This kernel assigns a value of 1 to pairs of input points that are equal and a value of 0 otherwise. It is often used to model categorical data.
 

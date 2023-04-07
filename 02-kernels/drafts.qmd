@@ -1,0 +1,70 @@
+#### Gibbs Kernel
+
+The RBF kernel has a single parameter that determines the length scale across the entire function. What if that length scale were a function of the input vectors as well?
+
+The Gibbs kernel is a generalisation of the RBF kernel where the length scale is a function of the input vectors rather than a scalar [@Paciorek:2003].
+
+$$k(x, x') = \sqrt{\frac{l(x)l(x')}{l^2(x) + l^2(x')}} \exp\left(-\frac{(x - x')^2}{l^2(x) + l^2(x')}\right)$$
+
+
+```{r}
+# Define the linear length scale function
+length_scale_function <- function(X, a = 2, b = 1) {
+  a + b * X
+}
+
+l <- function(X, ...) {
+  X0 <- matrix(0, dim(X)[[1]], dim(X)[[2]])
+  rbf_kernel(X, X0, ...)
+}
+
+gibbs_kernel <- function(X1, X2, l, sigma = 1, ...) {
+  # Only 1D is supported for now
+  if (is.null(dim(X1))) dim(X1) <- c(1, length(X1))
+  if (is.null(dim(X2))) dim(X2) <- c(1, length(X2))
+  if (dim(X1)[[2]] > 1 || dim(X2)[[2]] > 1) stop("Only 1D supported")
+  sqdist <- (- 2*(X1 %*% t(X2))) %>%
+    add(rowSums(X1**2, dims = 1)) %>%
+    sweep(2, rowSums(X2**2, dims = 1), `+`)
+  purrr::map(seq_len(dim(X1)[[1]]), function(i) {
+    lx1 <- l(X1[i, 1], ...)
+    purrr::map_dbl(seq_len(dim(X2)[[1]]), function(j) {
+      lx2 <- l(X2[j, 1], ...)
+      sqrt(2 * lx1 * lx2 / (lx1^2 + lx2^2)) *
+        exp(-(X1[i, 1] - X2[j, 1])^2 / ((lx1^2 + lx2^2)))
+    })
+  })
+}
+
+
+gibbs_kernel <- function(X1, X2, l, sigma = 1, ...) {
+  # Only 1D is supported for now
+  if (is.null(dim(X1))) dim(X1) <- c(1, length(X1))
+  if (is.null(dim(X2))) dim(X2) <- c(1, length(X2))
+  if (dim(X1)[[2]] > 1 || dim(X2)[[2]] > 1) stop("Only 1D supported")
+  lx1 <- l(X1, ...)
+  lx2 <- l(X2, ...)
+  
+  
+  sqdist <- (- 2*(X1 %*% t(X2))) %>%
+    add(rowSums(X1**2, dims = 1)) %>%
+    sweep(2, rowSums(X2**2, dims = 1), `+`)
+  purrr::map(seq_len(dim(X1)[[1]]), function(i) {
+    lx1 <- l(X1[i, 1], ...)
+    purrr::map_dbl(seq_len(dim(X2)[[1]]), function(j) {
+      lx2 <- l(X2[j, 1], ...)
+      sqrt(2 * lx1 * lx2 / (lx1^2 + lx2^2)) *
+        exp(-(X1[i, 1] - X2[j, 1]) / ((lx1^2 + lx2^2)))
+    })
+  })
+}
+
+gibbs_kernel(X_predict, X_predict, l = length_scale_function, a = 2, b = 1)
+```
+
+```{r}
+plot_kernel_value(gibbs_kernel, l = length_scale_function, a = 2, b = 1)
+```
+```{r}
+plot_gp(gibbs_kernel, l = length_scale_function, a = 2, b = 1)
+```
