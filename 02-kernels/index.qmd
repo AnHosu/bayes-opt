@@ -460,10 +460,18 @@ plot_gp(polynomial_kernel, c = 1, nu = 2)
 
 Applying a Gaussian process with the polynomial kernel corresponds to doing Bayesian polynomial regression. This means that the kernel can be applied to model non-linear relationships, but it will also be subject to the same constraints and overfitting challenges of regular polynomial regression.
 
+## Kernels for Discrete and Categorical Data
 
-## Discrete Kernels
+#### Discrete, Ordered, Inifinite
 
-Discrete kernels quantify the similarity or correlation between data points with discrete features. These kernels are particularly useful in modelling non-continuous data, such as count data, rankings, or time series with irregular intervals.
+#### Discrete, Ordered, Finite
+
+#### Categorigal
+
+- one hot
+
+
+All the kernels mentioned above deal with continuous data. Discrete kernels quantify the similarity or correlation between data points with discrete features. These kernels are particularly useful in modelling non-continuous data, such as count data, rankings, or time series with irregular intervals.
 
 Discrete kernels still map to a continuous variable and can be applied in Gaussian processes and Bayesian optimisation. However, in contrast to the continuous case where some good general-purpose kernels are available, the discrete kernels tend to be more bespoke.
 
@@ -566,12 +574,11 @@ aniso_rbf_kernel <- function(X1, X2, gamma, l) {
 
 ```
 
-
-## Adding Noise to Kernels
-
 ## Combining Kernels
 
-Kernels can be combined in several ways to create more powerful and flexible kernel functions. Here are some common ways to combine kernels:
+Kernels can be combined to create new kernels with more flexibility or sophisticated dynamics. The successful application of Gaussian processes relies on choosing a kernel that can model the target function. Combining different types of kernels provides a major means of creating a good kernel for the Gaussian process.
+
+There are two main ways kernels are combined: combining multiple kernels on each feature or using different kernels for different featured.
 
 ### Combined Homogenous Kernels
 
