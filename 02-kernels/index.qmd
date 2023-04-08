@@ -289,38 +289,6 @@ The Matérn kernel can yield functions that strike a balance between smoothness 
 plot_gp(matern_kernel, nu = 1.5)
 ```
 
-#### Constant Kernel
-
-The constant kernel, also known as the bias kernel, is a simple kernel defined as
-
-$$k(\mathbf{x}, \mathbf{x'}) = c$$
-
-where $c$ is a constant value.
-
-The constant kernel is characterised by its simplicity, as it assumes a constant value, meaning the output is the same for all input points. The constant kernel can be used alone or combined with other kernels to model more complex relationships between data points. In Gaussian process regression, this kernel can capture constant offsets in the function being modelled.
-
-The kernel is mostly useful in combination with other kernels, where it adds an offset or bias to the kernel value.
-
-```{r}
-constant_kernel <- function(X1, X2, c = 1) {
-  if (is.null(dim(X1))) dim(X1) <- c(1, length(X1))
-  if (is.null(dim(X2))) dim(X2) <- c(1, length(X2))
-  matrix(c, dim(X1)[[1]], dim(X2)[[1]])
-}
-```
-
-The constant kernel function is just a flat, two-dimensional surface parallel to the input space. The height of the surface is equal to the constant value $c$.
-
-```{r}
-plot_kernel_value(constant_kernel)
-```
-
-Sampled functions from a Gaussian process that utilises the constant kernel are just constant functions. The functions are flat, horizontal lines parallel to the x-axis. There is still variance - each function has a different constant value, determined variance specified by the kernel. If the Gaussian process has a zero mean function, the sampled functions will be horizontal lines with y-values centred around zero, and their heights will be determined by the constant kernel value according to $y = \beta$ where $\beta \sim \mathcal{N}(0, c^2)$.
-
-```{r}
-plot_gp(constant_kernel)
-```
-
 ## Periodic Kernels
 
 Periodic kernels are a class of kernel functions that exhibit periodicity. Formally, a periodic kernel function $k(\mathbf{x}, \mathbf{x'})$ is periodic if and only if:
@@ -461,9 +429,67 @@ Applying a Gaussian process with the polynomial kernel corresponds to doing Baye
 
 ## Other Kernels
 
+#### Constant Kernel
+
+The constant kernel, also known as the bias kernel, is a simple kernel defined as
+
+$$k(\mathbf{x}, \mathbf{x'}) = c$$
+
+where $c$ is a constant value.
+
+The constant kernel is characterised by its simplicity, as it assumes a constant value, meaning the output is the same for all input points. The constant kernel can be used alone or combined with other kernels to model more complex relationships between data points. In Gaussian process regression, this kernel can capture constant offsets in the function being modelled.
+
+The kernel is mostly useful in combination with other kernels, where it adds an offset or bias to the kernel value.
+
+```{r}
+constant_kernel <- function(X1, X2, c = 1) {
+  if (is.null(dim(X1))) dim(X1) <- c(1, length(X1))
+  if (is.null(dim(X2))) dim(X2) <- c(1, length(X2))
+  matrix(c, dim(X1)[[1]], dim(X2)[[1]])
+}
+```
+
+The constant kernel function is just a flat, two-dimensional surface parallel to the input space. The height of the surface is equal to the constant value $c$.
+
+```{r}
+plot_kernel_value(constant_kernel)
+```
+
+Sampled functions from a Gaussian process that utilises the constant kernel are just constant functions. The functions are flat, horizontal lines parallel to the x-axis. There is still variance - each function has a different constant value, determined variance specified by the kernel. If the Gaussian process has a zero mean function, the sampled functions will be horizontal lines with y-values centred around zero, and their heights will be determined by the constant kernel value according to $y = \beta$ where $\beta \sim \mathcal{N}(0, c^2)$.
+
+```{r}
+plot_gp(constant_kernel)
+```
+
+
+#### White Noise Kernel
+
+The white noise kernel is also known as the Kronecker Delta Kernel because its definition utilises the Kronecker delta function:
+
+$$k(\mathbf{x}, \mathbf{x'}) = \sigma^2\delta_{\mathbf{x}, \mathbf{x'}}$$
+
+In other words, when the input vectors are exactly the same there is noise, $\sigma$, otherwise the kernel is zero. 
+
+```{r}
+white_noise_kernel <- function(X1, X2, sigma = 1) {
+  if (is.null(dim(X1))) dim(X1) <- c(1, length(X1))
+  if (is.null(dim(X2))) dim(X2) <- c(1, length(X2))
+  k <- matrix(0, dim(X1)[[1]], dim(X2)[[1]])
+  diag(k) <- 1
+  k
+}
+```
+
+```{r}
+plot_gp(white_noise_kernel)
+```
+
 #### White Noise Kernel with Heteroskedastic Noise
 
 The white noise kernel is a simple kernel function used in Gaussian processes to model independent noise or measurement errors in the data. The white noise kernel is defined as:
+
+
+
 
 #### Discrete, Ordered, Inifinite
 
