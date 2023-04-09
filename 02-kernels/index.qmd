@@ -391,7 +391,7 @@ The linear kernel can be applied in cases when linear behaviour is expected. If 
 linear_kernel <- function(X1, X2, sigma = 0) {
   if (is.null(dim(X1))) dim(X1) <- c(1, length(X1))
   if (is.null(dim(X2))) dim(X2) <- c(1, length(X2))
-  sgima^2 + X1 %*% t(X2)
+  sigma^2 + X1 %*% t(X2)
 }
 ```
 
@@ -422,7 +422,7 @@ polynomial_kernel <- function(X1, X2, sigma = 0, nu = 2) {
 Sampled functions from a Gaussian process that utilises the polynomial kernel will exhibit polynomial behaviour. The functions appear as smooth curves with varying shapes, depending on the degree and the parameters of the polynomial kernel. When $\nu = 2$, the functions are parabolas.
 
 ```{r}
-plot_gp(polynomial_kernel, c = 1, nu = 2)
+plot_gp(polynomial_kernel, sigma = 1, nu = 2)
 ```
 
 Applying a Gaussian process with the polynomial kernel corresponds to doing Bayesian polynomial regression. This means that the kernel can be applied to model non-linear relationships, but it will also be subject to the same constraints and overfitting challenges of regular polynomial regression.
@@ -495,87 +495,73 @@ Anisotropic kernels that allow for different length scales in different dimensio
 The anisotropy of a kernel is controlled by several length scale parameters, which specify the characteristic length of variations in the input space along each dimension. The use of anisotropic kernels can improve the predictive accuracy of Gaussian process models when the input variables have different levels of variability or when the correlations between variables vary in different directions. However, anisotropic kernels also increase the complexity because of the added parameters.
 
 ```{r}
-# Anisotropic RBF kernel (vectorized)
-aniso_rbf_kernel <- function(X1, X2, gamma, l) {
-  # X1: n x p matrix
-  # X2: m x p matrix
-  # gamma: scalar, the kernel width parameter
-  # l: p-dimensional vector, the length scale parameter
+#' Anisotropic RBF Kernel
+#'
+#' @param X1 matrix of dimensions (n, d). Vectors are coerced to (1, d).
+#' @param X2 matrix of dimensions (m, d). Vectors are coerced to (1, d).
+#' @param l length scale, vector of size 1 or size d. If l = 1 this is equal to
+#' the isotropic RBF kernel.
+#' @param sigma scale parameter 
+#'
+#' @return matrix of dimensions (n, m)
+rbf_kernel <- function(X1, X2, l = 1.0, sigma = 1.0) {
+  if (is.null(dim(X1))) dim(X1) <- c(1, length(X1))
+  if (is.null(dim(X2))) dim(X2) <- c(1, length(X2))
+  d <- dim(X1)[[2]]
   
-  n <- nrow(X1)
-  m <- nrow(X2)
-  
-  # Compute the squared Euclidean distance between every pair of points
-  D <- -2 * crossprod(X1, X2, sparse = TRUE) +
-    rowSums(X1^2) %*% rep(1, m) +
-    rep(1, n) %*% t(colSums(X2^2))
-  D <- sqrt(max(0, D))
-  
-  # Compute the kernel matrix using the RBF kernel function
-  K <- exp(-gamma * (D^2 / outer(l^2, rep(1, m), "*")))
-  
-  return(K)
+  sqdist <- (- 2*(X1 %*% t(X2))) %>%
+    add(rowSums(X1**2, dims = 1)) %>%
+    sweep(2, rowSums(X2**2, dims = 1), `+`)
+  sigma**2 * exp(-0.5 / l**2 * sqdist)
 }
-
 ```
 
 ## Combining Kernels
 
 Kernels can be combined to create new kernels with more flexibility or sophisticated dynamics. The successful application of Gaussian processes relies on choosing a kernel that can model the target function. Combining different types of kernels provides a major means of creating a good kernel for the Gaussian process.
 
-There are two main ways kernels are combined: combining multiple kernels on each feature or using different kernels for different featured.
+There are two main ways kernels are combined: combining multiple kernels on each feature or using different kernels for different features.
 
-### Combined Homogenous Kernels
+#### Creating new kernels
 
-Summation: Two or more kernels can be added together to create a new kernel that captures the features of both. For example, if you have two kernels K1 and K2, you can combine them as K = K1 + K2. The resulting kernel K will assign high values to pairs of points that are similar in either K1 or K2.
+A new kernel can be created from existing kernels in multiple ways. 
 
-Product: Two or more kernels can be multiplied together to create a new kernel that captures the features of both. For example, if you have two kernels K1 and K2, you can combine them as K = K1 * K2. The resulting kernel K will assign high values to pairs of points that are similar in both K1 and K2.
+##### Summation
 
-Convolution: Two or more kernels can be convolved together to create a new kernel that captures the features of both. For example, if you have two kernels K1 and K2, you can combine them as K = K1 * K2, where * represents convolution. The resulting kernel K will assign high values to pairs of points that are similar in both K1 and K2, but will also capture more complex patterns that cannot be captured by either kernel alone.
+Two or more kernels can be added together to create a new kernel that captures the features of both. Two kernels $k_1(\mathbf{x},\mathbf{x'})$ and $k_2(\mathbf{x},\mathbf{x'})$, can be combined as
 
-Weighted combination: Two or more kernels can be combined as a weighted sum to create a new kernel that assigns different weights to each kernel. For example, if you have two kernels K1 and K2, you can combine them as K = w1 * K1 + w2 * K2, where w1 and w2 are the weights assigned to K1 and K2, respectively. The resulting kernel K will assign high values to pairs of points that are similar in either K1 or K2, but the weights can be adjusted to give more importance to one kernel over the other.
+$$k_{sum}(\mathbf{x},\mathbf{x'}) = k_1(\mathbf{x},\mathbf{x'}) + k_2(\mathbf{x},\mathbf{x'})$$
 
-Power: A kernel can be raised to a power to create a new kernel that captures higher-order patterns. For example, if you have a kernel K, you can raise it to the power of p as K = K^p. The resulting kernel K will assign high values to pairs of points that are similar in K, but will also capture higher-order patterns that cannot be captured by K alone.
+The resulting kernel will assign high covariance to pairs of points that are similar in *either* $k_1$ *or* $k_2$. I.e. the inputs $\mathbf{x}$ and $\mathbf{x'}$ only need to have a high covariance according to one kernel to return a high covariance for the combined kernel, when the kernels are added together.
 
-By combining kernels in different ways, you can create more complex and flexible kernel functions that can capture a wide range of patterns in the input data.
+##### Product
 
-### Combined Heterogenous Kernels
+Two or more kernels can be multiplied together to create a new kernel that captures the features of both. Two kernels $K_1(\mathbf{x},\mathbf{x'})$ and $K_2(\mathbf{x},\mathbf{x'})$, can be combined as
 
-The idea behind using heterogeneous kernels is to allow the model to capture different types of patterns in different dimensions of the input data. For example, if you have a dataset with features that have different types of scales, you might want to use a linear kernel for the features that are on a similar scale and a radial basis function (RBF) kernel for the features that have a different scale. Another example is in natural language processing, where a bag-of-words representation can be combined with a kernel that captures syntactic or semantic relations between words.
+$$K_{sum}(\mathbf{x},\mathbf{x'}) = K_1(\mathbf{x},\mathbf{x'})K_2(\mathbf{x},\mathbf{x'})$$
+The resulting kernel will assign high values to pairs of points that are similar in *both* $k_1$ *and* $k_2$. I.e. the inputs $\mathbf{x}$ and $\mathbf{x'}$ need to have a high covariance according to both kernels to return a high covariance for the combined kernel, when the kernels are multiplied. The locally periodic kernel, as described above, is an example of a periodic kernel combined with a stationary kernel by multiplication. 
 
-```{r}
-mixed_kernel <- function(X1, X2, gamma, l, kernel_type) {
-  # X1: n x p matrix
-  # X2: m x p matrix
-  # gamma: scalar, the kernel width parameter
-  # l: p-dimensional vector, the length scale parameter
-  # kernel_type: p-dimensional vector, specifies the kernel type for each dimension
-  
-  n <- nrow(X1)
-  m <- nrow(X2)
-  p <- ncol(X1)
-  
-  # Initialize kernel matrix to zeros
-  K <- matrix(0, n, m)
-  
-  for (i in 1:p) {
-    # Compute kernel matrix for current dimension
-    if (kernel_type[i] == "rbf") {
-      K_i <- exp(-gamma * ((X1[,i] %*% t(rep(1,m)))^2 + (rep(1,n) %*% t(X2[,i]))^2 - 2*X1[,i] %*% t(X2[,i])) / l[i]^2)
-    } else if (kernel_type[i] == "linear") {
-      K_i <- X1[,i] %*% t(X2[,i])
-    } else {
-      stop("Unsupported kernel type")
-    }
-    
-    # Add kernel matrix to mixed kernel matrix
-    K <- K + K_i
-  }
-  
-  return(K)
-}
+As a consequence of this rule, any kernel can also be raised to a power of a positive integer and still be a valid kernel.
 
-```
+##### Other Methods
+
+The sum and product rules can also be combined. Along with the fact that the constant kernel is a valid kernel, one can effectively create a weighed sum of kernels.
+
+$$k_{sum}(\mathbf{x},\mathbf{x'}) = w_1k_1(\mathbf{x},\mathbf{x'}) + w_2k_2(\mathbf{x},\mathbf{x'})$$
+
+Where $w_1$ and $w_2$ are weights.
+
+Two or more kernels can also be combined through convolution and yield a valid kernel.
+
+#### Different Kernels for Different Dimensions
+
+Using different kernels across different dimensions is often the right thing to, as it allows for a more accurate representation of prior knowledge of the modelled process.
+
+Specifically, when the input features have different properties or units, different kernels might be appropriate. For example, a dimension representing time might benefit from a periodic kernel and another another representing temperature might best be represented with a stationary kernel. Using a separate kernel for each dimension can help capture the distinct behaviours and scales of the two features. It is also easy to imagine a real-world problem where the gathered data includes a mix of different data types, such as continuous, discrete, or categorical. By applying the right type of kernel to each type of feature, all features can be included in the same Gaussian process.
+
+In the situation where there are two different types of features, $\mathbf{x}_a$ and $\mathbf{x}_b$. These could be a set of continuous features and a set of categorical features. On the first set of features, one kernel is applied, i.e., $k_a(\mathbf{x}_a,\mathbf{x'}_a)$. On the other set of features another kernel is applied, i.e., $k_b(\mathbf{x}_b,\mathbf{x'}_b)$. The two kernel values can be combined by multiplication
+
+$$k(\mathbf{x}_a, \mathbf{x}_b, \mathbf{x'}_a, \mathbf{x'}_b) = k_a(\mathbf{x}_b,\mathbf{x'}_b)k_b(\mathbf{x}_b,\mathbf{x'}_b)$$
 
 # References {-}
 
