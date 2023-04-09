@@ -480,103 +480,19 @@ white_noise_kernel <- function(X1, X2, sigma = 1) {
 }
 ```
 
+Samples pulled from a Gaussian processes that utilises just the white noise kernel are nothing but white noise. 
+
 ```{r}
 plot_gp(white_noise_kernel)
 ```
 
-#### White Noise Kernel with Heteroskedastic Noise
+The white noise kernel alone cannot capture the underlying signal of the function being modelled. However, it can be used in combination with other kernels. Specifically, the white noise kernel models the case where observations have white, i.e. Gaussian, noise but the magnitude of the noise is unknown. 
 
-The white noise kernel is a simple kernel function used in Gaussian processes to model independent noise or measurement errors in the data. The white noise kernel is defined as:
+## Anisotropic Kernels
 
+Anisotropic kernels that allow for different length scales in different dimensions of the input space. This is in opposition to the isotropic kernels described above, where there is a single length scale across all dimensions. Intuitively, the anisotropic kernel is stretched or compressed in certain directions compared to its isotropic counterpart. This property can be useful when the input variables have different units or scales.
 
-
-
-#### Discrete, Ordered, Inifinite
-
-#### Discrete, Ordered, Finite
-
-#### Categorigal
-
-- one hot
-
-
-All the kernels mentioned above deal with continuous data. Discrete kernels quantify the similarity or correlation between data points with discrete features. These kernels are particularly useful in modelling non-continuous data, such as count data, rankings, or time series with irregular intervals.
-
-Discrete kernels still map to a continuous variable and can be applied in Gaussian processes and Bayesian optimisation. However, in contrast to the continuous case where some good general-purpose kernels are available, the discrete kernels tend to be more bespoke.
-
-Kronecker Delta Kernel: This kernel assigns a value of 1 to pairs of input points that are equal and a value of 0 otherwise. It is often used to model categorical data.
-
-Ordinal Kernel
-
-Histogram Intersection Kernel
-
-Spectral Kernel
-
-Dirichlet Process Kernel
-
-Jaccard kernel
-
-Cosine kernel
-
-Levenshtein kernel
-
-#### Hamming kernel
-
-$$k(x, x') = \frac{1}{L}\sum_{i=1}^{L} [x_i = x'_i]$$
-
-The Hamming Kernel is a discrete kernel function that is commonly used for modeling binary data, such as DNA sequences. It assigns a value of 1 to pairs of input points that have the same binary code and a value of 0 otherwise. The Hamming distance between two binary strings is the number of positions in which they differ.
-
-```{r}
-hamming_kernel <- function(x, y) {
-  L <- length(x)
-  kernel <- sum(x == y) / L
-  return(kernel)
-}
-
-```
-
-
-Chi-squared Kernel
-
-$$K(\mathbf{x}, \mathbf{y}) = \exp\left(-\frac{1}{2}\sum_{i=1}^{n} \frac{(x_i-y_i)^2}{x_i+y_i}\right)$$
-
-Intuitively, the chi-squared kernel measures the similarity between two histograms by comparing the differences between their corresponding bins, taking into account the size of each bin. The kernel is normalized so that its values lie between 0 and 1, where a value of 1 indicates identical histograms and a value of 0 indicates completely dissimilar histograms.
-
-```{r}
-chi_squared_kernel <- function(x, y) {
-  # x: vector of histogram bin counts or probabilities
-  # y: vector of histogram bin counts or probabilities
-  
-  # Check that x and y have the same length
-  if (length(x) != length(y)) {
-    stop("Input vectors must have the same length")
-  }
-  
-  # Compute chi-squared distance between x and y
-  dist <- sum((x - y)^2 / (x + y))
-  
-  # Compute chi-squared kernel using distance
-  kernel <- exp(-0.5 * dist)
-  
-  return(kernel)
-}
-
-```
-
-
-Lattice Kernel
-
-Product Kernel
-
-## What are anisotropic kernels and how to implement them?
-
-Anisotropic kernels are covariance functions in Gaussian process regression that allow for different levels of smoothness in different directions or dimensions of the input space. In other words, the kernel is "stretched" or "compressed" in certain directions, which can be useful when the input variables have different units or scales.
-
-The anisotropy of a kernel is controlled by one or more length scales, which specify the characteristic length of variations in the input space along each dimension. In isotropic kernels, there is a single length scale that controls the smoothness in all dimensions, whereas in anisotropic kernels there can be multiple length scales, one for each dimension.
-
-Examples of anisotropic kernels include the RBF kernel and the Matern kernel with anisotropic length scales.
-
-The use of anisotropic kernels can improve the predictive accuracy of Gaussian process models when the input variables have different levels of variability or when the correlations between variables vary in different directions. However, anisotropic kernels can also increase the complexity of the model and require more computational resources for optimization and inference.
+The anisotropy of a kernel is controlled by several length scale parameters, which specify the characteristic length of variations in the input space along each dimension. The use of anisotropic kernels can improve the predictive accuracy of Gaussian process models when the input variables have different levels of variability or when the correlations between variables vary in different directions. However, anisotropic kernels also increase the complexity because of the added parameters.
 
 ```{r}
 # Anisotropic RBF kernel (vectorized)
