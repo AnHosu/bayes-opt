@@ -1,0 +1,47 @@
+---
+title: ""
+bibliography: references.bib
+csl: ../citation_style.csl
+format:
+  html:
+    fig-width: 8
+    fig-height: 5
+    theme: default
+html-math-method:
+  method: katex
+---
+
+Bayesian optimisation is a powerful optimisation technique for black-box functions and processes with expensive evaluations. It is popular for hyperparameter tuning and model selection in machine learning, but has many real-world applications as well. One of the key components of Bayesian optimisation is the acquisition function, which guides the search process by balancing exploration and exploitation of the search space. In this post, we will dive into the role of acquisition functions in Bayesian optimisation and discuss some popular examples of acquisition functions..
+
+## Role of the Acquisition Function in Bayesian Optimisation
+
+Bayesian optimisation is an iterative process. It combines a probabilistic surrogate model, often a Gaussian Process, with an acquisition function to select the next point to evaluate. The surrogate model captures our current understanding and uncertainty of the objective function, while the acquisition function helps balance the trade-off between exploring new regions of input space and exploiting regions with high predicted performance.
+
+Mathematically, the acquisition function, denoted by $a(x)$, assigns a value to each point in the search space $x \in \mathcal{X}$. The next point to evaluate, $x_{t+1}$, is chosen by maximising or minimising the acquisition function, depending on the optimisation task at hand:
+
+$$x_{t+1} = \arg\min_{x \in \mathcal{X}} a(x)$$
+
+The acquisition function takes into account both the mean $\mu(x)$ and the variance $\sigma^2(x)$ of the surrogate model's prediction, to balance exploration and exploitation. Roughly speaking areas with extreme values of $\mu(x)$ correspond to areas we might exploit to get good performing samples, while areas with high values of $\sigma^2(x)$ correspond to with high uncertainty that we might consider for exploration.
+
+
+## Examples of Acquisition Functions
+
+#### Expected Improvement
+
+#### Upper Confidence Bound
+
+#### Probability of Improvement
+
+Probability of improvement PI aims to select the point that has the highest probability of improving the current best solution. The PI function inherently balances exploration and exploitation by taking into account both the mean and the variance of the surrogate model. A point with a high mean and low variance is likely to be a good candidate for exploitation, while a point with a high variance but lower mean may be more suitable for exploration.
+
+The function is defined as
+
+$$a_{PI}(x) = P(f(x) \gt f(x^+) + \xi)$$
+
+Where ...
+
+
+#### Mutual Information & Entropy Search
+
+#### Knowledge Gradient
+
