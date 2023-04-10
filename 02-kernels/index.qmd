@@ -151,13 +151,16 @@ The flexibility and interpretability of the length scale parameter makes the RBF
 ```{r}
 #' RBF Kernel
 #'
+#' Isotropic RBF kernel function generalised to two sets of n and m observations
+#' of d features.
+#'
 #' @param X1 matrix of dimensions (n, d). Vectors are coerced to (1, d).
 #' @param X2 matrix of dimensions (m, d). Vectors are coerced to (1, d).
-#' @param l length scale
-#' @param sigma scale parameter 
+#' @param sigma scale parameter, scalar
+#' @param l length scale, scalar
 #'
-#' @return matrix of dimensions (n, m)
-rbf_kernel <- function(X1, X2, l = 1.0, sigma = 1.0) {
+#' @return kernel matrix of dimensions (n, m)
+rbf_kernel <- function(X1, X2, sigma = 1.0, l = 1.0) {
   if (is.null(dim(X1))) dim(X1) <- c(1, length(X1))
   if (is.null(dim(X2))) dim(X2) <- c(1, length(X2))
   sqdist <- (- 2*(X1 %*% t(X2))) %>%
@@ -192,6 +195,18 @@ Since the RQ Kernel can model functions with a mixture of different length scale
 The added flexibility compared to the RBF kernel without too much added complexity, makes the RQ kernel a good alternative, when exploring Gaussian processes.
 
 ```{r}
+#' RQ Kernel
+#'
+#' Isotropic RQ kernel function generalised to two sets of n and m observations
+#' of d features.
+#'
+#' @param X1 matrix of dimensions (n, d). Vectors are coerced to (1, d).
+#' @param X2 matrix of dimensions (m, d). Vectors are coerced to (1, d).
+#' @param sigma scale parameter, scalar
+#' @param l length scale, scalar
+#' @param alpha mixture parameter, positive scalar
+#'
+#' @return kernel matrix of dimensions (n, m)
 rq_kernel <- function(X1, X2, sigma = 1, l = 1, alpha = 1) {
   if (is.null(dim(X1))) dim(X1) <- c(1, length(X1))
   if (is.null(dim(X2))) dim(X2) <- c(1, length(X2))
@@ -225,7 +240,18 @@ where $\lVert \mathbf{x} - \mathbf{x'}\rVert$ is the Euclidean distance between 
 When applied in Gaussian processes, the exponential kernel yields functions that are much less smooth compared to the RBF kernel. This is useful when trying to model functions that exhibit abrupt changes.
 
 ```{r}
-exponential_kernel <- function(X1, X2, l = 1, sigma = 1) {
+#' Exponential Kernel
+#'
+#' Isotropic exponential kernel function generalised to two sets of n and m
+#' observations of d features.
+#'
+#' @param X1 matrix of dimensions (n, d). Vectors are coerced to (1, d).
+#' @param X2 matrix of dimensions (m, d). Vectors are coerced to (1, d).
+#' @param sigma scale parameter, scalar
+#' @param l length scale, scalar
+#'
+#' @return kernel matrix of dimensions (n, m)
+exponential_kernel <- function(X1, X2, sigma = 1, l = 1) {
   if (is.null(dim(X1))) dim(X1) <- c(1, length(X1))
   if (is.null(dim(X2))) dim(X2) <- c(1, length(X2))
   distance <- (- 2*(X1 %*% t(X2))) %>%
@@ -263,7 +289,19 @@ The Matérn kernel is a popular choice for Gaussian processes, as it only makes 
 Base R includes functions for the gamma function as well as a Bessel function of the second kind with given order, so it can be implemented without the need for additional libraries.
 
 ```{r}
-matern_kernel <- function(X1, X2, nu = 2.5, l = 1, sigma = 1) {
+#' Matérn Kernel
+#'
+#' Isotropic Matérn kernel function generalised to two sets of n and m
+#' observations of d features.
+#'
+#' @param X1 matrix of dimensions (n, d). Vectors are coerced to (1, d).
+#' @param X2 matrix of dimensions (m, d). Vectors are coerced to (1, d).
+#' @param sigma scale parameter, scalar
+#' @param l length scale, scalar
+#' @param nu smoothness parameter, positive scalar
+#'
+#' @return kernel matrix of dimensions (n, m)
+matern_kernel <- function(X1, X2, sigma = 1, l = 1, nu = 2.5) {
   if (is.null(dim(X1))) dim(X1) <- c(1, length(X1))
   if (is.null(dim(X2))) dim(X2) <- c(1, length(X2))
   distance <- (- 2*(X1 %*% t(X2))) %>%
@@ -306,7 +344,19 @@ $$k(\mathbf{x}, \mathbf{x'}) = \exp \left( -\frac{2 \sin^2\left(\pi \frac{\lVert
 Where $\lVert\mathbf{x}-\mathbf{x'}\rVert$ is the Euclidean distance between the two vectors, $\omega$ is the period, and $l$ is the length scale.
 
 ```{r}
-periodic_kernel <- function(X1, X2, l = 1, omega = 1, sigma = 1) {
+#' Basic Periodic Kernel
+#'
+#' Isotropic basic periodic kernel function generalised to two sets of n and m
+#' observations of d features.
+#'
+#' @param X1 matrix of dimensions (n, d). Vectors are coerced to (1, d).
+#' @param X2 matrix of dimensions (m, d). Vectors are coerced to (1, d).
+#' @param sigma scale parameter, scalar
+#' @param l length scale, scalar
+#' @param omega period parameter, scalar
+#'
+#' @return kernel matrix of dimensions (n, m)
+periodic_kernel <- function(X1, X2, sigma = 1, l = 1, omega = 1) {
   if (is.null(dim(X1))) dim(X1) <- c(1, length(X1))
   if (is.null(dim(X2))) dim(X2) <- c(1, length(X2))
   distance <- (- 2*(X1 %*% t(X2))) %>%
@@ -346,12 +396,25 @@ An example of the basic periodic kernel working in tandem with a non-periodic ke
 $$k(\mathbf{x}, \mathbf{x'}) = \sigma^2\exp \left( -\frac{2 \sin^2\left(\pi \frac{\lVert\mathbf{x}-\mathbf{x'}\rVert}{\omega}\right)}{l_p^2} \right) \exp \left( -\frac{\lVert\mathbf{x}-\mathbf{x'}\rVert^2}{2 l_v^2} \right)$$
 
 ```{r}
+#' Locally Periodic Kernel
+#'
+#' Isotropic locally periodic kernel function generalised to two sets of n and m
+#' observations of d features.
+#'
+#' @param X1 matrix of dimensions (n, d). Vectors are coerced to (1, d).
+#' @param X2 matrix of dimensions (m, d). Vectors are coerced to (1, d).
+#' @param sigma scale parameter, scalar
+#' @param l_period length scale for periodicity, scalar
+#' @param l_var length scale for stationary variance, scalar
+#' @param omega period parameter, scalar
+#'
+#' @return kernel matrix of dimensions (n, m)
 locally_periodic_kernel <- function(X1,
                                     X2,
+                                    sigma = 1,
                                     l_period = 1,
                                     l_var = 1,
-                                    omega = 1,
-                                    sigma = 1) {
+                                    omega = 1) {
   periodic_kernel(X1, X2, l = l_period, omega = omega, sigma = sigma) *
     rbf_kernel(X1, X2, l = l_period, sigma = 1)
 }
@@ -388,6 +451,16 @@ Where $\sigma$ is a constant. When $sigma = 0$ the kernel is called homogeneous 
 The linear kernel can be applied in cases when linear behaviour is expected. If the value of the modelled function is expected to grow as a function of the distance from an origin, a linear kernel might be appropriate.
 
 ```{r}
+#' Linear Kernel
+#'
+#' Linear kernel function generalised to two sets of n and m observations of d
+#' features.
+#'
+#' @param X1 matrix of dimensions (n, d). Vectors are coerced to (1, d).
+#' @param X2 matrix of dimensions (m, d). Vectors are coerced to (1, d).
+#' @param sigma homogeneity parameter, scalar
+#'
+#' @return kernel matrix of dimensions (n, m)
 linear_kernel <- function(X1, X2, sigma = 0) {
   if (is.null(dim(X1))) dim(X1) <- c(1, length(X1))
   if (is.null(dim(X2))) dim(X2) <- c(1, length(X2))
@@ -412,6 +485,17 @@ $$ K(\mathbf{x}, \mathbf{x'}) = (\mathbf{x}^T \mathbf{x'} + \sigma^2)^{\nu} $$
 Where $\sigma$ is a constant that determines the shape of the kernel function and $\nu$, a positive integer, is the degree of the polynomial. When $sigma = 0$ the kernel is called homogeneous and inhomogeneous otherwise.
 
 ```{r}
+#' Polynomial Kernel
+#'
+#' Polynomial kernel function generalised to two sets of n and m observations of
+#' d features.
+#'
+#' @param X1 matrix of dimensions (n, d). Vectors are coerced to (1, d).
+#' @param X2 matrix of dimensions (m, d). Vectors are coerced to (1, d).
+#' @param sigma homogeneity parameter, scalar
+#' @param nu degree parameter, positive integer
+#'
+#' @return kernel matrix of dimensions (n, m)
 polynomial_kernel <- function(X1, X2, sigma = 0, nu = 2) {
   if (is.null(dim(X1))) dim(X1) <- c(1, length(X1))
   if (is.null(dim(X2))) dim(X2) <- c(1, length(X2))
@@ -440,6 +524,16 @@ where $c$ is a constant value.
 The constant kernel is characterised by its simplicity, as it assumes a constant value, meaning the output is the same for all input points. The constant kernel can be combined with other kernels to model more complex relationships between data points. In Gaussian process regression, this kernel can capture constant offsets in the function being modelled.
 
 ```{r}
+#' Constant Kernel
+#'
+#' Constant kernel function generalised to two sets of n and m observations of d
+#' features.
+#'
+#' @param X1 matrix of dimensions (n, d). Vectors are coerced to (1, d).
+#' @param X2 matrix of dimensions (m, d). Vectors are coerced to (1, d).
+#' @param c kernel value, scalar
+#'
+#' @return kernel matrix of dimensions (n, m)
 constant_kernel <- function(X1, X2, c = 1) {
   if (is.null(dim(X1))) dim(X1) <- c(1, length(X1))
   if (is.null(dim(X2))) dim(X2) <- c(1, length(X2))
@@ -469,6 +563,16 @@ $$k(\mathbf{x}, \mathbf{x'}) = \sigma^2\delta_{\mathbf{x}, \mathbf{x'}}$$
 In other words, when the input vectors are exactly the same there is noise, $\sigma$, otherwise the kernel is zero. 
 
 ```{r}
+#' White Noise Kernel
+#'
+#' White noise kernel function generalised to two sets of n and m observations
+#' of d features.
+#'
+#' @param X1 matrix of dimensions (n, d). Vectors are coerced to (1, d).
+#' @param X2 matrix of dimensions (m, d). Vectors are coerced to (1, d).
+#' @param sigma noise parameter, positive scalar
+#'
+#' @return kernel matrix of dimensions (n, m)
 white_noise_kernel <- function(X1, X2, sigma = 1) {
   if (is.null(dim(X1))) dim(X1) <- c(1, length(X1))
   if (is.null(dim(X2))) dim(X2) <- c(1, length(X2))
@@ -507,15 +611,15 @@ Where $\sigma^2$ is a variance parameter that simply scales the kernel and $\mat
 #'
 #' @param X1 matrix of dimensions (n, d). Vectors are coerced to (1, d).
 #' @param X2 matrix of dimensions (m, d). Vectors are coerced to (1, d).
+#' @param sigma scale parameter 
 #' @param l length scale. 
 #' A vector of size 1 yields the isotropic kernel.
 #' A vector of size d yields the anisotropic kernel with individual length
 #' scales for each dimension.
 #' A matrix of size (d, d) allows for fine-grained control of length scaling.
-#' @param sigma scale parameter 
 #'
 #' @return matrix of dimensions (n, m)
-anisotropic_rbf_kernel <- function(X1, X2, l = 1.0, sigma = 1.0) {
+anisotropic_rbf_kernel <- function(X1, X2, sigma = 1.0, l = 1.0) {
   if (is.null(dim(X1))) dim(X1) <- c(1, length(X1))
   if (is.null(dim(X2))) dim(X2) <- c(1, length(X2))
   d <- dim(X1)[[2]]
