@@ -11,7 +11,7 @@ html-math-method:
   method: katex
 ---
 
-This post takes an extensive look at kernels and discusses the rationales, applications, and limitations of some popular kernels. Along with the discussion are implementations of many of the kernels with R and the Tidyverse.
+This post takes an extensive look at kernels and discusses the rationales, applications, and limitations of some popular kernels. Along with the discussion are implementations of the kernels in base R.
 
 ```{r func, echo=TRUE}
 library(ggplot2)
@@ -19,7 +19,7 @@ library(magrittr)
 set.seed(4444)
 ```
 
-Kernels, also known as covariance functions, are central to Gaussian processes and other machine learning methods, where they provide the main means of implementing prior knowledge about the modelled process.
+Kernels, also known as covariance functions, are central to Gaussian processes and other machine learning methods where they provide the main means of implementing prior knowledge about the modelled process.
 
 Intuitively, kernels quantify how similar two points are, given just their position in input space. The kernel function determines the smoothness and complexity of the resulting Gaussian process model, and it controls how much weight is given to different regions of the input space. Different types of kernel functions can be used to model different types of data, such as periodic or spatial data.
 
@@ -48,7 +48,7 @@ plot_kernel_value <- function(kernel, ...) {
   ) %>%
     ggplot(aes(x = X1, y = kv)) +
     geom_line() +
-    labs(x = "1st dimension", y = "kernel value") +
+    labs(x = "Euclidean distance", y = "kernel value") +
     theme_minimal()
 }
 ```
@@ -144,7 +144,7 @@ $$k(\mathbf{x}, \mathbf{x'}) = \sigma^2 \exp\left(-\frac{\lVert \mathbf{x} - \ma
 
 where $\lVert \mathbf{x} - \mathbf{x'}\rVert^2$ is the squared Euclidean distance between the two vectors. $\sigma^2$ is a variance parameter that simply scales the kernel. More interestingly, the length scale parameter, $l$, controls the smoothness and the range of influence of the kernel. It determines how quickly the similarity between two input points decreases as their distance increases.
 
-Intuitively, small length scales mean that two points have to be very close to have any correlation. This results in very flexible functions that do not expect much correlation between data points. For a large length scale, however, points that are far apart are still expected to behave in a similar way. This results in very smooth functions that expect similar output values across the entire covariate space.
+Intuitively, small length scales mean that two points have to be very close to have any correlation. This results in very flexible functions that do not expect much correlation between data points. For a large length scale, however, points that are far apart are still expected to behave in a similar way. This results in very smooth functions that expect similar output values across the entire feature space.
 
 The flexibility and interpretability of the length scale parameter makes the RBF kernel a good starting point, when exploring Gaussian processes.
 
@@ -167,7 +167,7 @@ rbf_kernel <- function(X1, X2, l = 1.0, sigma = 1.0) {
 }
 ```
 
-Here is an example of of the covariance tapers off between two vectors, as their Euclidean distance increases
+Here is an example of how the covariance between two vectors tapers off, as their Euclidean distance increases.
 
 ```{r}
 plot_kernel_value(rbf_kernel)
@@ -202,7 +202,7 @@ rq_kernel <- function(X1, X2, sigma = 1, l = 1, alpha = 1) {
 }
 ```
 
-Here is an example of of the covariance tapers off between two vectors, as their Euclidean distance increases. Notice how much more local variation is allowed.
+Here is an example of how the covariance between two vectors tapers off, as their Euclidean distance increases.
 
 ```{r}
 plot_kernel_value(rq_kernel, alpha = 0.5, l = 0.5)
@@ -373,15 +373,15 @@ The locally periodic kernel could be combined with other non-periodic kernel lik
 
 ## Non-stationary Kernels
 
-Unlike stationary kernels, non-stationary kernels can depend on the absolute values of their inputs, and their correlation function may vary with the location of the inputs.
+Unlike stationary kernels, non-stationary kernels can depend on the absolute values of their inputs.
 
-Non-stationary kernels are often used when the underlying function being modelled exhibits varying behaviour or has different characteristics in different regions of the input space. For example, if the function being modelled changes rapidly in some regions and slowly in others, a non-stationary kernel may be more appropriate than a stationary kernel.
+Non-stationary kernels are often used when the underlying function being modelled exhibits varying behaviour or has different characteristics in different regions of feature space. For example, if the function being modelled changes rapidly in some regions and slowly in others, a non-stationary kernel may be more appropriate than a stationary kernel.
 
 ### Linear Kernel
 
 The linear kernel, also known as the dot product kernel, is a simple non-stationary kernel function. It is defined as
 
-$$ K(\mathbf{x}, \mathbf{x'}) = \mathbf{x}^T \mathbf{x'} + \sigma^2 $$
+$$ k(\mathbf{x}, \mathbf{x'}) = \mathbf{x}^T \mathbf{x'} + \sigma^2 $$
 
 Where $\sigma$ is a constant. When $sigma = 0$ the kernel is called homogeneous and inhomogeneous otherwise.
 
@@ -437,9 +437,7 @@ $$k(\mathbf{x}, \mathbf{x'}) = c$$
 
 where $c$ is a constant value.
 
-The constant kernel is characterised by its simplicity, as it assumes a constant value, meaning the output is the same for all input points. The constant kernel can be used alone or combined with other kernels to model more complex relationships between data points. In Gaussian process regression, this kernel can capture constant offsets in the function being modelled.
-
-The kernel is mostly useful in combination with other kernels, where it adds an offset or bias to the kernel value.
+The constant kernel is characterised by its simplicity, as it assumes a constant value, meaning the output is the same for all input points. The constant kernel can be combined with other kernels to model more complex relationships between data points. In Gaussian process regression, this kernel can capture constant offsets in the function being modelled.
 
 ```{r}
 constant_kernel <- function(X1, X2, c = 1) {
@@ -476,7 +474,7 @@ white_noise_kernel <- function(X1, X2, sigma = 1) {
   if (is.null(dim(X2))) dim(X2) <- c(1, length(X2))
   k <- matrix(0, dim(X1)[[1]], dim(X2)[[1]])
   diag(k) <- 1
-  k
+  k * sigma^2
 }
 ```
 
@@ -490,9 +488,9 @@ The white noise kernel alone cannot capture the underlying signal of the functio
 
 ## Anisotropic Kernels
 
-Anisotropic kernels that allow for different length scales in different dimensions of the input space. This is in opposition to the isotropic kernels described above, with a single length scale across all dimensions. Intuitively, the anisotropic kernel is stretched or compressed in certain directions compared to its isotropic counterpart. This property can be useful when the input variables have different units or scales.
+Anisotropic kernels allow for different length scales in different dimensions of feature space. This is in opposition to the isotropic kernels described above, with a single length scale across all dimensions. Intuitively, the anisotropic kernel is stretched or compressed in certain directions compared to its isotropic counterpart. This property can be useful when the input variables have different units or scales.
 
-The anisotropy of a kernel is controlled by several length scale parameters, which specify the characteristic length of variations in the input space along each dimension. The use of anisotropic kernels can improve the predictive accuracy of Gaussian process models when the input variables have different levels of variability or when the correlations between variables vary in different directions. However, anisotropic kernels also increase the complexity of the model because of the added parameters.
+The anisotropy of a kernel is controlled by several length scale parameters, which specify the length scaling along each dimension in feature space. The use of anisotropic kernels can improve the predictive accuracy of Gaussian process models when the input variables have different levels of variability or when the correlations between variables vary in different directions. However, anisotropic kernels also increase the complexity of the model because of the added parameters.
 
 Formally, an anisotropic kernel can be constructed from an isotropic stationary kernel by substituting the distance part of the definition, i.e. $\lVert\mathbf{x}-\mathbf{x'}\rVert^2/l^2$, with $(\mathbf{x}-\mathbf{x'})\mathbf{M}(\mathbf{x}-\mathbf{x'})^T$ where $\mathbf{M}$ is a $(D×D)$ matrix. There are different options for constructing $\mathbf{M}$. A diagonal matrix $\mathbf{M} = l^{-2}\mathbf{I}$ where $l$ is a scalar, would correspond to the isotropic kernel. A diagonal matrix $\mathbf{M} = \mathrm{diag}(\mathbf{l})^{-2}$, where $\mathbf{l}$ is a vector of length $D$ of length scales, would correspond to different length scales for each dimension. There are other options for $\mathbf{M}$ as well. See chapter 5 of [@Rasmussen:2006].
 
@@ -500,7 +498,7 @@ Formally, an anisotropic kernel can be constructed from an isotropic stationary 
 
 The anisotropic RBF kernel expands the isotropic RBF kernel to allow for individual length scaling of input dimensions. It is defined by
 
-$$k(\mathbf{x}, \mathbf{x'}) = \sigma^2 \exp\left(-frac{1}{2}(\mathbf{x}-\mathbf{x'})\mathbf{M}(\mathbf{x}-\mathbf{x'})^T)$$
+$$k(\mathbf{x}, \mathbf{x'}) = \sigma^2 \exp\left(-\frac{1}{2}(\mathbf{x}-\mathbf{x'})\mathbf{M}(\mathbf{x}-\mathbf{x'})^T\right)$$
 
 Where $\sigma^2$ is a variance parameter that simply scales the kernel and $\mathbf{M}$ is a $(D×D)$ matrix that controls the length scaling of the $D$ input dimensions. $\mathbf{M}$ is often constructed from a length scale scalar, $l$, or length scale vector $\mathbf{l}$, see examples below.
 
@@ -534,7 +532,7 @@ anisotropic_rbf_kernel <- function(X1, X2, l = 1.0, sigma = 1.0) {
 }
 ```
 
-When is a diagonal matrix
+When $\mathbf{M}$ is a diagonal matrix
 
 $$\mathbf{M} = l^{-2}\mathbf{I}$$
 
@@ -545,7 +543,7 @@ Where $l$ is a length scale scalar, the kernel is isotropic and the kernel respo
 plot_kernel_value(anisotropic_rbf_kernel, l = 1.0)
 ```
 
-When is a diagonal matrix
+When $\mathbf{M}$ is a diagonal matrix
 
 $$\mathbf{M} = \mathrm{diag}(\mathbf{l})^{-2}$$
 
@@ -553,7 +551,7 @@ where $\mathbf{l}$ is a length scale vector, the kernel is anisotropic and has a
 
 ```{r}
 X1 <- as.matrix(expand.grid(d1 = seq(-5, 5, 0.1), d2 = seq(-5, 5, 0.1)))
-X2 <- matrix(0, 1, dim(X2)[[2]])
+X2 <- matrix(0, 1, dim(X1)[[2]])
 K <- anisotropic_rbf_kernel(X1, X2, l = c(2.5, 1))
 tibble::as_tibble(X1) %>% 
   dplyr::mutate(k = K) %>%
@@ -569,7 +567,7 @@ tibble::as_tibble(X1) %>%
 
 Since the first dimension has a larger length scale than the second dimension, the kernel value gets stretched.
 
-When the length scales of the anisotropic kernel are fitted rather than given, they can sometimes be used for determining feature relevance. A infinitely large length scale corresponds to with no variation and thus an irrelevant feature. On the other hand, a smaller length scale could indicate a feature with large variation and influence on the model. The inverse of the length scale is thus sometimes used to indicate feature relevance and the process is known as Automatic Relevance Determination (ARD). However, context is important for proper interpretation of fitted length scales. Specifically, the length scales also depend on the unit of each feature and tends to be biased towards non-linear features [@Piironen:2016].
+When the length scales of the anisotropic kernel are fitted rather than given, they can sometimes be used for determining feature relevance. An infinitely large length scale corresponds to a dimension with no variation and thus an irrelevant feature. On the other hand, a smaller length scale could indicate a feature with large variation and influence on the model. The inverse of the length scale is thus sometimes used to indicate feature relevance and the process is known as Automatic Relevance Determination (ARD). However, context is important for proper interpretation of fitted length scales. Specifically, the length scales also depend on the unit of each feature and tends to be biased towards non-linear features [@Piironen:2016].
 
 When $\mathbf{M}$ has non-zero values outside the diagonal, the kernel is stretched and rotated. Here is an example of a rotated kernel
 
@@ -587,7 +585,7 @@ tibble::as_tibble(X1) %>%
   theme_minimal()
 ```
 
-This property can be used to create a rotation that effectively reduces the dimensionality of the input.
+This property can be used to create a rotation that effectively reduces the dimensionality of the input features.
 
 ## Combining Kernels
 
