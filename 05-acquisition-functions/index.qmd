@@ -15,31 +15,90 @@ Bayesian optimisation is a powerful optimisation technique for black-box functio
 
 ## Role of the Acquisition Function in Bayesian Optimisation
 
-Bayesian optimisation is an iterative process. It combines a probabilistic surrogate model, often a Gaussian Process, with an acquisition function to select the next point to evaluate. The surrogate model captures our current understanding and uncertainty of the objective function, while the acquisition function helps balance the trade-off between exploring new regions of input space and exploiting regions with high predicted performance.
+Bayesian optimisation is an iterative process. It combines a probabilistic surrogate model, often a Gaussian Process (GP), with an acquisition function to select the next point to evaluate in an expensive objective function or process, $f$. The surrogate model captures our current understanding and uncertainty of the objective function, while the acquisition function helps balance the trade-off between exploring new regions of input space and exploiting regions with high predicted performance.
 
-Mathematically, the acquisition function, denoted by $a(x)$, assigns a value to each point in the search space $x \in \mathcal{X}$. The next point to evaluate, $x_{t+1}$, is chosen by maximising or minimising the acquisition function, depending on the optimisation task at hand:
+Mathematically, the acquisition function, denoted by $a(\mathbf{x})$, assigns a value to each point in the search space $\mathbf{x} \in \mathcal{X}$. The next point to evaluate, $\mathbf{x}_{t+1}$, is chosen by maximising or minimising the acquisition function, depending on the optimisation task at hand:
 
-$$x_{t+1} = \arg\min_{x \in \mathcal{X}} a(x)$$
+$$\mathbf{x}_{t+1} = \arg\min_{\mathbf{x} \in \mathcal{X}} a(\mathbf{x})$$
 
-The acquisition function takes into account both the mean $\mu(x)$ and the variance $\sigma^2(x)$ of the surrogate model's prediction, to balance exploration and exploitation. Roughly speaking areas with extreme values of $\mu(x)$ correspond to areas we might exploit to get good performing samples, while areas with high values of $\sigma^2(x)$ correspond to with high uncertainty that we might consider for exploration.
+The acquisition function takes into account both the mean $\mu(\mathbf{x})$ and the variance $\sigma^2(\mathbf{x})$ of the surrogate model's prediction, to balance exploration and exploitation. Roughly speaking areas with extreme values of $\mu(\mathbf{x})$ correspond to areas we might exploit to get good performing samples, while areas with high values of $\sigma^2(\mathbf{x})$ correspond to with high uncertainty that we might consider for exploration.
 
+#### Notation
+
+The notation used in this post is as follows 
+
+$a(\mathbf{x})$ is an acquisition function of a point $\mathbf{x}$ in the search space $\mathcal{X}$
+
+$f(\mathbf{x})$ is the value of true objective function, $f$, at $\mathbf{x}$. It is this function that we aim to optimise. However, the function is not directly available and it is expensive to evaluate so we use a surrogate model to approximate it.
+
+$f_{best}$, $f(\mathbf{x}^+)$, $f_{min}$, and $f_{max}$ all represent the best observed value of the objective function so far. The point that this is observed at is $\mathbf{x}^+$.
+
+$\mu(\mathbf{x})$ represents the mean prediction of the surrogate model at point $\mathbf{x}$.
+
+$\sigma(\mathbf{x})$ represents the standard deviation (uncertainty) of the surrogate model's prediction at point $\mathbf{x}$. For a GP, this is an entry in the diagonal of the posterior covariance matrix.
 
 ## Examples of Acquisition Functions
 
 #### Expected Improvement
 
-#### Upper Confidence Bound
+The basic idea behind Expected Improvement (EI) is to search for the point in the search space that has the highest probability of improving the current best solution. EI is defined as the expected value of the improvement over the current best solution, where the improvement is defined as the difference between the function value at the candidate point and the current best value. In other words, EI measures how much better the objective function is expected to be at the candidate point compared to the current best value, weighted by the probability of achieving that improvement.
+
+Formally, the expected improvement acquisition function for a minimisation problem is defined as:
+
+$$\mathrm{EI}(\mathbf{x}) = \mathbb{E}\left[\max(0, f_{\min} - f(\mathbf{x}))\right]$$
+
+where $\mathbf{x}$ is the candidate point $f_{\min}$ is the current best function value observed so far. 
+
+When using a GP surrogate model in place of $f$, EI can be calculated using the formula 
+
+$$EI(\mathbf{x}) = (\mu(\mathbf{x}) - y_{best} - \xi) \Phi(Z) + \sigma(\mathbf{x}) \phi(Z)$$
+
+
+with
+
+$$Z = \frac{\mu(\mathbf{x}) - y_{best} - \xi}{\sigma(\mathbf{x})}$$
+
+
+$\mu(\mathbf{x})$ and $\sigma(\mathbf{x})$ are the mean and standard deviation of the Gaussian process at $\mathbf{x}$. $\Phi$ and $\phi$ are the standard normal cumulative distribution function and probability density function, respectively, and $\xi$ is a trade-off parameter that balances exploration and exploitation. Higher values of $\xi$ leads to more exploration and smaller values to exploitation. $EI(\mathbf{x}) = 0$ when $\sigma(\mathbf{x}) = 0$.
+
+The formulas can be implemented directly.
+
+```{r}
+#' Expected Improvement
+#' 
+#' @mu vector of length m. Mean of a Gaussian process at m points.
+#' @sigma vector of length m. The diagonal of the covariance matrix of a
+#' Gaussian process evaluated at m points.
+#' @param y_best scalar. Best mean prediction so far on observed points
+#' @param xi scalar, exploration/exploitation trade off
+#' @task one of "max" or "min", indicating the optimisation problem
+#'
+#' @return EI, vector of length m
+expected_improvement <- function(mu, sigma, y_best, xi = 0.01, task = "min") {
+  if (task == "min") imp <- y_best - mu - xi
+  if (task == "max") imp <- mu - y_best - xi
+  if (is.null(imp)) stop('task must be "min" or "max"')
+  Z <- imp / sigma
+  ei <- imp * pnorm(Z) + sigma * dnorm(Z)
+  ei[sigma == 0.0] <- 0.0
+  ei
+}
+```
 
 #### Probability of Improvement
 
-Probability of improvement PI aims to select the point that has the highest probability of improving the current best solution. The PI function inherently balances exploration and exploitation by taking into account both the mean and the variance of the surrogate model. A point with a high mean and low variance is likely to be a good candidate for exploitation, while a point with a high variance but lower mean may be more suitable for exploration.
+Probability of improvement PI aims to select the point that has the highest probability of improving the current best solution. Like expected improvement, the PI function balances exploration and exploitation by taking into account both the mean and the variance of the surrogate model. A point with a high mean and low variance is likely to be a good candidate for exploitation, while a point with a high variance but lower mean may be more suitable for exploration.
 
 The function is defined as
 
-$$a_{PI}(x) = P(f(x) \gt f(x^+) + \xi)$$
+$$a_{PI}(\mathbf{x}) = P(f(\mathbf{x}) \gt f(x^+) + \xi)$$
 
 Where ...
 
+$$a_{\text{PI}}(\mathbf{x}) = \Phi\left(\frac{\mu(x) - f(\mathbf{x}^+) - \xi}{\sigma(\mathbf{x})}\right)$$
+
+
+#### Upper Confidence Bound
 
 #### Mutual Information & Entropy Search
 
