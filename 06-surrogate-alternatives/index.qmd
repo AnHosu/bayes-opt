@@ -1,0 +1,94 @@
+---
+title: ""
+csl: ../citation_style.csl
+format:
+  html:
+    fig-width: 8
+    fig-height: 5
+    theme: default
+html-math-method:
+  method: katex
+---
+
+Bayesian optimization is an efficient global optimization technique for expensive-to-evaluate, black-box functions. It is particularly useful in applications such as hyperparameter tuning, structural optimization, and robotics. The core component of Bayesian optimization is the surrogate model, which approximates the expensive function and guides the search for the optimal solution. In this blog post, we will discuss the role of surrogate models in Bayesian optimization and delve into alternative surrogate models, including Bayesian neural networks.
+
+## Surrogate Models in Bayesian Optimisation
+
+Surrogate models are used to approximate the expensive black-box function, and they play a critical role in the Bayesian optimization process. These models provide predictions of the objective function values and uncertainty estimates at unobserved points in the input space. In Bayesian optimization, the most commonly used surrogate model is the Gaussian process (GP), due to its ability to model complex functions and provide uncertainty estimates.
+
+Gaussian processes are popular because they are non-parametric, meaning they can adapt to different function complexities without the need to specify a fixed model structure. Furthermore, they provide well-calibrated uncertainty estimates, which are vital for exploration-exploitation trade-offs in Bayesian optimization.
+
+#### Why Gaussian Processes?
+
+Gaussian processes are the first choice for surrogate models in Bayesian optimization for several reasons:
+
+Flexibility: GPs can model a wide range of functions, with the covariance function determining the smoothness and regularity of the function approximations.
+
+Analytic tractability: GPs provide closed-form expressions for posterior predictive distributions, allowing efficient computation of acquisition functions.
+
+Uncertainty estimates: GPs provide well-calibrated uncertainty estimates, which are crucial for exploration-exploitation trade-offs in Bayesian optimization.
+
+Despite their popularity, Gaussian processes have some limitations, such as scalability to high-dimensional input spaces and computational complexity for large datasets. This has led to the development of alternative surrogate models that address these issues while retaining the benefits of Gaussian processes.
+
+In the  following sections, we will discuss specific examples of alternative surrogate models, including Bayesian neural networks. For each example, we will provide an explanation of how to calculate or estimate the Expected Improvement (EI), a popular acquisition function.
+Bayesian Neural Networks
+
+## Bayesian Neural Networks as Surrogate Models
+Bayesian neural networks (BNNs) are neural networks with a Bayesian treatment of weights, allowing them to capture uncertainty in the function approximation. BNNs can be an attractive alternative to GPs, as they can scale to high-dimensional input spaces and large datasets more efficiently.
+
+#### Expected Improvement for BNNs
+
+Calculating the Expected Improvement for a BNN is more challenging than for a Gaussian process, as BNNs do not have closed-form expressions for the predictive distribution. Instead, we can estimate the Expected Improvement using Monte Carlo methods. Given a BNN, we can draw weight samples from the posterior distribution and compute the predicted function values and improvement for each sample.
+
+```{r}
+# Define the black-box function (for illustration purposes)
+black_box_function <- function(x) {
+  return(sin(2 * pi * x))
+}
+
+# BNN parameters (e.g., number of layers, hidden units, etc.)
+# ...
+
+# Define the acquisition function (Expected Improvement)
+expected_improvement <- function(x, bnn, best_y) {
+  improvement_sum <- 0
+  num_samples <- 1000
+  
+  for (i in 1:num_samples) {
+    # Draw a weight sample from the BNN's posterior distribution
+    weight_sample <- draw_weight_sample(bnn)
+    
+    # Compute the predicted function value with the current weight sample
+    y_pred <- bnn_predict(x, weight_sample)
+    
+    # Calculate the improvement
+    improvement <- max(0, best_y - y_pred)
+    
+    # Accumulate the improvement
+    improvement_sum <- improvement_sum + improvement
+  }
+  
+  # Compute the expected improvement
+  expected_improvement <- improvement_sum / num_samples
+  return(expected_improvement)
+}
+
+# Optimize the acquisition function to find the next point to evaluate
+optimize_acquisition_function <- function(bnn, best_y) {
+  # Define the optimization problem
+  # ...
+
+  # Find the input that maximizes the expected improvement
+  x_star <- optimize(function(x) -expected_improvement(x, bnn, best_y), lower = 0, upper = 1)$minimum
+  
+  return(x_star)
+}
+
+```
+
+
+In the example above, we first define the black_box_function that we want to optimize. Then, we set the parameters for the Bayesian Neural Network, such as the number of layers and hidden units. The main part of the code is the expected_improvement function, which calculates the Expected Improvement for a given input x, the BNN model, and the current best observed function value best_y. The function computes the improvement for each weight sample drawn from the BNN's posterior distribution and accumulates the total improvement. The Expected Improvement is calculated by dividing the total improvement by the number of samples.
+
+The optimize_acquisition_function function is responsible for finding the next point to evaluate by optimizing the acquisition function. It takes the BNN model and the current best observed function value as inputs and returns the input x_star that maximizes the Expected Improvement.
+
+This example demonstrates how to calculate the Expected Improvement for Bayesian Neural Networks using Monte Carlo methods. Note that this is a simplified example that does not include the complete implementation of a BNN or the optimization of its hyperparameters.
