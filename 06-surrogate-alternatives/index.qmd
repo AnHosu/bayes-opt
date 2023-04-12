@@ -92,3 +92,90 @@ In the example above, we first define the black_box_function that we want to opt
 The optimize_acquisition_function function is responsible for finding the next point to evaluate by optimizing the acquisition function. It takes the BNN model and the current best observed function value as inputs and returns the input x_star that maximizes the Expected Improvement.
 
 This example demonstrates how to calculate the Expected Improvement for Bayesian Neural Networks using Monte Carlo methods. Note that this is a simplified example that does not include the complete implementation of a BNN or the optimization of its hyperparameters.
+
+
+## Random Forests as Surrogate Models
+
+Random Forests are an ensemble method that combines multiple decision trees to form a powerful and robust model. They can be used as surrogate models in Bayesian optimization to handle large datasets and high-dimensional input spaces efficiently.
+Calculating Expected Improvement
+
+To calculate the Expected Improvement (EI) for a Random Forest model, we can use the quantile regression forest variant, which provides estimates of the predictive distribution. The quantile regression forest can estimate multiple quantiles of the predictive distribution, enabling the computation of the Expected Improvement.
+
+Here is some R code to demonstrate this process:
+
+```{r}
+# Load the randomForest package
+library(randomForest)
+
+# Define the black-box function (for illustration purposes)
+black_box_function <- function(x) {
+  return(sin(2 * pi * x))
+}
+
+# Fit a quantile regression forest model
+qrf_model <- randomForest(x = input_data, y = target_data, ntree = 500)
+
+# Define the acquisition function (Expected Improvement)
+expected_improvement <- function(x, qrf_model, best_y, alpha = 0.01) {
+  # Predict the lower and upper quantiles of the predictive distribution
+  lower_quantile <- predict(qrf_model, x, quantile = alpha / 2)
+  upper_quantile <- predict(qrf_model, x, quantile = 1 - alpha / 2)
+  
+  # Compute the Expected Improvement
+  improvement <- max(0, best_y - (upper_quantile + lower_quantile) / 2)
+  return(improvement)
+}
+
+# Optimize the acquisition function to find the next point to evaluate
+optimize_acquisition_function <- function(qrf_model, best_y) {
+  # Define the optimization problem
+  # ...
+
+  # Find the input that maximizes the expected improvement
+  x_star <- optimize(function(x) -expected_improvement(x, qrf_model, best_y), lower = 0, upper = 1)$minimum
+  
+  return(x_star)
+}
+
+```
+
+## Student-t Processes
+
+Student-t Processes (TPs) are an alternative to Gaussian Processes (GPs) that can better model heavy-tailed and non-Gaussian noise. They are defined similarly to GPs but use the Student-t distribution instead of the Gaussian distribution.
+
+#### Expected Improvement with Student-t Processes
+
+Calculating the Expected Improvement for a Student-t Process is similar to the process for Gaussian Processes. The main difference is that the predictive distribution is a Student-t distribution rather than a Gaussian distribution.
+
+```{r}
+# Define the black-box function (for illustration purposes)
+black_box_function <- function(x) {
+  return(sin(2 * pi * x))
+}
+
+# Fit a Student-t Process model
+# ...
+
+# Define the acquisition function (Expected Improvement)
+expected_improvement <- function(x, tp_model, best_y) {
+  # Obtain the predictive distribution (Student-t)
+  predictive_mean, predictive_variance, degrees_of_freedom <- tp_predict(x, tp_model)
+  
+  # Compute the Expected Improvement
+  improvement <- max(0, best_y - predictive_mean)
+  return(improvement)
+}
+
+# Optimize the acquisition function to find the next point to evaluate
+optimize_acquisition_function <- function(tp_model, best_y) {
+  # Define the optimization problem
+  # ...
+
+  # Find the input that maximizes the expected improvement
+  x_star <- optimize(function(x) -expected_improvement(x, tp_model, best_y), lower = 0, upper = 1)$minimum
+  
+  return(x_star)
+}
+
+```
+
