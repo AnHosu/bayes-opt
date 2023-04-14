@@ -1,0 +1,140 @@
+---
+title: ""
+csl: ../citation_style.csl
+format:
+  html:
+    fig-width: 8
+    fig-height: 5
+    theme: default
+html-math-method:
+  method: katex
+---
+
+Bayesian optimization is a powerful global optimization technique that is particularly useful for optimizing expensive-to-evaluate, black-box functions. One of the key steps in Bayesian optimization is the initial experiment design, which can play a significant role in the overall efficiency and performance of the optimization process. In this blog post, we will discuss the importance of initial experiment designs in Bayesian optimization, and explore a few examples, including Latin Hypercube Sampling (LHS), while highlighting their advantages and limitations.
+
+```{r func, echo=TRUE}
+library(ggplot2)
+library(magrittr)
+set.seed(4444)
+```
+
+## Initial Designs in Bayesian Optimisation
+
+Bayesian optimization works by constructing a probabilistic model of the objective function, typically using Gaussian processes, and then using this model to guide the search for the optimum. The initial experiment design helps in two major ways:
+
+    Provides initial data points for constructing the surrogate model.
+    Sets the stage for exploration and exploitation trade-offs.
+
+A well-designed initial experiment can significantly reduce the number of iterations required to reach the global optimum, especially when the function evaluations are computationally expensive. Consequently, it is essential to carefully select the initial set of experiments to ensure a balance between exploration (sampling diverse regions of the search space) and exploitation (sampling regions with high probability of containing the optimum).
+
+## Latin Hypercube Sampling (LHS)
+
+Latin Hypercube Sampling (LHS) is a popular stratified sampling technique that ensures a balanced distribution of samples across the search space. The key idea behind LHS is to divide each dimension of the search space into equally sized intervals and randomly sample one point from each interval.
+
+Mathematically, given a search space defined by $n$ intervals in each of the $d$ dimensions, LHS generates $n$ samples, where the $i^{th}$ sample $x_i$ is defined as:
+$$x_i = (x_{i1}, x_{i2}, \cdots, x_{id})$$
+
+Each coordinate $x_{ij}$ is chosen by sampling from the corresponding $j^{th}$ interval. This ensures that each interval is used exactly once for each dimension, resulting in a well-distributed set of samples.
+
+```{r}
+# TODO edge TRUE/FALSE
+latin_hypercube_sampling <- function(n, d) {
+  intervals <- 1 / n
+  samples <- matrix(nrow = n, ncol = d)
+  for (i in 1:d) {
+    permutation <- sample(n)
+    samples[, i] <- ((permutation - 1) + runif(n)) * intervals
+  }
+  return(samples)
+}
+```
+
+Advantages
+
+    LHS ensures a uniform coverage of the search space by construction, which promotes exploration.
+    It is relatively simple to implement and computationally inexpensive.
+
+One of the main advantages of LHS is that it ensures a uniform coverage of the search space by construction. This promotes exploration in the optimization process, reducing the risk of missing potential optima. Furthermore, LHS is relatively simple to implement and computationally inexpensive, making it an attractive choice for many optimization problems.
+
+Limitations
+
+    LHS is a random sampling technique and does not take into account any prior knowledge about the objective function.
+    In high-dimensional problems, the uniform coverage property of LHS may not be sufficient for a good initial design.
+
+Despite its benefits, LHS does have some limitations. As a random sampling technique, it does not take into account any prior knowledge about the objective function, which may result in inefficient sampling for some problems. Additionally, in high-dimensional problems, the uniform coverage property of LHS may not be sufficient for a good initial design, and other techniques like Sobol sequences or more advanced space-filling designs might be more appropriate.
+
+#### LHS in 2D
+
+```{r}
+# Generate a 2D LHS design with 10 samples
+n <- 10
+d <- 2
+samples <- latin_hypercube_sampling(n, d)
+# Create a scatter plot of the samples
+data.frame(samples) %>%
+  ggplot() +
+  geom_point(aes(x = X1, y = X2), size = 3) +
+  xlim(0, 1) +
+  ylim(0, 1) +
+  theme_minimal() +
+  labs(
+    title = "2D Latin Hypercube Sampling",
+    x = "Dimension 1",
+    y = "Dimension 2"
+  )
+```
+
+## Maxmin Design
+
+Maxmin design, also known as the maximum-minimum distance design, is an initial experiment design technique that aims to maximize the minimum distance between any two points in the initial set of experiments. By ensuring that the experiments are well-separated, maxmin design promotes exploration throughout the search space.
+
+Mathematically, given a set of $n$ samples, $X = {x_1, x_2, \cdots, x_n}$, in a $d$-dimensional search space, the maxmin design seeks to find the set of samples that maximizes the minimum pairwise distance:
+
+$$\max_X \min_{i \neq j} \|x_i - x_j\|$$
+
+```{r}
+maxmin_design <- function(n, d) {
+  samples <- matrix(nrow = n, ncol = d)
+  samples[1,] <- runif(d) # Initialize with a random point
+  
+  for (i in 2:n) {
+    candidate_points <- matrix(runif(1000 * d), ncol = d)
+    min_dists <- apply(candidate_points, 1, function(p) {
+      min(sqrt(rowSums((t(samples[1:(i-1),]) - p)^2)))
+    })
+    samples[i,] <- candidate_points[which.max(min_dists),]
+  }
+  
+  return(samples)
+}
+```
+
+
+Advantages of Maxmin Design
+
+Maxmin design provides several benefits in the context of initial experiment design for Bayesian optimization:
+
+    It promotes exploration by ensuring a well-separated set of samples in the search space, reducing the risk of missing potential optima.
+    The design is suitable for problems with unknown or complex underlying distributions, as it does not rely on any assumptions about the distribution of the objective function.
+
+Limitations of Maxmin Design
+
+Despite its advantages, maxmin design has some limitations as well:
+
+    Computing the maxmin design can be computationally expensive, particularly in high-dimensional problems. This is because it involves searching for the set of points that maximizes the minimum pairwise distance, which is a combinatorial optimization problem.
+    Like LHS, maxmin design is a random sampling technique and does not take into account any prior knowledge about the objective function, which may result in inefficient sampling for some problems.
+
+Generating a 2D Maxmin Design in R
+
+To create a maxmin design, we can use a greedy algorithm that iteratively adds points to the design while maximizing the minimum distance to the existing points. Here's a simple R implementation:
+
+```{r}
+samples <- maxmin_design(n, d)
+# Create a scatter plot of the samples
+ggplot() +
+  geom_point(data = data.frame(samples), aes(x = X1, y = X2), size = 3) +
+  theme_minimal() +
+  labs(title = "2D Maxmin Design",
+       x = "Dimension 1", y = "Dimension 2")
+```
+
