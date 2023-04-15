@@ -27,6 +27,8 @@ Bayesian optimization works by constructing a probabilistic model of the objecti
 
 A well-designed initial experiment can significantly reduce the number of iterations required to reach the global optimum, especially when the function evaluations are computationally expensive. Consequently, it is essential to carefully select the initial set of experiments to ensure a balance between exploration (sampling diverse regions of the search space) and exploitation (sampling regions with high probability of containing the optimum).
 
+## Random Sampling
+
 ## Latin Hypercube Sampling (LHS)
 
 Latin Hypercube Sampling (LHS) is a popular stratified sampling technique that ensures a balanced distribution of samples across the search space. The key idea behind LHS is to divide each dimension of the search space into equally sized intervals and randomly sample one point from each interval.
@@ -138,3 +140,10 @@ ggplot() +
        x = "Dimension 1", y = "Dimension 2")
 ```
 
+## Deterministic Design
+
+This design is based entirely on established practices or assumptions about a the objective function or process.
+
+## Augmented Latin Hypercube Sampling
+
+This design expands on LHS to add prior knowledge or assumptions to the initial design.
