@@ -111,11 +111,11 @@ $$\Sigma_{ij} = k(\mathbf{x}_i, \mathbf{x}_j)$$
 
 for all combinations of observations $i$ and $j$.
 
-Kernels themselves are an entire subject. For now, know that some examples of kernel functions used in GP include the radial basis function (RBF) kernel, the Matérn kernel, and the linear kernel.
+Kernels themselves are an entire subject, see the [kernel post](../kernels-r) for a thorough discussion of kernels for Gaussian processes and Bayesian optimisation.
 
 #### Implementing the RBF kernel
 
-The RBF kernel is defined as
+An example of a commonly used kernel is the Radial Basis Function (RBF) kernel. The RBF kernel is defined as
 
 $$k(\mathbf{x}_i, \mathbf{x}_j) = \sigma_f^2 \exp\left(-\frac{1}{2}\frac{\lVert \mathbf{x}_i - \mathbf{x}_j\rVert^2}{l^2}\right)$$
 
