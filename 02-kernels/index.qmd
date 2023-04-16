@@ -11,7 +11,7 @@ html-math-method:
   method: katex
 ---
 
-This post takes an extensive look at kernels and discusses the rationales, applications, and limitations of some popular kernels. Along with the discussion are implementations of the kernels in base R.
+This post takes an extensive look at kernels and discusses the rationales, utility, and limitations of some popular kernels, focusing primarily on their application in Gaussian processes and Bayesian optimisation. Along with the discussion are implementations of the kernels in base R.
 
 ```{r func, echo=TRUE}
 library(ggplot2)
@@ -23,7 +23,7 @@ Kernels, also known as covariance functions, are central to Gaussian processes a
 
 Intuitively, kernels quantify how similar two points are, given just their position in input space. The kernel function determines the smoothness and complexity of the resulting Gaussian process model, and it controls how much weight is given to different regions of the input space. Different types of kernel functions can be used to model different types of data, such as periodic or spatial data.
 
-Bayesian optimisation extensively employs Gaussian processes, so kernels provide the means to define a prior distribution over the objective function being optimised. There are a plethora of kernels available, and for successful implementations of Bayesian optimisation, selecting the right one is essential but difficult.
+Bayesian optimisation extensively employs Gaussian processes, so kernels provide the means to define a bespoke prior distribution over the objective function or process being optimised. There are a plethora of kernels available, and for successful implementations of Bayesian optimisation, selecting the right one is essential but difficult.
 
 ## Applying Kernels in Gaussian Processes
 
@@ -76,10 +76,10 @@ rmvnorm <- function(n = 1, mu, sigma, epsilon = 1e-6) {
     p <- length(mu)
     if(!all(dim(sigma) == c(p, p))) stop("incompatible dimensions of arguments")
     ev <- eigen(sigma, symmetric = TRUE)$values
-    if(!all(ev >= -epsilon*abs(ev[1L]))) {
+    if(!all(ev >= -epsilon * abs(ev[1L]))) {
       stop("The covariance matrix (sigma) is not positive definite")
     }
-    cholesky <- chol(sigma + diag(p)*epsilon)
+    cholesky <- chol(sigma + diag(p) * epsilon)
     sample <- rnorm(p*n, 0, 1)
     dim(sample) <- c(n, p)
     sweep(sample %*% cholesky, 2, mu, FUN = `+`)
@@ -184,7 +184,7 @@ plot_gp(rbf_kernel)
 
 #### RQ Kernel
 
-The Rational Quadratic (RQ) Kernel is a generalisation of the RBF kernel in the sense that it can be interpreted as an infinite sum of RBF kernels with different length scales. The RQ kernel is defined as:
+The Rational Quadratic (RQ) kernel is a generalisation of the RBF kernel in the sense that it can be interpreted as an infinite sum of RBF kernels with different length scales. The RQ kernel is defined as:
 
 $$k(\mathbf{x}, \mathbf{x'}) = \sigma^2\left(1 + \frac{\Vert x - x'\Vert^2}{2\alpha \ell^2}\right)^{-\alpha}$$
 
@@ -278,9 +278,9 @@ plot_gp(exponential_kernel, l = 5)
 
 The Matérn kernel is a flexible and versatile stationary kernel that can model a wide range of functions. The Matérn kernel is given by:
 
-$$k(\mathbf{x},\mathbf{x'}) = \sigma^2\frac{2^{1-\nu}}{\Gamma(v)}\left(\frac{\sqrt{2v}\lVert\mathbf{x}-\mathbf{x'}\rVert}{l}\right)^{\nu} K_{\nu}\left(\frac{\sqrt{2\nu}\lVert\mathbf{x}-\mathbf{x'}\rVert}{l}\right)$$
+$$k(\mathbf{x},\mathbf{x'}) = \sigma^2\frac{2^{1-\nu}}{\Gamma(\nu)}\left(\frac{\sqrt{2\nu}\lVert\mathbf{x}-\mathbf{x'}\rVert}{l}\right)^{\nu} K_{\nu}\left(\frac{\sqrt{2\nu}\lVert\mathbf{x}-\mathbf{x'}\rVert}{l}\right)$$
 
-where $\sigma^2$ is a variance parameter that scales the kernel, $l$ is the length scale parameter, $\nu$ is the smoothness parameter, $\lVert\mathbf{x}-\mathbf{x'}\rVert$ is the distance between the two vectors, $\Gamma(\cdot)$ is the gamma function, and $K_v(\cdot)$ is a modified Bessel function of the second kind with order $\nu$.
+where $\sigma^2$ is a variance parameter that scales the kernel, $l$ is the length scale parameter, $\nu$ is the smoothness parameter, $\lVert\mathbf{x}-\mathbf{x'}\rVert$ is the Euclidean distance between the two vectors, $\Gamma(\cdot)$ is the gamma function, and $K_{\nu}(\cdot)$ is a modified Bessel function of the second kind with order $\nu$.
 
 The RBF kernel yields smooth functions when applied in a Gaussian process, and the exponential kernel yields rugged functions. The Matérn kernel is a generalisation of the RBF kernel, where the parameter $\nu$ controls the differentiability, and thus smoothness, of the kernel. In fact, setting $\nu = 0.5$ results in the exponential kernel and, as $\nu \to \infty$, the Matérn kernel converges to the RBF kernel.
 
@@ -337,7 +337,7 @@ for all inputs $\mathbf{x}$ and $\mathbf{x'}$ and all integers $n$, where $\omeg
 
 #### The Basic Periodic Kernel
 
-The basic periodic kernel is a simple periodic kernel that can be used to model functions that exhibit periodic behaviour, i.e., functions that repeat their values in regular intervals. This especially useful when dealing with time series data or spatial data that exhibit cyclical patterns. The kernel is derived from the RBF kernel with a transformation of the input to a periodic domain [@MacKay:1998]. Consequently, the basic periodic kernel resembles the RBF kernel but with an additional trigonometric term that introduces periodicity. The definition is:
+The basic periodic kernel is a simple periodic kernel that can be used to model functions that exhibit periodic behaviour, i.e., functions that repeat their values in regular intervals. This is especially useful when dealing with time series data or spatial data that exhibit cyclical patterns. The kernel is derived from the RBF kernel with a transformation of the input to a periodic domain [@MacKay:1998]. Consequently, the basic periodic kernel resembles the RBF kernel but with an additional trigonometric term that introduces periodicity. The definition is:
 
 $$k(\mathbf{x}, \mathbf{x'}) = \exp \left( -\frac{2 \sin^2\left(\pi \frac{\lVert\mathbf{x}-\mathbf{x'}\rVert}{\omega}\right)}{l^2} \right)$$
 
@@ -432,7 +432,7 @@ Sample functions from a Gaussian process that utilises the locally periodic kern
 plot_gp(locally_periodic_kernel, omega = 0.5)
 ```
 
-The locally periodic kernel could be combined with other non-periodic kernel like the Matérn kernel to create even more complex dynamics. However, applying a periodic kernel comes with the assumption that the underlying objective function being modelled exhibits periodic behaviour. If the assumption does not hold true, applying a periodic kernel could be detrimental.
+The locally periodic kernel could be combined with other non-periodic kernels like the Matérn kernel to create even more complex dynamics. However, applying a periodic kernel comes with the assumption that the underlying objective function being modelled exhibits periodic behaviour. If the assumption does not hold true, applying a periodic kernel could be detrimental.
 
 ## Non-stationary Kernels
 
@@ -547,7 +547,7 @@ The constant kernel function is just a flat, two-dimensional surface parallel to
 plot_kernel_value(constant_kernel)
 ```
 
-Sampled functions from a Gaussian process that utilises the constant kernel are just constant functions. The functions are flat, horizontal lines parallel to the x-axis. There is still variance - each function has a different constant value, determined variance specified by the kernel. If the Gaussian process has a zero mean function, the sampled functions will be horizontal lines with y-values centred around zero, and their heights will be determined by the constant kernel value according to $y = \beta$ where $\beta \sim \mathcal{N}(0, c^2)$.
+Sampled functions from a Gaussian process that utilises the constant kernel are just constant functions. The functions are flat, horizontal lines parallel to the x-axis. There is still variance - each function has a different constant value, determined by the variance specified by the kernel. If the Gaussian process has a zero mean function, the sampled functions will be horizontal lines with y-values centred around zero, and their heights will be determined by the constant kernel value according to $y = \beta$ where $\beta \sim \mathcal{N}(0, c^2)$.
 
 ```{r}
 plot_gp(constant_kernel)
@@ -647,6 +647,29 @@ Where $l$ is a length scale scalar, the kernel is isotropic and the kernel respo
 plot_kernel_value(anisotropic_rbf_kernel, l = 1.0)
 ```
 
+The scaling is the same in all dimensions. Here is an example in 2D
+
+```{r}
+# Prepare a 2D grid
+X1 <- as.matrix(expand.grid(d1 = seq(-5, 5, 0.1), d2 = seq(-5, 5, 0.1)))
+X2 <- matrix(0, 1, dim(X1)[[2]])
+```
+
+
+```{r}
+K <- anisotropic_rbf_kernel(X1, X2, l = 1.0)
+tibble::as_tibble(X1) %>% 
+  dplyr::mutate(k = K) %>%
+  ggplot() +
+  geom_contour_filled(aes(x = d1, y = d2, z = k), alpha = 0.8) +
+  labs(
+    x = "Distance in 1st dimension",
+    y = "Distance in 2nd dimension",
+    fill = "Kernel value"
+  ) +
+  theme_minimal()
+```
+
 When $\mathbf{M}$ is a diagonal matrix
 
 $$\mathbf{M} = \mathrm{diag}(\mathbf{l})^{-2}$$
@@ -654,8 +677,6 @@ $$\mathbf{M} = \mathrm{diag}(\mathbf{l})^{-2}$$
 where $\mathbf{l}$ is a length scale vector, the kernel is anisotropic and has a separate length scale for each dimension. This effectively stretches or compresses each dimension. Here is an example in 2D of differing length scales
 
 ```{r}
-X1 <- as.matrix(expand.grid(d1 = seq(-5, 5, 0.1), d2 = seq(-5, 5, 0.1)))
-X2 <- matrix(0, 1, dim(X1)[[2]])
 K <- anisotropic_rbf_kernel(X1, X2, l = c(2.5, 1))
 tibble::as_tibble(X1) %>% 
   dplyr::mutate(k = K) %>%
@@ -669,9 +690,9 @@ tibble::as_tibble(X1) %>%
   theme_minimal()
 ```
 
-Since the first dimension has a larger length scale than the second dimension, the kernel value gets stretched.
+Since the first dimension has a larger length scale than the second dimension, the kernel value gets stretched in the first dimension.
 
-When the length scales of the anisotropic kernel are fitted rather than given, they can sometimes be used for determining feature relevance. An infinitely large length scale corresponds to a dimension with no variation and thus an irrelevant feature. On the other hand, a smaller length scale could indicate a feature with large variation and influence on the model. The inverse of the length scale is thus sometimes used to indicate feature relevance and the process is known as Automatic Relevance Determination (ARD). However, context is important for proper interpretation of fitted length scales. Specifically, the length scales also depend on the unit of each feature and tends to be biased towards non-linear features [@Piironen:2016].
+When the length scales of the anisotropic kernel are fitted rather than given, they can sometimes be used for determining feature relevance. An infinitely large length scale corresponds to a dimension with no variation and thus an irrelevant feature. On the other hand, a smaller length scale could indicate a feature with large variation and influence on the model. The inverse of the length scale is thus sometimes used to indicate feature relevance and the process is known as Automatic Relevance Determination (ARD). However, context is important for proper interpretation of fitted length scales. Specifically, the length scales also depend on the unit of each feature and tend to be biased towards non-linear features [@Piironen:2016].
 
 When $\mathbf{M}$ has non-zero values outside the diagonal, the kernel is stretched and rotated. Here is an example of a rotated kernel
 
@@ -693,11 +714,11 @@ This property can be used to create a rotation that effectively reduces the dime
 
 ## Combining Kernels
 
-Kernels can be combined to create new kernels with more flexibility or sophisticated dynamics. The successful application of Gaussian processes relies on choosing a kernel that can model the target function. Combining different types of kernels provides a major means of creating a good kernel for the Gaussian process.
+Kernels can be combined to create new kernels with more flexibility or sophisticated dynamics. The successful application of Gaussian processes relies on choosing a kernel that can model the target function and combining different types of kernels provides a major means of creating a good kernel for the Gaussian process.
 
 There are two main ways kernels are combined: combining multiple kernels on each feature or using different kernels for different features.
 
-#### Creating new kernels
+#### Creating new kernels from existing kernels
 
 A new kernel can be created from existing kernels in multiple ways. 
 
@@ -714,9 +735,9 @@ The resulting kernel will assign high covariance to pairs of points that are sim
 Two or more kernels can be multiplied together to create a new kernel that captures the features of both. Two kernels $K_1(\mathbf{x},\mathbf{x'})$ and $K_2(\mathbf{x},\mathbf{x'})$, can be combined as
 
 $$K_{sum}(\mathbf{x},\mathbf{x'}) = K_1(\mathbf{x},\mathbf{x'})K_2(\mathbf{x},\mathbf{x'})$$
-The resulting kernel will assign high values to pairs of points that are similar in *both* $k_1$ *and* $k_2$. I.e. the inputs $\mathbf{x}$ and $\mathbf{x'}$ need to have a high covariance according to both kernels to return a high covariance for the combined kernel, when the kernels are multiplied. The locally periodic kernel, as described above, is an example of a periodic kernel combined with a stationary kernel by multiplication. 
+The resulting kernel will assign high values to pairs of points that are similar in *both* $k_1$ *and* $k_2$. I.e. the inputs $\mathbf{x}$ and $\mathbf{x'}$ need to have a high covariance according to both kernels to return a high covariance for the combined kernel, when the kernels are multiplied. The locally periodic kernel, as described above, is an example of a periodic kernel combined with a stationary kernel by multiplication.
 
-As a consequence of this rule, any kernel can also be raised to a power of a positive integer and still be a valid kernel.
+As a consequence of this rule, any kernel can also be raised to a power of a positive integer and still be a valid kernel. For instance, the polynomial kernel can be viewed as the product of $\nu$ linear kernels.
 
 ##### Other Methods
 
@@ -726,7 +747,7 @@ $$k_{sum}(\mathbf{x},\mathbf{x'}) = w_1k_1(\mathbf{x},\mathbf{x'}) + w_2k_2(\mat
 
 Where $w_1$ and $w_2$ are weights.
 
-Two or more kernels can also be combined through convolution and yield a valid kernel.
+Two or more kernels can also be combined through convolution and yield a valid kernel [@Rasmussen:2006].
 
 #### Different Kernels for Different Dimensions
 
@@ -734,9 +755,11 @@ Using different kernels across different dimensions is often the right thing to,
 
 Specifically, when the input features have different properties or units, different kernels might be appropriate. For example, a dimension representing time might benefit from a periodic kernel and another another representing temperature might best be represented with a stationary kernel. Using a separate kernel for each dimension can help capture the distinct behaviours and scales of the two features. It is also easy to imagine a real-world problem where the gathered data includes a mix of different data types, such as continuous, discrete, or categorical. By applying the right type of kernel to each type of feature, all features can be included in the same Gaussian process.
 
-In the situation where there are two different types of features, $\mathbf{x}_a$ and $\mathbf{x}_b$. These could be a set of continuous features and a set of categorical features. On the first set of features, one kernel is applied, i.e., $k_a(\mathbf{x}_a,\mathbf{x'}_a)$. On the other set of features another kernel is applied, i.e., $k_b(\mathbf{x}_b,\mathbf{x'}_b)$. The two kernel values can be combined by multiplication
+Imagine the situation where there are two different types of features, $\mathbf{x}_a$ and $\mathbf{x}_b$. These could be a set of continuous features and a set of categorical features. On the first set of features, one kernel is applied, i.e., $k_a(\mathbf{x}_a,\mathbf{x'}_a)$. On the other set of features another kernel is applied, i.e., $k_b(\mathbf{x}_b,\mathbf{x'}_b)$. The two kernel values can be combined by multiplication
 
 $$k(\mathbf{x}_a, \mathbf{x}_b, \mathbf{x'}_a, \mathbf{x'}_b) = k_a(\mathbf{x}_b,\mathbf{x'}_b)k_b(\mathbf{x}_b,\mathbf{x'}_b)$$
+
+This scales to many feature sets, so it is possible to have a separate kernel for each feature.
 
 # References {-}
 
