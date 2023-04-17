@@ -19,15 +19,15 @@ library(magrittr)
 set.seed(4444)
 ```
 
-## Role of the Acquisition Function in Bayesian Optimisation
+## Acquisition Functions in Bayesian Optimisation
 
 Bayesian optimisation is an iterative process. It combines a probabilistic surrogate model, often a Gaussian Process (GP), with an acquisition function to select the next point to evaluate in an expensive objective function or process, $f$. The surrogate model captures our current understanding and uncertainty of the objective function, while the acquisition function helps balance the trade-off between exploring new regions of input space and exploiting regions with high predicted performance.
 
-Mathematically, the acquisition function, denoted by $a(\mathbf{x})$, assigns a value to each point in the search space $\mathbf{x} \in \mathcal{X}$. The next point to evaluate, $\mathbf{x}_{t+1}$, is chosen by maximising or minimising the acquisition function, depending on the optimisation task at hand:
+Mathematically, the acquisition function, $a(\mathbf{x})$, assigns a value to each point in the search space $\mathbf{x} \in \mathcal{X}$. The next point to evaluate, $\mathbf{x}_{t+1}$, is chosen by maximising or minimising the acquisition function, depending on the optimisation task at hand:
 
 $$\mathbf{x}_{t+1} = \arg\min_{\mathbf{x} \in \mathcal{X}} a(\mathbf{x})$$
 
-The acquisition function takes into account both the mean $\mu(\mathbf{x})$ and the variance $\sigma^2(\mathbf{x})$ of the surrogate model's prediction, to balance exploration and exploitation. Roughly speaking areas with extreme values of $\mu(\mathbf{x})$ correspond to areas we might exploit to get good performing samples, while areas with high values of $\sigma^2(\mathbf{x})$ correspond to with high uncertainty that we might consider for exploration.
+The acquisition function takes into account both the mean $\mu(\mathbf{x})$ and the variance $\sigma^2(\mathbf{x})$ of the surrogate model's prediction, to balance exploration and exploitation. Roughly speaking, areas with extreme values of $\mu(\mathbf{x})$ correspond to areas we might exploit to get good performing samples, while areas with high values of $\sigma^2(\mathbf{x})$ correspond to with high uncertainty that we might consider for exploration.
 
 #### Notation
 
@@ -37,7 +37,9 @@ $a(\mathbf{x})$ is an acquisition function of a point $\mathbf{x}$ in the search
 
 $f(\mathbf{x})$ is the value of true objective function, $f$, at $\mathbf{x}$. It is this function that we aim to optimise. However, the function is not directly available and it is expensive to evaluate so we use a surrogate model to approximate it.
 
-$f_{best}$, $f(\mathbf{x}^+)$, $f_{min}$, and $f_{max}$ all represent the best observed value of the objective function so far. The point that this is observed at is $\mathbf{x}^+$.
+In most applications, the observations of the objective function are noisy, $y = f(\mathbf{x}) + \epsilon$, where $\epsilon$ is Gaussian noise. So we will use $\mathbf{y}$ to indicate observations.
+
+$f(\mathbf{x}^+)$, $f_{\min}$, and $f_{\max}$ all represent the best observed value of the objective function so far. If the observations are noisy, the corresponding notation is $y^+$, $y_{\min}$, and $y_{\max}$. For most examples of acquisition functions, this post focuses on minimisation problems, where the best observed value is $y_{\min}$.
 
 $\mu(\mathbf{x})$ represents the mean prediction of the surrogate model at point $\mathbf{x}$.
 
@@ -53,7 +55,7 @@ The examples are given with minimisation in mind
 
 Example problem
 
-## TODO: the definitions are currently for a maximisation scenario
+For the demonstration of acquisition functions, we are going to need a toy problem. We will use a simple objective function. For this demonstration, the observations will not be noisy.
 
 ```{r}
 objective_function <- function(x) {
@@ -63,6 +65,7 @@ X_pred <- matrix(seq(0, 1, length.out = 100), 100, 1)
 y_pred <- objective_function(X_pred)
 ```
 
+This function has two minima, so it will not be too easy to minimise.
 
 ```{r}
 #| code-fold: true
@@ -72,6 +75,8 @@ ggplot(data = tibble::tibble(x = X_pred, y = y_pred)) +
   theme_minimal() +
   labs(x = "x", y = "f(x)", title = "Objective Function")
 ```
+
+We will approximate the the objective function with a Gaussian process surrogate model that utilises the RBF kernel. See the [Bayesian optimisation post](../bayes-opt-r) for details.
 
 ```{r}
 #| code-fold: true
@@ -198,6 +203,8 @@ gpr <- function(kernel, X_train, y_train, noise = 1e-8, ...) {
 }
 ```
 
+The model will receive four training points. We perform Gaussian process regression and condition the Gaussian process on a grid of $\mathbf{x} \in \mathcal{X}$. The $\mu$ and $\sigma$ of the posterior predictive distribution are needed to calculate some acquisition functions.
+
 ```{r}
 X_train <- matrix(c(0.1, 0.4, 0.7, 0.75), 4, 1)
 y_train <- objective_function(X_train)
@@ -208,6 +215,7 @@ mu <- post_pred$mu
 sigma <- post_pred$sigma
 ```
 
+Here is what the Gaussian process looks like so far.
 
 ```{r}
 #| code-fold: true
@@ -247,7 +255,11 @@ gp_plot <- tibble::tibble(
 gp_plot
 ```
 
+Now we are ready to apply different acquisition functions to help recommend the next point to sample. We also define a plot to visualise the acquisition function along with the GP.
+
 ```{r}
+#| code-fold: true
+#| code-summary: "Show the code"
 acquisition_plot <- function(X_pred, ei, gp_plot, label = "EI", title = "") {
   p1 <- tibble::tibble(
     x = X_pred,
@@ -270,19 +282,18 @@ The basic idea behind Expected Improvement (EI) is to search for the point in th
 
 Formally, the expected improvement acquisition function for a minimisation problem is defined as:
 
-$$\mathrm{EI}(\mathbf{x}) = \mathbb{E}\left[\max(0, f_{\min} - f(\mathbf{x}))\right]$$
+$$a_{EI}(\mathbf{x}) = \mathbb{E}\left[\max(0, f_{\min} - f(\mathbf{x}))\right]$$
 
-where $\mathbf{x}$ is the candidate point $f_{\min}$ is the current best function value observed so far. 
+where $\mathbf{x}$ is the candidate point and $f_{\min}$ is the current best function value observed so far. 
 
 When using a GP surrogate model in place of $f$, EI can be calculated using the formula 
 
-$$EI(\mathbf{x}) = (\mu(\mathbf{x}) - y_{best} - \xi) \Phi(Z) + \sigma(\mathbf{x}) \phi(Z)$$
+$$a_{EI}(\mathbf{x}) = (y_{min} - \mu(\mathbf{x}) - \xi) \Phi(Z) + \sigma(\mathbf{x}) \phi(Z)$$
 
 
 with
 
-$$Z = \frac{\mu(\mathbf{x}) - y_{best} - \xi}{\sigma(\mathbf{x})}$$
-
+$$Z = \frac{y_{min} - \mu(\mathbf{x}) - \xi}{\sigma(\mathbf{x})}$$
 
 where $\mu(\mathbf{x})$ and $\sigma(\mathbf{x})$ are the mean and standard deviation of the Gaussian process at $\mathbf{x}$. $\Phi$ and $\phi$ are the standard normal cumulative distribution function and probability density function, respectively, and $\xi$ is a trade-off parameter that balances exploration and exploitation. Higher values of $\xi$ leads to more exploration and smaller values to exploitation. $EI(\mathbf{x}) = 0$ when $\sigma(\mathbf{x}) = 0$.
 
@@ -319,9 +330,9 @@ acquisition_plot(X_pred, ei, gp_plot, label = "EI", title = "Expected Improvemen
 
 Probability of improvement PI aims to select the point that has the highest probability of improving the current best solution. Like expected improvement, the PI function balances exploration and exploitation by taking into account both the mean and the variance of the surrogate model. A point with a high mean and low variance is likely to be a good candidate for exploitation, while a point with a high variance but lower mean may be more suitable for exploration.
 
-The function is defined as
+The PI acquisition function is defined as
 
-$$a_{PI}(\mathbf{x}) = P(f(\mathbf{x}) \gt f(x^+) + \xi)$$
+$$a_{PI}(\mathbf{x}) = P(f(\mathbf{x}) \lt f_{\min} + \xi)$$
 
 Where ...
 
