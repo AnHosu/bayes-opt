@@ -55,7 +55,7 @@ The examples are given with minimisation in mind
 
 Example problem
 
-For the demonstration of acquisition functions, we are going to need a toy problem. We will use a simple objective function. For this demonstration, the observations will not be noisy.
+For the demonstration of acquisition functions, we are going to need a toy problem. We will use a simple objective function without noise.
 
 ```{r}
 objective_function <- function(x) {
@@ -203,10 +203,10 @@ gpr <- function(kernel, X_train, y_train, noise = 1e-8, ...) {
 }
 ```
 
-The model will receive four training points. We perform Gaussian process regression and condition the Gaussian process on a grid of $\mathbf{x} \in \mathcal{X}$. The $\mu$ and $\sigma$ of the posterior predictive distribution are needed to calculate some acquisition functions.
+The model will receive four training points. We perform Gaussian process regression and condition the Gaussian process on our training data before drawing from the posterior predictive distribution on a grid of $\mathbf{x} \in \mathcal{X}$. The $\mu$ and $\sigma$ of the posterior predictive distribution are needed to calculate some acquisition functions.
 
 ```{r}
-X_train <- matrix(c(0.1, 0.4, 0.7, 0.75), 4, 1)
+X_train <- matrix(c(0.1, 0.2, 0.7, 0.75), 4, 1)
 y_train <- objective_function(X_train)
 gp <- gpr(rbf_kernel, X_train, y_train, noise = 1e-8, l = 1, sigma_f = 1)
 y_best <- min(y_train)
@@ -286,21 +286,20 @@ $$a_{EI}(\mathbf{x}) = \mathbb{E}\left[\max(0, f_{\min} - f(\mathbf{x}))\right]$
 
 where $\mathbf{x}$ is the candidate point and $f_{\min}$ is the current best function value observed so far. 
 
-When using a GP surrogate model in place of $f$, EI can be calculated using the formula 
+When using a GP surrogate model conditioned on noisy observations in place of $f$, EI can be calculated using the formula 
 
 $$a_{EI}(\mathbf{x}) = (y_{min} - \mu(\mathbf{x}) - \xi) \Phi(Z) + \sigma(\mathbf{x}) \phi(Z)$$
-
 
 with
 
 $$Z = \frac{y_{min} - \mu(\mathbf{x}) - \xi}{\sigma(\mathbf{x})}$$
 
-where $\mu(\mathbf{x})$ and $\sigma(\mathbf{x})$ are the mean and standard deviation of the Gaussian process at $\mathbf{x}$. $\Phi$ and $\phi$ are the standard normal cumulative distribution function and probability density function, respectively, and $\xi$ is a trade-off parameter that balances exploration and exploitation. Higher values of $\xi$ leads to more exploration and smaller values to exploitation. $EI(\mathbf{x}) = 0$ when $\sigma(\mathbf{x}) = 0$.
+where $\mu(\mathbf{x})$ and $\sigma(\mathbf{x})$ are the mean and standard deviation of the Gaussian process at $\mathbf{x}$. $\Phi$ and $\phi$ are the standard normal cumulative distribution function and probability density function, respectively, and $\xi$ is a trade-off parameter that balances exploration and exploitation. Higher values of $\xi$ lead to more exploration and smaller values to exploitation. $a_{EI}(\mathbf{x}) = 0$ when $\sigma(\mathbf{x}) = 0$.
 
 The formulas can be implemented directly.
 
 ```{r}
-#' Expected Improvement
+#' Expected Improvement Acquisition Function
 #' 
 #' @mu vector of length m. Mean of a Gaussian process at m points.
 #' @sigma vector of length m. The diagonal of the covariance matrix of a
@@ -321,35 +320,61 @@ expected_improvement <- function(mu, sigma, y_best, xi = 0.01, task = "min") {
 }
 ```
 
+Let's see it in action. We calculate EI along a grid and draw it below the GP.
+
 ```{r}
 ei <- expected_improvement(mu, sigma, y_best, xi = 0.05)
-acquisition_plot(X_pred, ei, gp_plot, label = "EI", title = "Expected Improvement")
+acquisition_plot(X_pred, ei, gp_plot, "EI", "Expected Improvement")
 ```
+
+The next sampling point, $x^+$, is the one that maximises the acquisition function, here EI. In this case, this is close to the right edge, where there is a high mean prediction but also high uncertainty, so it satisfies our need for both exploration and exploitation.
 
 #### Probability of Improvement
 
-Probability of improvement PI aims to select the point that has the highest probability of improving the current best solution. Like expected improvement, the PI function balances exploration and exploitation by taking into account both the mean and the variance of the surrogate model. A point with a high mean and low variance is likely to be a good candidate for exploitation, while a point with a high variance but lower mean may be more suitable for exploration.
+Probability of improvement (PI) aims to select the point that has the highest probability of improving the current best solution. Like expected improvement, the PI function balances exploration and exploitation by taking into account both the mean and the variance of the surrogate model. A point with a high mean and low variance is likely to be a good candidate for exploitation, while a point with a high variance but lower mean may be more suitable for exploration.
 
 The PI acquisition function is defined as
 
 $$a_{PI}(\mathbf{x}) = P(f(\mathbf{x}) \lt f_{\min} + \xi)$$
 
-Where ...
+When using a GP surrogate model conditioned on noisy observations in place of $f$, EI can be calculated using the formula 
 
-$$a_{\text{PI}}(\mathbf{x}) = \Phi\left(\frac{\mu(x) - f(\mathbf{x}^+) - \xi}{\sigma(\mathbf{x})}\right)$$
+$$a_{\text{PI}}(\mathbf{x}) = \Phi\left(\frac{y_{min} - \mu(\mathbf{x}) - \xi}{\sigma(\mathbf{x})}\right)$$
+
+where $\mu(\mathbf{x})$ and $\sigma(\mathbf{x})$ are the mean and standard deviation of the Gaussian process at $\mathbf{x}$, $\Phi$ is the standard normal cumulative distribution function, and $\xi$ is a trade-off parameter that balances exploration and exploitation. Higher values of $\xi$ lead to more exploration and smaller values to exploitation.
+
+The formula can be implemented directly
 
 ```{r}
-probability_of_improvement <- function(mu, sigma, y_best, xi = 0.01, task = "min") {
+#' Probability of Improvement Acquisition Function
+#' 
+#' @mu vector of length m. Mean of a Gaussian process at m points.
+#' @sigma vector of length m. The diagonal of the covariance matrix of a
+#' Gaussian process evaluated at m points.
+#' @param y_best scalar. Best mean prediction so far on observed points
+#' @param xi scalar, exploration/exploitation trade off
+#' @task one of "max" or "min", indicating the optimisation problem
+#'
+#' @return PI, vector of length m
+probability_of_improvement <- function(mu,
+                                       sigma,
+                                       y_best,
+                                       xi = 0.01,
+                                       task = "min") {
   if (task == "min") imp <- y_best - mu - xi
   if (task == "max") imp <- mu - y_best - xi
   pnorm(imp / sigma)
 }
 ```
 
+Let's see it in action. We calculate PI along a grid and draw it below the GP.
+
 ```{r}
 pi <- probability_of_improvement(mu, sigma, y_best, xi = 0.05)
-acquisition_plot(X_pred, pi, gp_plot, label = "PI", title = "Probability of Improvement")
+acquisition_plot(X_pred, pi, gp_plot, "PI", "Probability of Improvement")
 ```
+
+The next sampling point, $x^+$, is the one that maximises the acquisition function, here PI. In this case, this is close to the right edge, where there is a high mean prediction but also high uncertainty, so it satisfies our need for both exploration and exploitation. There are a few other good contenders in the spaces between training points though.
 
 #### Lower & Upper Confidence Bound
 
