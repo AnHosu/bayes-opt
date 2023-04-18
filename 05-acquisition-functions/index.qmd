@@ -419,8 +419,42 @@ acquisition_plot(X_pred, cb, gp_plot, "LCB", "Lower Confidence Bound")
 
 #### Thompson Sampling
 
+Thompson Sampling is an information-based acquisition function that has gained popularity for its simplicity and effectiveness. It was originally proposed as a method for solving multi-armed bandit problems and was later adapted for Bayesian optimisation. [@garnett_bayesoptbook_2023]
+
+Thompson Sampling works by sampling from the posterior distribution of the surrogate model and selecting the point with the highest (or lowest, for minimization problems) sampled value. This approach encourages exploration in regions with high uncertainty, as the sampled values can vary greatly in these regions. At the same time, it also exploits areas with good performance, as the algorithm will sample points that have a high mean value more frequently.
+
+Gaussian processes represent a distribution over functions. That distribution has been conditioned on training data
+
+We imagine a distribution of x* that maximise functions in that distribution
+
+𝑝 (𝑥∗ | X, y). 
+
+We sample a point from that distribution. This is our next point 
+
+𝑥+ ∼ 𝑝 (𝑥∗ | X, y)
+
+Implementation
+
+Draw a random function from the posterior predictive distribution
+
+Maximise or minimise that function
+
+The point that optimises that function is the new sampling point
+
+```{r}
+ts <- as.vector(rmvnorm(1, mu, diag(sigma)))
+acquisition_plot(X_pred, ts, gp_plot, "Sample", "Thompson Sampling")
+```
+
 
 #### Mutual Information & Entropy Search
 
 #### Knowledge Gradient
 
+# References {-}
+
+<div id="refs"></div>
+
+# License
+
+The content of this project itself is licensed under the [Creative Commons Attribution-ShareAlike 4.0 International license](https://creativecommons.org/licenses/by-sa/4.0/), and the underlying code is licensed under the [GNU General Public License v3.0 license](https://github.com/AnHosu/bespoke-bayesian-biochem/blob/main/LICENSE).
