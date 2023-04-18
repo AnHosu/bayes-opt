@@ -268,7 +268,7 @@ acquisition_plot <- function(X_pred, ei, gp_plot, label = "EI", title = "") {
     ggplot() +
     geom_line(aes(x = x, y = ei, colour = label)) +
     theme_minimal() +
-    labs(x = "", y = "Expected improvement", colour = "") +
+    labs(x = "", y = label, colour = "") +
     theme(panel.grid = element_blank())
   p2 <- gp_plot + labs(title = title)
   aligned_plots <- cowplot::align_plots(p2, p1 , align = "v")
@@ -378,17 +378,46 @@ The next sampling point, $x^+$, is the one that maximises the acquisition functi
 
 #### Lower & Upper Confidence Bound
 
+The Lower Confidence Bound (LCB) and Upper Confidence Bound (UCB) acquisition functions are fairly simple acquisition functions. They balance exploration and exploitation by combining the mean and the weighted standard deviation predictions of the surrogate model. LCB is used for minimisation problems and UCP is applied for maximisation problems.
+
+The LCB function is defined as
+
+$$a_{LCB}(\mathbf{x}) = \mu(\mathbf{x}) - \kappa \sigma(\mathbf{x})$$
+
+and UCB as
+
+$$a_{UCB}(\mathbf{x}) = \mu(\mathbf{x}) + \kappa \sigma(\mathbf{x})$$
+
+where $\mu(\mathbf{x})$ and $\sigma(\mathbf{x})$ are the mean and standard deviation of the Gaussian process at $\mathbf{x}$ and $\kappa$ is a tunable parameter that controls the balance between exploration and exploitation. Higher values of $\kappa$ promote more exploration, while lower values emphasise exploitation.
+
+The acquisition functions are straightforward to implement, given $\mu$ and $\sigma$:
+
 ```{r}
+#' Upper and Lower Confidence Bound Acquisition Function
+#' 
+#' @mu vector of length m. Mean of a Gaussian process at m points.
+#' @sigma vector of length m. The diagonal of the covariance matrix of a
+#' Gaussian process evaluated at m points.
+#' @param kappa scalar, exploration/exploitation trade off
+#' @task one of "max" or "min", indicating the optimisation problem
+#'
+#' @return CB, vector of length m
 confidence_bound <- function(mu, sigma, kappa, task = "min") {
   if (task == "min") return(mu - kappa * sigma)
   if (task == "max") return(mu + kappa * sigma)
 }
 ```
 
+Let's see it in action. We calculate LCB along a grid and draw it below the GP.
+
+#### TODO should LCB be minimised to find x^+? Need good source.
+
 ```{r}
-cb <- confidence_bound(mu, sigma, kappa = 2)
-acquisition_plot(X_pred, cb, gp_plot, label = "PI", title = "Lower Confidence Bound")
+cb <- confidence_bound(mu, sigma, kappa = 2, "min")
+acquisition_plot(X_pred, cb, gp_plot, "LCB", "Lower Confidence Bound")
 ```
+
+#### Thompson Sampling
 
 
 #### Mutual Information & Entropy Search
