@@ -423,15 +423,19 @@ Thompson Sampling is an information-based acquisition function that has gained p
 
 Thompson Sampling works by sampling from the posterior distribution of the surrogate model and selecting the point with the highest (or lowest, for minimization problems) sampled value. This approach encourages exploration in regions with high uncertainty, as the sampled values can vary greatly in these regions. At the same time, it also exploits areas with good performance, as the algorithm will sample points that have a high mean value more frequently.
 
-Gaussian processes represent a distribution over functions. That distribution has been conditioned on training data
+A Gaussian process represents a distribution over functions. The distribution has been conditioned on training data, $\mathcal{D}$ and We could sample functions from it
 
-We imagine a distribution of x* that maximise functions in that distribution
+$$a_{ts}(\mathbf{x}) \sim p(y | \mathcal{D})$$
+
+The sampled functions could be minimised or maximised, and we define a point, $\mathbf{x}'$, that optimises the function
+
+$$\mathbf{x}' \in \arg\max\limits_{\mathbf{x} \in \mathcal{X}}(a_{ts}(\mathbf{x}'))$$
 
 𝑝 (𝑥∗ | X, y). 
 
 We sample a point from that distribution. This is our next point 
 
-𝑥+ ∼ 𝑝 (𝑥∗ | X, y)
+𝑥_t+1 ∼ 𝑝 (𝑥∗ | X, y)
 
 Implementation
 
