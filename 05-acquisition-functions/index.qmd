@@ -11,7 +11,7 @@ html-math-method:
   method: katex
 ---
 
-Bayesian optimisation is a powerful optimisation technique for black-box functions and processes with expensive evaluations. It is popular for hyperparameter tuning and model selection in machine learning, but has many real-world applications as well. One of the key components of Bayesian optimisation is the acquisition function, which guides the search process by balancing exploration and exploitation of the search space. In this post, we will dive into the role of acquisition functions in Bayesian optimisation and discuss some popular examples of acquisition functions.
+Bayesian optimisation is a powerful optimisation technique for black-box functions and processes with expensive evaluations. It is popular for hyperparameter tuning and model selection in machine learning, but has many real-world applications as well. One of the key components of Bayesian optimisation is the acquisition function, which guides the search process by balancing exploration and exploitation of the search space. In this post, we will dive into the role of acquisition functions in Bayesian optimisation and discuss some popular examples.
 
 ```{r func, echo=TRUE}
 library(ggplot2)
@@ -27,13 +27,17 @@ Mathematically, the acquisition function, $a(\mathbf{x})$, assigns a value to ea
 
 $$\mathbf{x}_{t+1} = \arg\min_{\mathbf{x} \in \mathcal{X}} a(\mathbf{x})$$
 
+or 
+
+$$\mathbf{x}_{t+1} = \arg\max_{\mathbf{x} \in \mathcal{X}} a(\mathbf{x})$$
+
 The acquisition function takes into account both the mean $\mu(\mathbf{x})$ and the variance $\sigma^2(\mathbf{x})$ of the surrogate model's prediction, to balance exploration and exploitation. Roughly speaking, areas with extreme values of $\mu(\mathbf{x})$ correspond to areas we might exploit to get good performing samples, while areas with high values of $\sigma^2(\mathbf{x})$ correspond to with high uncertainty that we might consider for exploration.
 
 #### Notation
 
 The notation used in this post is as follows 
 
-$a(\mathbf{x})$ is an acquisition function of a point $\mathbf{x}$ in the search space $\mathcal{X}$
+$a(\mathbf{x})$ is an acquisition function of a point $\mathbf{x}$ in the search space $\mathcal{X}$. While the search space often contains multiple feature dimensions $\mathcal{X} $ #TODO
 
 $f(\mathbf{x})$ is the value of true objective function, $f$, at $\mathbf{x}$. It is this function that we aim to optimise. However, the function is not directly available and it is expensive to evaluate so we use a surrogate model to approximate it.
 
@@ -41,19 +45,13 @@ In most applications, the observations of the objective function are noisy, $y =
 
 $f(\mathbf{x}^+)$, $f_{\min}$, and $f_{\max}$ all represent the best observed value of the objective function so far. If the observations are noisy, the corresponding notation is $y^+$, $y_{\min}$, and $y_{\max}$. For most examples of acquisition functions, this post focuses on minimisation problems, where the best observed value is $y_{\min}$.
 
+$\mathcal{D}$ is a set of training observations $(\mathbf{X}_{train}, \mathbf{y}_{train})$.
+
 $\mu(\mathbf{x})$ represents the mean prediction of the surrogate model at point $\mathbf{x}$.
 
 $\sigma(\mathbf{x})$ represents the standard deviation (uncertainty) of the surrogate model's prediction at point $\mathbf{x}$. For a GP, this is an entry in the diagonal of the posterior covariance matrix.
 
 ## Examples of Acquisition Functions
-
-Anatomy of an acquisition function
-
-How to estimate them
-
-The examples are given with minimisation in mind
-
-Example problem
 
 For the demonstration of acquisition functions, we are going to need a toy problem. We will use a simple objective function without noise.
 
@@ -65,7 +63,7 @@ X_pred <- matrix(seq(0, 1, length.out = 100), 100, 1)
 y_pred <- objective_function(X_pred)
 ```
 
-This function has two minima, so it will not be too easy to minimise.
+This function has two minima and two maxima in the range $\mathbf{x} \in [0,1]$, so it will not be too easy to maximise or minimise.
 
 ```{r}
 #| code-fold: true
@@ -260,17 +258,20 @@ Now we are ready to apply different acquisition functions to help recommend the 
 ```{r}
 #| code-fold: true
 #| code-summary: "Show the code"
-acquisition_plot <- function(X_pred, ei, gp_plot, label = "EI", title = "") {
+acquisition_plot <- function(X_pred, ei, gp_plot, xt1, label = "EI", title = "") {
   p1 <- tibble::tibble(
     x = X_pred,
     ei = ei
   ) %>%
     ggplot() +
     geom_line(aes(x = x, y = ei, colour = label)) +
+    geom_vline(xintercept = xt1, linetype = 2) +
     theme_minimal() +
     labs(x = "", y = label, colour = "") +
     theme(panel.grid = element_blank())
-  p2 <- gp_plot + labs(title = title)
+  p2 <- gp_plot +
+    geom_vline(xintercept = xt1, linetype = 2) +
+    labs(title = title)
   aligned_plots <- cowplot::align_plots(p2, p1 , align = "v")
   cowplot::plot_grid(aligned_plots[[1]], aligned_plots[[2]], ncol = 1)
 }
@@ -324,10 +325,11 @@ Let's see it in action. We calculate EI along a grid and draw it below the GP.
 
 ```{r}
 ei <- expected_improvement(mu, sigma, y_best, xi = 0.05)
-acquisition_plot(X_pred, ei, gp_plot, "EI", "Expected Improvement")
+xt1 <- X_pred[which.max(ei)]
+acquisition_plot(X_pred, ei, gp_plot, xt1, "EI", "Expected Improvement (Minimisation)")
 ```
 
-The next sampling point, $x^+$, is the one that maximises the acquisition function, here EI. In this case, this is close to the right edge, where there is a high mean prediction but also high uncertainty, so it satisfies our need for both exploration and exploitation.
+The next sampling point, $\mathbf{x}_{t+1}$, is the one that maximises the acquisition function, here EI. In this case, this is close to the right edge, where there is a high mean prediction but also high uncertainty, so it satisfies our need for both exploration and exploitation.
 
 #### Probability of Improvement
 
@@ -371,7 +373,8 @@ Let's see it in action. We calculate PI along a grid and draw it below the GP.
 
 ```{r}
 pi <- probability_of_improvement(mu, sigma, y_best, xi = 0.05)
-acquisition_plot(X_pred, pi, gp_plot, "PI", "Probability of Improvement")
+xt1 <- X_pred[which.max(pi)]
+acquisition_plot(X_pred, pi, gp_plot, xt1, "PI", "Probability of Improvement (Minimisation)")
 ```
 
 The next sampling point, $x^+$, is the one that maximises the acquisition function, here PI. In this case, this is close to the right edge, where there is a high mean prediction but also high uncertainty, so it satisfies our need for both exploration and exploitation. There are a few other good contenders in the spaces between training points though.
@@ -413,43 +416,52 @@ Let's see it in action. We calculate LCB along a grid and draw it below the GP.
 #### TODO should LCB be minimised to find x^+? Need good source.
 
 ```{r}
-cb <- confidence_bound(mu, sigma, kappa = 2, "min")
-acquisition_plot(X_pred, cb, gp_plot, "LCB", "Lower Confidence Bound")
+lcb <- confidence_bound(mu, sigma, kappa = 2, "min")
+xt1 <- X_pred[which.min(lcb)]
+acquisition_plot(X_pred, lcb, gp_plot, xt1, "LCB", "Lower Confidence Bound")
+```
+
+```{r}
+ucb <- confidence_bound(mu, sigma, kappa = 2, "min")
+xt1 <- X_pred[which.max(ucb)]
+acquisition_plot(X_pred, ucb, gp_plot, xt1, "UCB", "Upper Confidence Bound")
 ```
 
 #### Thompson Sampling
 
-Thompson Sampling is an information-based acquisition function that has gained popularity for its simplicity and effectiveness. It was originally proposed as a method for solving multi-armed bandit problems and was later adapted for Bayesian optimisation. [@garnett_bayesoptbook_2023]
+A Gaussian process represents a distribution over functions. At this point in Bayesian optimisation, the GP has been conditioned on training data, $\mathcal{D}$, and it acts as a surrogate for the objective function. This means that we have a distribution of functions which summarise our knowledge and uncertainty about the objective function.
 
-Thompson Sampling works by sampling from the posterior distribution of the surrogate model and selecting the point with the highest (or lowest, for minimization problems) sampled value. This approach encourages exploration in regions with high uncertainty, as the sampled values can vary greatly in these regions. At the same time, it also exploits areas with good performance, as the algorithm will sample points that have a high mean value more frequently.
+We can take that a step further and consider the posterior distribution, $p(\mathbf{x}'|\mathcal{D})$, of points, $\mathbf{x}'$, that optimise the the functions drawn from the GP. A point drawn from that distribution would be a good candidate for our next evaluation of the objective function
 
-A Gaussian process represents a distribution over functions. The distribution has been conditioned on training data, $\mathcal{D}$ and We could sample functions from it
+$$\mathbf{x}_{t+1} \sim p(\mathbf{x}'|\mathcal{D})$$
+
+This is the core idea of Thompson Sampling. Thompson sampling addresses the exploration versus exploitation dilemma by directly making use of our posterior beliefs and the fact that the GP is just a distribution of functions[@garnett_bayesoptbook_2023]. Notice also that no additional parameters are needed for this method.
+
+To do Thompson sampling in practice, we sample a function from the GP
 
 $$a_{ts}(\mathbf{x}) \sim p(y | \mathcal{D})$$
 
-The sampled functions could be minimised or maximised, and we define a point, $\mathbf{x}'$, that optimises the function
+This is not an acquisition function in the same way that Expected Improvement or Confidence Bound are, but we can use it in exactly the same way to suggest the next point
 
-$$\mathbf{x}' \in \arg\max\limits_{\mathbf{x} \in \mathcal{X}}(a_{ts}(\mathbf{x}'))$$
+$$\mathbf{x}_{t+1} \in \arg\min\limits_{\mathbf{x} \in \mathcal{X}}(a_{ts}(\mathbf{x}))$$
 
-𝑝 (𝑥∗ | X, y). 
+for a minimisation problem or 
 
-We sample a point from that distribution. This is our next point 
+$$\mathbf{x}_{t+1} \in \arg\min\limits_{\mathbf{x} \in \mathcal{X}}(a_{ts}(\mathbf{x}))$$
 
-𝑥_t+1 ∼ 𝑝 (𝑥∗ | X, y)
+for a maximisation problem.
 
-Implementation
-
-Draw a random function from the posterior predictive distribution
-
-Maximise or minimise that function
-
-The point that optimises that function is the new sampling point
+Given $\mu$ and $\sigma$
 
 ```{r}
 ts <- as.vector(rmvnorm(1, mu, diag(sigma)))
-acquisition_plot(X_pred, ts, gp_plot, "Sample", "Thompson Sampling")
+xt1 <- X_pred[which.min(ts)]
+acquisition_plot(X_pred, ts, gp_plot, xt1, "Sample", "Thompson Sampling (Minimisation)")
 ```
-
+```{r}
+xt1 <- X_pred[which.max(ts)]
+acquisition_plot(X_pred, ts, gp_plot, xt1, "Sample", "Thompson Sampling (Maximisation)")
+```
 
 #### Mutual Information & Entropy Search
 
