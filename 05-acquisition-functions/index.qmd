@@ -23,7 +23,7 @@ set.seed(4444)
 
 Bayesian optimisation is an iterative process. It combines a probabilistic surrogate model, often a Gaussian Process (GP), with an acquisition function to select the next point to evaluate in an expensive objective function or process, $f$. The surrogate model captures our current understanding and uncertainty of the objective function, while the acquisition function helps balance the trade-off between exploring new regions of input space and exploiting regions with high predicted performance.
 
-Mathematically, the acquisition function, $a(\mathbf{x})$, assigns a value to each point in the search space $\mathbf{x} \in \mathcal{X}$. The next point to evaluate, $\mathbf{x}_{t+1}$, is chosen by maximising or minimising the acquisition function, depending on the optimisation task at hand:
+Mathematically, the acquisition function, $a(\mathbf{x})$, assigns a value to each point in the search space $\mathbf{x} \in \mathcal{X}$. The next point to evaluate, $\mathbf{x}_{t+1}$, is chosen by maximising or minimising the acquisition function, depending on the optimisation task at hand, i.e.
 
 $$\mathbf{x}_{t+1} = \arg\min_{\mathbf{x} \in \mathcal{X}} a(\mathbf{x})$$
 
@@ -454,7 +454,7 @@ for a maximisation problem.
 Given $\mu$ and $\sigma$
 
 ```{r}
-ts <- as.vector(rmvnorm(1, mu, diag(sigma)))
+ts <- as.vector(rmvnorm(1, mu, diag(sigma))) # TODO: I think this should be the full posterior sigma instead
 xt1 <- X_pred[which.min(ts)]
 acquisition_plot(X_pred, ts, gp_plot, xt1, "Sample", "Thompson Sampling (Minimisation)")
 ```
@@ -466,6 +466,38 @@ acquisition_plot(X_pred, ts, gp_plot, xt1, "Sample", "Thompson Sampling (Maximis
 #### Mutual Information & Entropy Search
 
 #### Knowledge Gradient
+
+```{r}
+# for i in J
+#   sample a function from the posterior predictive distribution
+#   find the optimum of the sampled function
+#   store the difference between the optimum value and each point in the posterior mean
+# 
+mu_min <- min(mu)
+kg <- tidyr::expand_grid(x_sim = X_pred, j = 1:50) %>%
+  dplyr::mutate(
+    post = purrr::map(x_sim, function(x) {
+      rlang::exec(posterior, rbf_kernel, x, X_train, y_train, !!!post_pred$parameters)
+    }),
+    y_sim = purrr::map_dbl(post, function(p) {
+      rlang::exec(rmvnorm, n = 1, mu = p$mu, sigma = p$sigma)
+    }),
+    # augment dataset with x_sim, y_sim and get posterior for sim
+    post_sim = purrr::map2(x_sim, y_sim, function(xs, ys) {
+      rlang::exec(posterior, rbf_kernel, X_pred, rbind(X_train, xs), rbind(y_train, ys), !!!post_pred$parameters)
+    }),
+    mu_max_sim = purrr::map_dbl(post_sim, ~ min(.x$mu)),
+    mu_diff = mu_min - mu_max_sim
+  ) %>%
+  dplyr::group_by(x_sim) %>%
+  dplyr::summarise(kg = mean(mu_diff)) %>%
+  dplyr::pull(kg)
+
+acquisition_plot(X_pred, kg, gp_plot, X_pred[which.max(kg)])
+```
+
+
+
 
 # References {-}
 
