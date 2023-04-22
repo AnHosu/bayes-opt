@@ -454,7 +454,8 @@ for a maximisation problem.
 Given $\mu$ and $\sigma$
 
 ```{r}
-ts <- as.vector(rmvnorm(1, mu, diag(sigma))) # TODO: I think this should be the full posterior sigma instead
+post <- rlang::exec(posterior, rbf_kernel, X_pred, X_train, y_train, !!!post_pred$parameters)
+ts <- as.vector(rmvnorm(1, post$mu, post$sigma))
 xt1 <- X_pred[which.min(ts)]
 acquisition_plot(X_pred, ts, gp_plot, xt1, "Sample", "Thompson Sampling (Minimisation)")
 ```
@@ -467,6 +468,34 @@ acquisition_plot(X_pred, ts, gp_plot, xt1, "Sample", "Thompson Sampling (Maximis
 
 #### Knowledge Gradient
 
+The Knowledge Gradient (KG) is an acquisition function that makes extensive use of the posterior distribution to suggest a sampling point. KG is simulated rather than calculated and the rationale behind it takes a bit of set up.
+
+Imagine that we are at the end of our sequential experimentation. We have collected a set of observations $\mathcal{D} = \{\mathbf{X},\mathbf{y}\}$ and we are about to recommend our final set point, $\mathbf{x}^*$, which hopefully is close the global optimum of the objective function.
+
+In most real world cases, we are risk averse and would opt to select a point that we have already tested, i.e. $\mathbf{x}^* \in \mathbf{X}$. Imagine, however, that we were not risk averse and just wanted to report the point with the best expected outcome given the data so far, then we might recommend
+
+$$\mathbf{x}^* = \arg\min\limits_{\mathbf{x} \in \mathcal{X}}\mu(\mathbf{x})$$
+
+We also define $\mu^* = \mu(\mathbf{x}^*)$.
+
+At this point, imagine that we are suddenly allowed to test just one more point. Given that we have decided to recommend the point that optimises the posterior mean at the end of our experimental sequences, the next point, $\mathbf{x}_{t+1}$, we choose to evaluate in the the objective function should be the point that maximises the increase in the optimum posterior mean.
+
+Let's say we pick any point, $\mathbf{x}_{t+1} \in \mathcal{X}$, to be our next point. That would result in the observation $y_{t+1}$ and eventually a recommended final point, $\mathbf{x}^*_{t+1}$ with mean $\mu^*_{t+1}$. The decrease in posterior mean, $\mu^* - \mu^*_{t+1}$, would be an excellent estimator of improvement in choosing $\mathbf{x}_{t+1}$ as the next sampling point.
+
+However, we cannot calculate $\mu^* - \mu^*_{t+1}$ without actually collecting the sample $y_{t+1}$. Instead we could estimate the expected value, given just the observations so far:
+
+$$a_{KG}(\mathbf{x}) = \mathbb{E}_{p(y|\mathcal{D})}[\mu^* - \mu^*_{t+1}]$$
+
+This is the definition of the Knowledge Gradient for a minimisation problem.
+
+For a maximisation problem, the definition is
+
+$$a_{KG}(\mathbf{x}) = \mathbb{E}_{p(y|\mathcal{D})}[\mu^*_{t+1} - \mu^*]$$
+
+where $\mu^* = \max(\mu(\mathbf{x}))$.
+
+To calculate KG in practice, we need a way to estimate $\mu^*_{t+1}$ as a function of existing observations and we need a way to integrate over $p(y|\mathcal{D})$. For a proposed point, $\mathbf{x}_{sim}$, the solution to the former is to draw a sample $y_{sim} \sim p(y|\mathbf{x}_{sim},\mathcal{D})$, create an augmented dataset $\mathcal{D}^+ = \{\{\mathbf{X},\mathbf{x}_{sim}\}, \{\mathbf{y},y_{sim}\}\}$, condition the surrogate model on the augmented dataset, and compute the optimum of the new posterior mean.
+
 ```{r}
 # for i in J
 #   sample a function from the posterior predictive distribution
@@ -474,20 +503,40 @@ acquisition_plot(X_pred, ts, gp_plot, xt1, "Sample", "Thompson Sampling (Maximis
 #   store the difference between the optimum value and each point in the posterior mean
 # 
 mu_min <- min(mu)
-kg <- tidyr::expand_grid(x_sim = X_pred, j = 1:50) %>%
+mu_max <- max(mu)
+kg <- tibble::tibble(x_sim = X_pred) %>%
   dplyr::mutate(
     post = purrr::map(x_sim, function(x) {
-      rlang::exec(posterior, rbf_kernel, x, X_train, y_train, !!!post_pred$parameters)
+      rlang::exec(
+        posterior,
+        kernel = rbf_kernel,
+        X_pred = x,
+        X_train = X_train,
+        y_train = y_train,
+        !!!post_pred$parameters
+      )
     }),
-    y_sim = purrr::map_dbl(post, function(p) {
-      rlang::exec(rmvnorm, n = 1, mu = p$mu, sigma = p$sigma)
-    }),
+    y_sim = purrr::map(post, function(p) {
+      rlang::exec(rmvnorm, n = 100, mu = p$mu, sigma = p$sigma)
+    })
+  ) %>%
+  tidyr::unnest_longer(y_sim) %>%
+  dplyr::mutate(
     # augment dataset with x_sim, y_sim and get posterior for sim
-    post_sim = purrr::map2(x_sim, y_sim, function(xs, ys) {
-      rlang::exec(posterior, rbf_kernel, X_pred, rbind(X_train, xs), rbind(y_train, ys), !!!post_pred$parameters)
+    mu_sim = purrr::map2(x_sim, y_sim, function(xs, ys) {
+      rlang::exec(
+        posterior,
+        kernel = rbf_kernel,
+        X_pred = X_pred,
+        X_train = rbind(X_train, xs),
+        y_train = rbind(y_train, ys),
+        !!!post_pred$parameters
+      )$mu
     }),
-    mu_max_sim = purrr::map_dbl(post_sim, ~ min(.x$mu)),
-    mu_diff = mu_min - mu_max_sim
+    mu_min_sim = purrr::map_dbl(mu_sim, min),
+    mu_max_sim = purrr::map_dbl(mu_sim, max),
+    mu_diff_min = mu_min - mu_min_sim,
+    mu_diff_max = mu_max_sum - mu_max
   ) %>%
   dplyr::group_by(x_sim) %>%
   dplyr::summarise(kg = mean(mu_diff)) %>%
