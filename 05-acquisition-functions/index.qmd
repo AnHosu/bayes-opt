@@ -494,7 +494,17 @@ $$a_{KG}(\mathbf{x}) = \mathbb{E}_{p(y|\mathcal{D})}[\mu^*_{t+1} - \mu^*]$$
 
 where $\mu^* = \max(\mu(\mathbf{x}))$.
 
-To calculate KG in practice, we need a way to estimate $\mu^*_{t+1}$ as a function of existing observations and we need a way to integrate over $p(y|\mathcal{D})$. For a proposed point, $\mathbf{x}_{sim}$, the solution to the former is to draw a sample $y_{sim} \sim p(y|\mathbf{x}_{sim},\mathcal{D})$, create an augmented dataset $\mathcal{D}^+ = \{\{\mathbf{X},\mathbf{x}_{sim}\}, \{\mathbf{y},y_{sim}\}\}$, condition the surrogate model on the augmented dataset, and compute the optimum of the new posterior mean.
+To calculate KG in practice, we need a way to estimate $\mu^*_{t+1}$ as a function of existing observations and we need a way to integrate over $p(y|\mathcal{D})$. 
+
+For a proposed point, $\mathbf{x}_{sim}$, the solution to the former is to draw a sample $y_{sim} \sim p(y|\mathbf{x}_{sim},\mathcal{D})$, create an augmented dataset $\mathcal{D}^+ = \{\{\mathbf{X},\mathbf{x}_{sim}\}, \{\mathbf{y},y_{sim}\}\}$, condition the surrogate model on the augmented dataset, and compute the optimum of the new posterior mean.
+
+We cannot integrate this estimate over $p(y_{sim}|\mathcal{D})$, but we can draw $M$ samples, compute $\mu^*_{t+1}$ for each of them and calculate the mean difference:
+
+$$a_{KG}(\mathbf{x}) \approx \frac{1}{M}\sum_{j=1}^M \mu^* - \mu^*_{t+1,j}$$
+
+As $M$ approaches infinity, the estimate should converge to the true KG. Since we need a large amount of samples and need to repeat the process for each candidate $\mathbf{x}$, a good sampler is needed to estimate KG.
+
+For our simple one-dimensional example, we can brute force it without worrying too much about optimising the calculation. For an example with more dimensions or for a smoother estimate of KG, a proper MCMC sampling would be needed.
 
 ```{r}
 # for i in J
@@ -507,6 +517,7 @@ mu_max <- max(mu)
 kg <- tibble::tibble(x_sim = X_pred) %>%
   dplyr::mutate(
     post = purrr::map(x_sim, function(x) {
+      # Calculate the posterior predictive distribution for y at x_sim
       rlang::exec(
         posterior,
         kernel = rbf_kernel,
@@ -516,13 +527,15 @@ kg <- tibble::tibble(x_sim = X_pred) %>%
         !!!post_pred$parameters
       )
     }),
+    # Draw a M = 100 samples of y_sim from the posterior predictive distribution
     y_sim = purrr::map(post, function(p) {
       rlang::exec(rmvnorm, n = 100, mu = p$mu, sigma = p$sigma)
     })
   ) %>%
   tidyr::unnest_longer(y_sim) %>%
   dplyr::mutate(
-    # augment dataset with x_sim, y_sim and get posterior for sim
+    # For each pair of (x_sim, y_sim)
+    # augment dataset with x_sim, y_sim and get posterior
     mu_sim = purrr::map2(x_sim, y_sim, function(xs, ys) {
       rlang::exec(
         posterior,
@@ -533,20 +546,42 @@ kg <- tibble::tibble(x_sim = X_pred) %>%
         !!!post_pred$parameters
       )$mu
     }),
+    # Calculate the estimator
     mu_min_sim = purrr::map_dbl(mu_sim, min),
     mu_max_sim = purrr::map_dbl(mu_sim, max),
     mu_diff_min = mu_min - mu_min_sim,
-    mu_diff_max = mu_max_sum - mu_max
+    mu_diff_max = mu_max_sim - mu_max
   ) %>%
   dplyr::group_by(x_sim) %>%
-  dplyr::summarise(kg = mean(mu_diff)) %>%
-  dplyr::pull(kg)
-
-acquisition_plot(X_pred, kg, gp_plot, X_pred[which.max(kg)])
+  dplyr::summarise(kg_min = mean(mu_diff_min), kg_max = mean(mu_diff_max)) %>%
+  dplyr::arrange(x_sim)
 ```
 
+Here is KG for the minimisation case. Notice that the estimate is very rough. The dashed line shows where we would sample next, according to KG.
 
+```{r}
+acquisition_plot(
+  X_pred,
+  kg$kg_min,
+  gp_plot,
+  X_pred[which.max(kg$kg_min)],
+  "KG",
+  "Knowledge Gradient (minimisation)"
+)
+```
 
+Here is KG for the maximisation case. Notice that the estimate is very rough. The dashed line shows where we would sample next, according to KG.
+
+```{r}
+acquisition_plot(
+  X_pred,
+  kg$kg_max,
+  gp_plot,
+  X_pred[which.max(kg$kg_max)],
+  "KG",
+  "Knowledge Gradient (maximisation)"
+)
+```
 
 # References {-}
 
