@@ -37,7 +37,7 @@ The acquisition function takes into account both the mean $\mu(\mathbf{x})$ and 
 
 The notation used in this post is as follows 
 
-$a(\mathbf{x})$ is an acquisition function of a point $\mathbf{x}$ in the search space $\mathcal{X}$. While the search space often contains multiple feature dimensions $\mathcal{X} $ #TODO
+$a(\mathbf{x})$ is an acquisition function of a point $\mathbf{x}$ in the search space $\mathcal{X}$. While the search space often contains multiple feature dimensions $\mathcal{X} \in \mathbb{R}^n$, here the example will be in one dimension.
 
 $f(\mathbf{x})$ is the value of true objective function, $f$, at $\mathbf{x}$. It is this function that we aim to optimise. However, the function is not directly available and it is expensive to evaluate so we use a surrogate model to approximate it.
 
@@ -51,7 +51,7 @@ $\mu(\mathbf{x})$ represents the mean prediction of the surrogate model at point
 
 $\sigma(\mathbf{x})$ represents the standard deviation (uncertainty) of the surrogate model's prediction at point $\mathbf{x}$. For a GP, this is an entry in the diagonal of the posterior covariance matrix.
 
-## Examples of Acquisition Functions
+#### An Example Problem
 
 For the demonstration of acquisition functions, we are going to need a toy problem. We will use a simple objective function without noise.
 
@@ -253,7 +253,7 @@ gp_plot <- tibble::tibble(
 gp_plot
 ```
 
-Now we are ready to apply different acquisition functions to help recommend the next point to sample. We also define a plot to visualise the acquisition function along with the GP.
+Before getting started, we also define a plot to visualise the acquisition function along with the GP.
 
 ```{r}
 #| code-fold: true
@@ -277,7 +277,9 @@ acquisition_plot <- function(X_pred, ei, gp_plot, xt1, label = "EI", title = "")
 }
 ```
 
-#### Expected Improvement
+Now we are ready to apply different acquisition functions to help recommend the next point to sample.
+
+## Expected Improvement
 
 The basic idea behind Expected Improvement (EI) is to search for the point in the search space that has the highest probability of improving the current best solution. EI is defined as the expected value of the improvement over the current best solution, where the improvement is defined as the difference between the function value at the candidate point and the current best value. In other words, EI measures how much better the objective function is expected to be at the candidate point compared to the current best value, weighted by the probability of achieving that improvement.
 
@@ -287,7 +289,7 @@ $$a_{EI}(\mathbf{x}) = \mathbb{E}\left[\max(0, f_{\min} - f(\mathbf{x}))\right]$
 
 where $\mathbf{x}$ is the candidate point and $f_{\min}$ is the current best function value observed so far. 
 
-When using a GP surrogate model conditioned on noisy observations in place of $f$, EI can be calculated using the formula 
+When using a GP surrogate model conditioned on noisy observations in place of $f$, EI can be calculated using the following formula [@frazier2018tutorial]
 
 $$a_{EI}(\mathbf{x}) = (y_{min} - \mu(\mathbf{x}) - \xi) \Phi(Z) + \sigma(\mathbf{x}) \phi(Z)$$
 
@@ -331,7 +333,7 @@ acquisition_plot(X_pred, ei, gp_plot, xt1, "EI", "Expected Improvement (Minimisa
 
 The next sampling point, $\mathbf{x}_{t+1}$, is the one that maximises the acquisition function, here EI. In this case, this is close to the right edge, where there is a high mean prediction but also high uncertainty, so it satisfies our need for both exploration and exploitation.
 
-#### Probability of Improvement
+## Probability of Improvement
 
 Probability of improvement (PI) aims to select the point that has the highest probability of improving the current best solution. Like expected improvement, the PI function balances exploration and exploitation by taking into account both the mean and the variance of the surrogate model. A point with a high mean and low variance is likely to be a good candidate for exploitation, while a point with a high variance but lower mean may be more suitable for exploration.
 
@@ -343,7 +345,7 @@ When using a GP surrogate model conditioned on noisy observations in place of $f
 
 $$a_{\text{PI}}(\mathbf{x}) = \Phi\left(\frac{y_{min} - \mu(\mathbf{x}) - \xi}{\sigma(\mathbf{x})}\right)$$
 
-where $\mu(\mathbf{x})$ and $\sigma(\mathbf{x})$ are the mean and standard deviation of the Gaussian process at $\mathbf{x}$, $\Phi$ is the standard normal cumulative distribution function, and $\xi$ is a trade-off parameter that balances exploration and exploitation. Higher values of $\xi$ lead to more exploration and smaller values to exploitation.
+where $\mu(\mathbf{x})$ and $\sigma(\mathbf{x})$ are the mean and standard deviation of the Gaussian process at $\mathbf{x}$, $\Phi$ is the standard normal cumulative distribution function, and $\xi$ is a trade-off parameter that balances exploration and exploitation [@garnett_bayesoptbook_2023]. Higher values of $\xi$ lead to more exploration and smaller values to exploitation.
 
 The formula can be implemented directly
 
@@ -379,7 +381,7 @@ acquisition_plot(X_pred, pi, gp_plot, xt1, "PI", "Probability of Improvement (Mi
 
 The next sampling point, $x^+$, is the one that maximises the acquisition function, here PI. In this case, this is close to the right edge, where there is a high mean prediction but also high uncertainty, so it satisfies our need for both exploration and exploitation. There are a few other good contenders in the spaces between training points though.
 
-#### Lower & Upper Confidence Bound
+## Lower & Upper Confidence Bound
 
 The Lower Confidence Bound (LCB) and Upper Confidence Bound (UCB) acquisition functions are fairly simple acquisition functions. They balance exploration and exploitation by combining the mean and the weighted standard deviation predictions of the surrogate model. LCB is used for minimisation problems and UCP is applied for maximisation problems.
 
@@ -392,6 +394,8 @@ and UCB as
 $$a_{UCB}(\mathbf{x}) = \mu(\mathbf{x}) + \kappa \sigma(\mathbf{x})$$
 
 where $\mu(\mathbf{x})$ and $\sigma(\mathbf{x})$ are the mean and standard deviation of the Gaussian process at $\mathbf{x}$ and $\kappa$ is a tunable parameter that controls the balance between exploration and exploitation. Higher values of $\kappa$ promote more exploration, while lower values emphasise exploitation.
+
+With the mean term explicitly controlling exploitation and the weighed standard deviation term explicitly controlling exploration, UCB and LCB arguably represent the simplest acquisition function one could implement. This does not mean that UCB or LCB are worse than EI or PI, however. When the surrogate model is a GP, this simpler acquisition function might have similar performance to EI, for appropriate choices of $\kappa$ [@Srinivas_2012] [@garnett_bayesoptbook_2023].
 
 The acquisition functions are straightforward to implement, given $\mu$ and $\sigma$:
 
@@ -413,21 +417,21 @@ confidence_bound <- function(mu, sigma, kappa, task = "min") {
 
 Let's see it in action. We calculate LCB along a grid and draw it below the GP.
 
-#### TODO should LCB be minimised to find x^+? Need good source.
-
 ```{r}
 lcb <- confidence_bound(mu, sigma, kappa = 2, "min")
 xt1 <- X_pred[which.min(lcb)]
 acquisition_plot(X_pred, lcb, gp_plot, xt1, "LCB", "Lower Confidence Bound")
 ```
 
+We can do the same for UCB
+
 ```{r}
-ucb <- confidence_bound(mu, sigma, kappa = 2, "min")
+ucb <- confidence_bound(mu, sigma, kappa = 2, "max")
 xt1 <- X_pred[which.max(ucb)]
 acquisition_plot(X_pred, ucb, gp_plot, xt1, "UCB", "Upper Confidence Bound")
 ```
 
-#### Thompson Sampling
+## Thompson Sampling
 
 A Gaussian process represents a distribution over functions. At this point in Bayesian optimisation, the GP has been conditioned on training data, $\mathcal{D}$, and it acts as a surrogate for the objective function. This means that we have a distribution of functions which summarise our knowledge and uncertainty about the objective function.
 
@@ -464,9 +468,7 @@ xt1 <- X_pred[which.max(ts)]
 acquisition_plot(X_pred, ts, gp_plot, xt1, "Sample", "Thompson Sampling (Maximisation)")
 ```
 
-#### Mutual Information & Entropy Search
-
-#### Knowledge Gradient
+## Knowledge Gradient
 
 The Knowledge Gradient (KG) is an acquisition function that makes extensive use of the posterior distribution to suggest a sampling point. KG is simulated rather than calculated and the rationale behind it takes a bit of set up.
 
@@ -486,7 +488,7 @@ However, we cannot calculate $\mu^* - \mu^*_{t+1}$ without actually collecting t
 
 $$a_{KG}(\mathbf{x}) = \mathbb{E}_{p(y|\mathcal{D})}[\mu^* - \mu^*_{t+1}]$$
 
-This is the definition of the Knowledge Gradient for a minimisation problem.
+This is the definition of the Knowledge Gradient for a minimisation problem [@frazier2018tutorial].
 
 For a maximisation problem, the definition is
 
@@ -507,11 +509,6 @@ As $M$ approaches infinity, the estimate should converge to the true KG. Since w
 For our simple one-dimensional example, we can brute force it without worrying too much about optimising the calculation. For an example with more dimensions or for a smoother estimate of KG, a proper MCMC sampling would be needed.
 
 ```{r}
-# for i in J
-#   sample a function from the posterior predictive distribution
-#   find the optimum of the sampled function
-#   store the difference between the optimum value and each point in the posterior mean
-# 
 mu_min <- min(mu)
 mu_max <- max(mu)
 kg <- tibble::tibble(x_sim = X_pred) %>%
@@ -557,7 +554,7 @@ kg <- tibble::tibble(x_sim = X_pred) %>%
   dplyr::arrange(x_sim)
 ```
 
-Here is KG for the minimisation case. Notice that the estimate is very rough. The dashed line shows where we would sample next, according to KG.
+Here is KG for the minimisation case. Notice that the estimate is very rough. More samples would have made the estimate smoother. The dashed line shows where we would sample next, according to KG.
 
 ```{r}
 acquisition_plot(
