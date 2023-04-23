@@ -13,6 +13,8 @@ html-math-method:
 
 Bayesian optimisation is a powerful optimisation technique for black-box functions and processes with expensive evaluations. It is popular for hyperparameter tuning and model selection in machine learning, but has many real-world applications as well. One of the key components of Bayesian optimisation is the acquisition function, which guides the search process by balancing exploration and exploitation of the search space. In this post, we will dive into the role of acquisition functions in Bayesian optimisation and discuss some popular examples.
 
+Along with the discussion are implementations of each acquisition function in R, using only base R and the Tidyverse.
+
 ```{r func, echo=TRUE}
 library(ggplot2)
 library(magrittr)
@@ -23,7 +25,7 @@ set.seed(4444)
 
 Bayesian optimisation is an iterative process. It combines a probabilistic surrogate model, often a Gaussian Process (GP), with an acquisition function to select the next point to evaluate in an expensive objective function or process, $f$. The surrogate model captures our current understanding and uncertainty of the objective function, while the acquisition function helps balance the trade-off between exploring new regions of input space and exploiting regions with high predicted performance.
 
-Mathematically, the acquisition function, $a(\mathbf{x})$, assigns a value to each point in the search space $\mathbf{x} \in \mathcal{X}$. The next point to evaluate, $\mathbf{x}_{t+1}$, is chosen by maximising or minimising the acquisition function, depending on the optimisation task at hand, i.e.
+Mathematically, the acquisition function, $a(\mathbf{x})$, assigns a value to each point in the search space $\mathbf{x} \in \mathcal{X}$. The next point to evaluate, $\mathbf{x}_{t+1}$, is chosen by maximising or minimising the acquisition function, depending on the optimisation task and acquisition function at hand, i.e.
 
 $$\mathbf{x}_{t+1} = \arg\min_{\mathbf{x} \in \mathcal{X}} a(\mathbf{x})$$
 
@@ -53,7 +55,7 @@ $\sigma(\mathbf{x})$ represents the standard deviation (uncertainty) of the surr
 
 #### An Example Problem
 
-For the demonstration of acquisition functions, we are going to need a toy problem. We will use a simple objective function without noise.
+For the demonstration of acquisition functions, we need a toy problem. We will use a simple objective function without noise and a single dimension.
 
 ```{r}
 objective_function <- function(x) {
@@ -63,7 +65,7 @@ X_pred <- matrix(seq(0, 1, length.out = 100), 100, 1)
 y_pred <- objective_function(X_pred)
 ```
 
-This function has two minima and two maxima in the range $\mathbf{x} \in [0,1]$, so it will not be too easy to maximise or minimise.
+This function has two minima and two maxima in the search space $\mathcal{X} = [0,1]$, so it will not be too easy to maximise or minimise.
 
 ```{r}
 #| code-fold: true
@@ -195,19 +197,21 @@ gpr <- function(kernel, X_train, y_train, noise = 1e-8, ...) {
     list(
       mu = post$mu,
       sigma = diag(post$sigma),
+      Sigma = post$sigma,
       parameters = set_names(opt_param, names(param))
     )
   }
 }
 ```
 
-The model will receive four training points. We perform Gaussian process regression and condition the Gaussian process on our training data before drawing from the posterior predictive distribution on a grid of $\mathbf{x} \in \mathcal{X}$. The $\mu$ and $\sigma$ of the posterior predictive distribution are needed to calculate some acquisition functions.
+The model will receive four training points. We perform Gaussian process regression and condition the Gaussian process on our training data before drawing from the posterior predictive distribution on a grid of $\mathbf{x} \in \mathcal{X}$. The $\mu(\mathbf{x})$ and $\sigma(\mathbf{x})$ of the posterior predictive distribution are needed to calculate some acquisition functions.
 
 ```{r}
 X_train <- matrix(c(0.1, 0.2, 0.7, 0.75), 4, 1)
 y_train <- objective_function(X_train)
 gp <- gpr(rbf_kernel, X_train, y_train, noise = 1e-8, l = 1, sigma_f = 1)
-y_best <- min(y_train)
+y_min <- min(y_train)
+y_max <- max(y_train)
 post_pred <- gp(X_pred)
 mu <- post_pred$mu
 sigma <- post_pred$sigma
@@ -258,13 +262,18 @@ Before getting started, we also define a plot to visualise the acquisition funct
 ```{r}
 #| code-fold: true
 #| code-summary: "Show the code"
-acquisition_plot <- function(X_pred, ei, gp_plot, xt1, label = "EI", title = "") {
+acquisition_plot <- function(X_pred,
+                             acquisition_function,
+                             gp_plot,
+                             xt1,
+                             label = "EI",
+                             title = "") {
   p1 <- tibble::tibble(
     x = X_pred,
-    ei = ei
+    a = acquisition_function
   ) %>%
     ggplot() +
-    geom_line(aes(x = x, y = ei, colour = label)) +
+    geom_line(aes(x = x, y = a, colour = label)) +
     geom_vline(xintercept = xt1, linetype = 2) +
     theme_minimal() +
     labs(x = "", y = label, colour = "") +
@@ -281,7 +290,7 @@ Now we are ready to apply different acquisition functions to help recommend the 
 
 ## Expected Improvement
 
-The basic idea behind Expected Improvement (EI) is to search for the point in the search space that has the highest probability of improving the current best solution. EI is defined as the expected value of the improvement over the current best solution, where the improvement is defined as the difference between the function value at the candidate point and the current best value. In other words, EI measures how much better the objective function is expected to be at the candidate point compared to the current best value, weighted by the probability of achieving that improvement.
+The idea behind Expected Improvement (EI) is to search for the point in the search space that has the highest probability of improving the current best solution. EI is defined as the expected value of the improvement over the current best solution, where the improvement is defined as the difference between the function value at the candidate point and the current best value. In other words, EI measures how much better the objective function is expected to be at the candidate point compared to the current best value, weighted by the probability of achieving that improvement.
 
 Formally, the expected improvement acquisition function for a minimisation problem is defined as:
 
@@ -326,12 +335,36 @@ expected_improvement <- function(mu, sigma, y_best, xi = 0.01, task = "min") {
 Let's see it in action. We calculate EI along a grid and draw it below the GP.
 
 ```{r}
-ei <- expected_improvement(mu, sigma, y_best, xi = 0.05)
+ei <- expected_improvement(mu, sigma, y_min, xi = 0.05)
 xt1 <- X_pred[which.max(ei)]
-acquisition_plot(X_pred, ei, gp_plot, xt1, "EI", "Expected Improvement (Minimisation)")
+acquisition_plot(
+  X_pred,
+  ei,
+  gp_plot,
+  xt1,
+  "EI",
+  "Expected Improvement (Minimisation)"
+)
 ```
 
-The next sampling point, $\mathbf{x}_{t+1}$, is the one that maximises the acquisition function, here EI. In this case, this is close to the right edge, where there is a high mean prediction but also high uncertainty, so it satisfies our need for both exploration and exploitation.
+The next sampling point, $\mathbf{x}_{t+1}$, is the one that maximises the acquisition function, here EI. As marked by the dashed line, this point is close to the right edge, where there is a high mean prediction but also high uncertainty, so it satisfies our need for both exploration and exploitation.
+
+EI works for maximisation problems as well, by replacing $y_{min} - \mu(\mathbf{x})$ with $\mu(\mathbf{x}) - y_{max}$ in the expressions above.
+
+```{r}
+ei <- expected_improvement(mu, sigma, y_max, xi = 0.05, task = "max")
+xt1 <- X_pred[which.max(ei)]
+acquisition_plot(
+  X_pred,
+  ei,
+  gp_plot,
+  xt1,
+  "EI",
+  "Expected Improvement (Maximisation)"
+)
+```
+
+The next sampling point, $\mathbf{x}_{t+1}$, is still the one that maximises EI. As marked by the dashed line, this point is close to two sampled points, where we are quite certain that there is improvement to be found.
 
 ## Probability of Improvement
 
@@ -374,12 +407,36 @@ probability_of_improvement <- function(mu,
 Let's see it in action. We calculate PI along a grid and draw it below the GP.
 
 ```{r}
-pi <- probability_of_improvement(mu, sigma, y_best, xi = 0.05)
+pi <- probability_of_improvement(mu, sigma, y_min, xi = 0.1)
 xt1 <- X_pred[which.max(pi)]
-acquisition_plot(X_pred, pi, gp_plot, xt1, "PI", "Probability of Improvement (Minimisation)")
+acquisition_plot(
+  X_pred,
+  pi,
+  gp_plot,
+  xt1,
+  "PI",
+  "Probability of Improvement (Minimisation)"
+)
 ```
 
-The next sampling point, $x^+$, is the one that maximises the acquisition function, here PI. In this case, this is close to the right edge, where there is a high mean prediction but also high uncertainty, so it satisfies our need for both exploration and exploitation. There are a few other good contenders in the spaces between training points though.
+The next sampling point, $\mathbf{x}_{t+1}$, is the one that maximises the acquisition function, here PI. As marked by the dashed line, this is close to the right edge, where there is a low mean prediction but also high uncertainty, so it satisfies our need for both exploration and exploitation. There are a few other good contenders in the spaces between training points though.
+
+PI works for maximisation problems as well, by replacing $y_{min} - \mu(\mathbf{x})$ with $\mu(\mathbf{x}) - y_{max}$ in the expression above.
+
+```{r}
+pi <- probability_of_improvement(mu, sigma, y_max, xi = 1, task = "max")
+xt1 <- X_pred[which.max(pi)]
+acquisition_plot(
+  X_pred,
+  pi,
+  gp_plot,
+  xt1,
+  "PI",
+  "Probability of Improvement (Maximisation)"
+)
+```
+
+The next sampling point, $\mathbf{x}_{t+1}$, is still the one that maximises PI. As marked by the dashed line, this is in an area of high uncertainty.
 
 ## Lower & Upper Confidence Bound
 
@@ -423,6 +480,8 @@ xt1 <- X_pred[which.min(lcb)]
 acquisition_plot(X_pred, lcb, gp_plot, xt1, "LCB", "Lower Confidence Bound")
 ```
 
+As marked by the dashed line, LCB tells us that the next point to sample, $\mathbf{x}_{t+1}$, is all the way at the right edge of search space.
+
 We can do the same for UCB
 
 ```{r}
@@ -430,6 +489,8 @@ ucb <- confidence_bound(mu, sigma, kappa = 2, "max")
 xt1 <- X_pred[which.max(ucb)]
 acquisition_plot(X_pred, ucb, gp_plot, xt1, "UCB", "Upper Confidence Bound")
 ```
+
+As marked by the dashed line, UCB tells us that the next point to sample, $\mathbf{x}_{t+1}$, is close to two known points, where we are fairly certain that there is improvement to be found.
 
 ## Thompson Sampling
 
@@ -447,34 +508,52 @@ $$a_{ts}(\mathbf{x}) \sim p(y | \mathcal{D})$$
 
 This is not an acquisition function in the same way that Expected Improvement or Confidence Bound are, but we can use it in exactly the same way to suggest the next point
 
-$$\mathbf{x}_{t+1} \in \arg\min\limits_{\mathbf{x} \in \mathcal{X}}(a_{ts}(\mathbf{x}))$$
+$$\mathbf{x}_{t+1} \in \arg\min\limits_{\mathbf{x} = \mathcal{X}}(a_{ts}(\mathbf{x}))$$
 
 for a minimisation problem or 
 
-$$\mathbf{x}_{t+1} \in \arg\min\limits_{\mathbf{x} \in \mathcal{X}}(a_{ts}(\mathbf{x}))$$
+$$\mathbf{x}_{t+1} \in \arg\min\limits_{\mathbf{x} = \mathcal{X}}(a_{ts}(\mathbf{x}))$$
 
 for a maximisation problem.
 
-Given $\mu$ and $\sigma$
+Given the posterior predictive distribution, Thompson sampling is straightforward to implement. Let's see it in action!
+
+We draw a random sample function and find its minimum and maximum
 
 ```{r}
-post <- rlang::exec(posterior, rbf_kernel, X_pred, X_train, y_train, !!!post_pred$parameters)
-ts <- as.vector(rmvnorm(1, post$mu, post$sigma))
+ts <- as.vector(rmvnorm(1, post_pred$mu, post_pred$Sigma))
 xt1 <- X_pred[which.min(ts)]
-acquisition_plot(X_pred, ts, gp_plot, xt1, "Sample", "Thompson Sampling (Minimisation)")
+acquisition_plot(
+  X_pred,
+  ts,
+  gp_plot,
+  xt1,
+  "Sample",
+  "Thompson Sampling (Minimisation)"
+)
 ```
+
 ```{r}
 xt1 <- X_pred[which.max(ts)]
-acquisition_plot(X_pred, ts, gp_plot, xt1, "Sample", "Thompson Sampling (Maximisation)")
+acquisition_plot(
+  X_pred,
+  ts,
+  gp_plot,
+  xt1,
+  "Sample",
+  "Thompson Sampling (Maximisation)"
+)
 ```
+
+The dashed line indicates the next sampling point, $\mathbf{x}_{t+1}$, for a minimisation and maximisation task, respectively. For the minimisation problem, we are suggested a point that corresponds to exploitation and for the maximisation problem we are suggested a point that corresponds to exploration. It is this stochastic behaviour that, over a sequence of experiments, will give us a natural balance between exploration and exploitation.
 
 ## Knowledge Gradient
 
 The Knowledge Gradient (KG) is an acquisition function that makes extensive use of the posterior distribution to suggest a sampling point. KG is simulated rather than calculated and the rationale behind it takes a bit of set up.
 
-Imagine that we are at the end of our sequential experimentation. We have collected a set of observations $\mathcal{D} = \{\mathbf{X},\mathbf{y}\}$ and we are about to recommend our final set point, $\mathbf{x}^*$, which hopefully is close the global optimum of the objective function.
+Imagine that we are at the end of our sequential experimentation. We have collected a set of observations $\mathcal{D} = (\mathbf{X},\mathbf{y})$ and we are about to recommend our final set point, $\mathbf{x}^*$, which hopefully is close the global optimum of the objective function.
 
-In most real world cases, we are risk averse and would opt to select a point that we have already tested, i.e. $\mathbf{x}^* \in \mathbf{X}$. Imagine, however, that we were not risk averse and just wanted to report the point with the best expected outcome given the data so far, then we might recommend
+In most real world cases, we are risk averse and would opt to select a point that we have already tested, i.e. $\mathbf{x}^* \in \mathbf{X}$. Imagine, however, that we were not risk averse and just wanted to report the point in search space with the best expected outcome given the data so far, then we might recommend
 
 $$\mathbf{x}^* = \arg\min\limits_{\mathbf{x} \in \mathcal{X}}\mu(\mathbf{x})$$
 
@@ -498,7 +577,15 @@ where $\mu^* = \max(\mu(\mathbf{x}))$.
 
 To calculate KG in practice, we need a way to estimate $\mu^*_{t+1}$ as a function of existing observations and we need a way to integrate over $p(y|\mathcal{D})$. 
 
-For a proposed point, $\mathbf{x}_{sim}$, the solution to the former is to draw a sample $y_{sim} \sim p(y|\mathbf{x}_{sim},\mathcal{D})$, create an augmented dataset $\mathcal{D}^+ = \{\{\mathbf{X},\mathbf{x}_{sim}\}, \{\mathbf{y},y_{sim}\}\}$, condition the surrogate model on the augmented dataset, and compute the optimum of the new posterior mean.
+To address the latter for a proposed point, $\mathbf{x}_{sim}$, we take the following steps
+
+- We draw a sample $y_{sim} \sim p(y|\mathbf{x}_{sim},\mathcal{D})$-
+
+- We then create an augmented dataset $\mathcal{D}^+ = (\{\mathbf{X},\mathbf{x}_{sim}\}, \{\mathbf{y},y_{sim}\})$.
+
+- We condition the surrogate model on the augmented dataset.
+
+- Finally, we compute the optimum of the new posterior mean. This is an estimate of $\mu^*_{t+1}$.
 
 We cannot integrate this estimate over $p(y_{sim}|\mathcal{D})$, but we can draw $M$ samples, compute $\mu^*_{t+1}$ for each of them and calculate the mean difference:
 
@@ -511,28 +598,20 @@ For our simple one-dimensional example, we can brute force it without worrying t
 ```{r}
 mu_min <- min(mu)
 mu_max <- max(mu)
+# for each candidate point
 kg <- tibble::tibble(x_sim = X_pred) %>%
   dplyr::mutate(
-    post = purrr::map(x_sim, function(x) {
-      # Calculate the posterior predictive distribution for y at x_sim
-      rlang::exec(
-        posterior,
-        kernel = rbf_kernel,
-        X_pred = x,
-        X_train = X_train,
-        y_train = y_train,
-        !!!post_pred$parameters
-      )
-    }),
+    # Calculate the posterior predictive distribution for y at x_sim
+    post = purrr::map(x_sim, gp),
     # Draw a M = 100 samples of y_sim from the posterior predictive distribution
     y_sim = purrr::map(post, function(p) {
-      rlang::exec(rmvnorm, n = 100, mu = p$mu, sigma = p$sigma)
+      rlang::exec(rmvnorm, n = 100, mu = p$mu, sigma = p$Sigma)
     })
   ) %>%
   tidyr::unnest_longer(y_sim) %>%
   dplyr::mutate(
     # For each pair of (x_sim, y_sim)
-    # augment dataset with x_sim, y_sim and get posterior
+    # augment dataset with x_sim, y_sim and get the posterior mean
     mu_sim = purrr::map2(x_sim, y_sim, function(xs, ys) {
       rlang::exec(
         posterior,
