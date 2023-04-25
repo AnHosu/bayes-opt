@@ -11,7 +11,7 @@ html-math-method:
   method: katex
 ---
 
-Bayesian optimisation is a powerful optimisation technique for black-box functions and processes with expensive evaluations. It is popular for hyperparameter tuning and model selection in machine learning, but has many real-world applications as well. One of the key components of Bayesian optimisation is the acquisition function, which guides the search process by balancing exploration and exploitation of the search space. In this post, we will dive into the role of acquisition functions in Bayesian optimisation and discuss some popular examples.
+[Bayesian optimisation](../bayes-opt-r) is a powerful optimisation technique for black-box functions and processes with expensive evaluations. It is popular for hyperparameter tuning and model selection in machine learning, but has many real-world applications as well. One of the key components of Bayesian optimisation is the acquisition function, which guides the search process by balancing exploration and exploitation of the search space. In this post, we will dive into the role of acquisition functions in Bayesian optimisation and discuss some popular examples.
 
 Along with the discussion are implementations of each acquisition function in R, using only base R and the Tidyverse.
 
