@@ -31,7 +31,7 @@ Considering that the experimental budget is limited and that it is expensive to 
 
 In general, the initial training data should be chosen to provide a good representation of the objective function. This means that the data should be chosen to cover the range of each input dimension. The data should also include inputs that are expected to be both good and bad performers.
 
-An initial design might not always be necessary. If the Gaussian process was defined with a very strong prior, then it could be applied to generate experiments right away. For some processes, historical data might be available to get the experimentation started. For optimisation of industrial equipment there might be settings preferred by operators or even manufacturer recommendations to get started with.
+An initial design might not always be necessary. If the Gaussian process was defined with a very strong prior, then it could be applied to generate experiments right away. For some processes, historical data might be available to get the experimentation started. Previous experience, experiments, or datasets might also be useful for initialising Bayesian optimisation [@Feurer2015].
 
 Most often though, we do not really know where to start. At best, we might have a vague idea of the general effect of our input features on the measured output. In these cases, we can apply a design, so let's look at some examples.
 
@@ -61,7 +61,7 @@ plot_design <- function(samples, title = "") {
 
 ## Random Sampling
 
-As the name suggests this design is completely random. Each point is simply sampled from the uniform distribution
+As the name suggests this design is completely random. Each point is simply sampled from the uniform distribution [@McKay1979]
 
 $$\mathbf{x} \sim \text{Unif}(0, 1)$$
 
@@ -79,7 +79,7 @@ Random sampling represents a focus on exploration in the face of uncertainty. Th
 
 ## Latin Hypercube Sampling (LHS)
 
-Latin Hypercube Sampling (LHS) is a popular stratified sampling technique that ensures a balanced distribution of samples across the search space. The key idea behind LHS is to divide each dimension of the search space into equally sized intervals and randomly sample one point from each interval. LHS still samples each point from a uniform distribution, but restricts the intervals for each point.
+Latin Hypercube Sampling (LHS) is a popular stratified sampling technique that ensures a balanced distribution of samples across the search space. The key idea behind LHS is to divide each dimension of the search space into equally sized intervals and randomly sample one point from each interval. LHS still samples each point from a uniform distribution, but restricts the intervals for each point [@McKay1979].
 
 Given a search space defined by $n$ intervals in each of the $d$ dimensions, LHS generates $n$ samples, where the $i^{th}$ sample $x_i$ is defined as:
 $$x_i = (x_{i1}, x_{i2}, \cdots, x_{id})$$
@@ -199,3 +199,12 @@ This design expands on LHS to add prior knowledge or assumptions to the initial 
 Assign discrete feature to intervals in range [0,1].
 
 One-hot encoding of categorical features. Use continuous design with softmax on one-hot features or maximum gets 1.
+
+
+# References {-}
+
+<div id="refs"></div>
+
+# License
+
+The content of this project itself is licensed under the [Creative Commons Attribution-ShareAlike 4.0 International license](https://creativecommons.org/licenses/by-sa/4.0/), and the underlying code is licensed under the [GNU General Public License v3.0 license](https://github.com/AnHosu/bespoke-bayesian-biochem/blob/main/LICENSE).
