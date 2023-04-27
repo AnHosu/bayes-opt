@@ -82,21 +82,24 @@ Random sampling represents a focus on exploration in the face of uncertainty. Th
 Latin Hypercube Sampling (LHS) is a popular stratified sampling technique that ensures a balanced distribution of samples across the search space. The key idea behind LHS is to divide each dimension of the search space into equally sized intervals and randomly sample one point from each interval. LHS still samples each point from a uniform distribution, but restricts the intervals for each point [@McKay1979].
 
 Given a search space defined by $n$ intervals in each of the $d$ dimensions, LHS generates $n$ samples, where the $i^{th}$ sample $x_i$ is defined as:
+
 $$x_i = (x_{i1}, x_{i2}, \cdots, x_{id})$$
 
 Each coordinate $x_{ij}$ is chosen by sampling from the corresponding $j^{th}$ interval. This ensures that each interval is used exactly once for each dimension, resulting in a well-distributed set of samples.
 
 ```{r}
-# TODO edge TRUE/FALSE
+#' Latin Hypercube Sampling
+#'
+#' @param n <int> number of observations
+#' @param d <int> number of features
+#'
+#' @return matrix of shape (n,d)
 latin_hypercube_sampling <- function(n, d) {
-  intervals <- 1 / n
   samples <- matrix(nrow = n, ncol = d)
-  for (i in 1:d) {
-    permutation <- sample(n)
-    samples[, i] <- ((permutation - 1) + runif(n)) * intervals
-  }
-  return(samples)
+  for (i in 1:d) samples[, i] <- sample(n) + runif(n)
+  (samples - 1) / n
 }
+
 ```
 
 Advantages
