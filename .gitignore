@@ -5,5 +5,5 @@
 .Rprofile
 *.Rproj
 *.html
-*/index_files/*
+*/*_files/*
 renv/
