@@ -75,17 +75,15 @@ samples <- random_sampling(n, d)
 plot_design(samples, "Random Sampling")
 ```
 
-Random sampling represents a focus on exploration in the face of uncertainty. The main advantage of the design is its ease of implementation. The main drawback is that it is not guaranteed to efficiently sample the search space - there is a chance of points with close proximity, which is a waste we usually cannot afford in Bayesian optimisation. A Latin Hypercube Design can remedy this drawback.
+Random sampling represents a focus on exploration in the face of uncertainty. The main advantage of the design is its ease of implementation, but it is also important to note that it is trivial to add additional samples to this design. The main drawback is that it is not guaranteed to efficiently sample the search space - there is a chance of points with close proximity, which is a waste we usually cannot afford in Bayesian optimisation. A Latin Hypercube Design can remedy this drawback.
 
 ## Latin Hypercube Sampling (LHS)
 
 Latin Hypercube Sampling (LHS) is a popular stratified sampling technique that ensures a balanced distribution of samples across the search space. The key idea behind LHS is to divide each dimension of the search space into equally sized intervals and randomly sample one point from each interval. LHS still samples each point from a uniform distribution, but restricts the intervals for each point [@McKay1979].
 
-Given a search space defined by $n$ intervals in each of the $d$ dimensions, LHS generates $n$ samples, where the $i^{th}$ sample $x_i$ is defined as:
+Given a search space with $d$ dimensions or features, we want to sample $n$ points, such that they satisfy a Latin Hypercube of evenly spaced intervals.
 
-$$x_i = (x_{i1}, x_{i2}, \cdots, x_{id})$$
-
-Each coordinate $x_{ij}$ is chosen by sampling from the corresponding $j^{th}$ interval. This ensures that each interval is used exactly once for each dimension, resulting in a well-distributed set of samples.
+We do this by dividing each dimension into $n$ equally spaced intervals. Then, for each dimension, we sample a random permutation of the numbers $1, ..., n$ and the resulting sequence determines which interval of that dimension is sampled for each of the $n$ samples. This ensures that each interval in each dimension is sampled exactly once. Finally a sample is drawn from each of the chosen intervals.
 
 ```{r}
 #' Latin Hypercube Sampling
@@ -99,7 +97,6 @@ latin_hypercube_sampling <- function(n, d) {
   for (i in 1:d) samples[, i] <- sample(n) + runif(n)
   (samples - 1) / n
 }
-
 ```
 
 Advantages
