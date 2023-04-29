@@ -85,6 +85,16 @@ Given a search space with $d$ dimensions or features, we want to sample $n$ poin
 
 We do this by dividing each dimension into $n$ equally spaced intervals. Then, for each dimension, we sample a random permutation of the numbers $1, ..., n$ and the resulting sequence determines which interval of that dimension is sampled for each of the $n$ samples. This ensures that each interval in each dimension is sampled exactly once. Finally a sample is drawn from each of the chosen intervals.
 
+Let $x_{j,i}$, $j = 1, ..., n$, $i = 1, ..., d$ be the $i^{\text{th}}$ dimension of the $j^{\text{th}}$ observation. Let $\mathbf{\pi}_i$, $i = 1, ..., d$ be $d$ independent random permutations of the numbers $\{1,...,n\}$, then
+
+$$\mathbf{x}_{i,:} = \frac{\mathbf{\pi}_i - 1 + \mathbf{\nu}_i}{n}$$
+
+Where $\mathbf{x}_{i,:}$ are the $i^{\text{th}}$ dimension of all observations, and
+
+$$\mathbf{\nu}_i \sim \text{Unif}(0, 1)$$
+
+Here is an implementation
+
 ```{r}
 #' Latin Hypercube Sampling
 #'
@@ -98,6 +108,7 @@ latin_hypercube_sampling <- function(n, d) {
   (samples - 1) / n
 }
 ```
+
 
 Advantages
 
@@ -113,23 +124,13 @@ Limitations
 
 Despite its benefits, LHS does have some limitations. As a random sampling technique, it does not take into account any prior knowledge about the objective function, which may result in inefficient sampling for some problems. Additionally, in high-dimensional problems, the uniform coverage property of LHS may not be sufficient for a good initial design, and other techniques like Sobol sequences or more advanced space-filling designs might be more appropriate.
 
+A large drawback of LHS is that additional points cannot be sampled after the design is complete. Imagine the very likely scenario that we are about to do Bayesian optimisation we chose initial number of observations, $n$, that was too small, so we are unable to fit a useful surrogate model. We have already done the $n$ observations and they are good, but we would like to add just a few more, $m$, initial observations before starting Bayesian optimisation in earnest. Unfortunately, we cannot add the $m$ points to the original LHS. Neither is the LHS of size $n$ a subset of the LHS of size $n + m$. To get a LHS of size $n + m$, we would have to create an entirely new design. The intuition for this is that, as part of the design, we split each dimension into $n$ equally spaced intervals, so we cannot retroactively split them into $n + m$ once the $n$ samples are done. Another way to think about it is that the design is generated in a for loop over each dimension, so the total number of samples must be known from the beginning. In practice, we could use some space-filling criterion or just random sampling to generate the $m$ points, but they would not fit in the Latin Hypercube.
+
 #### LHS in 2D
 
 ```{r}
-
 samples <- latin_hypercube_sampling(n, d)
-# Create a scatter plot of the samples
-data.frame(samples) %>%
-  ggplot() +
-  geom_point(aes(x = X1, y = X2), size = 3) +
-  xlim(0, 1) +
-  ylim(0, 1) +
-  theme_minimal() +
-  labs(
-    title = "2D Latin Hypercube Sampling",
-    x = "Dimension 1",
-    y = "Dimension 2"
-  )
+plot_design(samples, "Latin Hypercube Sampling")
 ```
 
 ## Maxmin Design
