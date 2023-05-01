@@ -15,7 +15,7 @@ Heteroscedastic GPs [@Griffiths:2023] chapter 6.
 
 Gibbs kernel [@Rasmussen:2006] chapter 4 pg 93.
 
-Applications of Bayesian optimisation [@Reiker2021]
+Applications of Bayesian optimisation [@Reiker2021] & [@Yang2022]
 
 # References {-}
 
