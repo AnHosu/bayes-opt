@@ -20,14 +20,14 @@ With this project, I aim to introduce and discuss the components of Bayesian opt
 This post introduces and demonstrates all the core components of Bayesian optimisation and implements them from scratch in R. This is a great place to start.
 
 
-**Kernel Functions**
+**[Kernel Functions](https://anhosu.com/post/kernels-r/)**
 
-This post is coming soon.
+This post contains a comprehensive list and discussion of kernels to use in the Gaussian processes surrogate model, when doing Bayesian optimisation. Accompanying the discussion, are implementations in R. The kernel is the main way to incorporate prior information into a surrogate model, making it an important choice, when setting up Bayesian optimisation.
 
 
-**Acquisition Functions**
+**[Acquisition Functions](https://anhosu.com/post/acquisition-functions-r/)**
 
-This post is coming soon.
+This post discusses acquisition functions, which are used to recommend the next point to sample in the experiment sequence. Acquisition functions are the main means of balancing exploration and exploitation during optimisation. The post lists a number of acquisition functions and implements them in R.
 
 
 **Neural Networks as Surrogate Models**
@@ -35,7 +35,7 @@ This post is coming soon.
 This post is coming soon.
 
 
-**Latin Hypercube Sampling and other Initial Designs for Bayesian Optimisation**
+**Initial Designs for Bayesian Optimisation**
 
 This post is coming soon.
 
