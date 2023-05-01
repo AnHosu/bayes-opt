@@ -6,7 +6,7 @@ format:
   html:
     fig-width: 8
     fig-height: 5
-    theme: default
+    theme: none
 html-math-method:
   method: katex
 ---
@@ -500,7 +500,7 @@ We can take that a step further and consider the posterior distribution, $p(\mat
 
 $$\mathbf{x}_{t+1} \sim p(\mathbf{x}'|\mathcal{D})$$
 
-This is the core idea of Thompson Sampling. Thompson sampling addresses the exploration versus exploitation dilemma by directly making use of our posterior beliefs and the fact that the GP is just a distribution of functions[@garnett_bayesoptbook_2023]. Notice also that no additional parameters are needed for this method.
+This is the core idea of Thompson Sampling. Thompson sampling addresses the exploration versus exploitation dilemma by directly making use of our posterior beliefs and the fact that the GP is just a distribution of functions [@garnett_bayesoptbook_2023]. Notice also that no additional parameters are needed for this method.
 
 To do Thompson sampling in practice, we sample a function from the GP
 
@@ -510,9 +510,9 @@ This is not an acquisition function in the same way that Expected Improvement or
 
 $$\mathbf{x}_{t+1} \in \arg\min\limits_{\mathbf{x} = \mathcal{X}}(a_{ts}(\mathbf{x}))$$
 
-for a minimisation problem or 
+for a minimisation problem, or 
 
-$$\mathbf{x}_{t+1} \in \arg\min\limits_{\mathbf{x} = \mathcal{X}}(a_{ts}(\mathbf{x}))$$
+$$\mathbf{x}_{t+1} \in \arg\max\limits_{\mathbf{x} = \mathcal{X}}(a_{ts}(\mathbf{x}))$$
 
 for a maximisation problem.
 
@@ -559,7 +559,7 @@ $$\mathbf{x}^* = \arg\min\limits_{\mathbf{x} \in \mathcal{X}}\mu(\mathbf{x})$$
 
 We also define $\mu^* = \mu(\mathbf{x}^*)$.
 
-At this point, imagine that we are suddenly allowed to test just one more point. Given that we have decided to recommend the point that optimises the posterior mean at the end of our experimental sequences, the next point, $\mathbf{x}_{t+1}$, we choose to evaluate in the the objective function should be the point that maximises the increase in the optimum posterior mean.
+At this point, imagine that we are suddenly allowed to test just one more point. Given that we have decided to recommend the point that optimises the posterior mean at the end of our experimental sequence, the next point, $\mathbf{x}_{t+1}$, we choose to evaluate in the the objective function should be the point that maximises the increase in the optimum posterior mean.
 
 Let's say we pick any point, $\mathbf{x}_{t+1} \in \mathcal{X}$, to be our next point. That would result in the observation $y_{t+1}$ and eventually a recommended final point, $\mathbf{x}^*_{t+1}$ with mean $\mu^*_{t+1}$. The decrease in posterior mean, $\mu^* - \mu^*_{t+1}$, would be an excellent estimator of improvement in choosing $\mathbf{x}_{t+1}$ as the next sampling point.
 
@@ -603,7 +603,7 @@ kg <- tibble::tibble(x_sim = X_pred) %>%
   dplyr::mutate(
     # Calculate the posterior predictive distribution for y at x_sim
     post = purrr::map(x_sim, gp),
-    # Draw a M = 100 samples of y_sim from the posterior predictive distribution
+    # Draw M = 100 samples of y_sim from the posterior predictive distribution
     y_sim = purrr::map(post, function(p) {
       rlang::exec(rmvnorm, n = 100, mu = p$mu, sigma = p$Sigma)
     })
