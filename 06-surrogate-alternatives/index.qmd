@@ -243,6 +243,48 @@ Bayesian neural networks (BNNs) are neural networks with a Bayesian treatment of
 Calculating the Expected Improvement for a BNN is more challenging than for a Gaussian process, as BNNs do not have closed-form expressions for the predictive distribution. Instead, we can estimate the Expected Improvement using Monte Carlo methods. Given a BNN, we can draw weight samples from the posterior distribution and compute the predicted function values and improvement for each sample.
 
 ```{r}
+set.seed(123)
+x <- runif(100, -5, 5)
+y <- sin(x) + rnorm(100, 0, 0.2)
+
+formula <- brms::bf(y ~ x)
+
+model <- rstan::stan_gamm4(formula, 
+                    data = list(x = x, y = y), 
+                    family = gaussian(),
+                    prior = brms::set_prior("bnn(1, prior = normal(0, 1))"), 
+                    chains = 4, iter = 2000)
+
+
+
+model <- brms::brm(y ~ bnn(x, hidden = c(10, "relu")), 
+             prior = prior(normal(0, 1), class = "b"), 
+             family = gaussian(), 
+             chains = 4, iter = 2000)
+
+
+library(rstan)
+
+# Define the neural network architecture
+
+
+# Create a Stan model using the neural network architecture
+model <- rstan::stan_model("bnn.stan")
+
+x <- X_train # matrix(seq(0, 1, 0.05))
+# Prepare the data
+data <- list(N = dim(X_train)[[1]], K = dim(X_train)[[2]], X = X_train, y = as.vector(y_train))
+
+# Fit the model using MCMC sampling
+fit <- rstan::sampling(model, data = data, chains = 4, cores = 4, iter = 2000)
+
+# Summarize the results
+summary(fit)
+
+```
+
+
+```{r}
 # Define the black-box function (for illustration purposes)
 black_box_function <- function(x) {
   return(sin(2 * pi * x))
