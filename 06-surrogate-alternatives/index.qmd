@@ -273,13 +273,49 @@ model <- rstan::stan_model("bnn.stan")
 
 x <- X_train # matrix(seq(0, 1, 0.05))
 # Prepare the data
-data <- list(N = dim(X_train)[[1]], K = dim(X_train)[[2]], X = X_train, y = as.vector(y_train))
+data <- list(N = dim(X_train)[[1]], K = dim(X_train)[[2]], X = X_train, y = as.vector(y_train), M = dim(X_pred)[[1]], X_pred = X_pred)
 
 # Fit the model using MCMC sampling
 fit <- rstan::sampling(model, data = data, chains = 4, cores = 4, iter = 2000)
 
 # Summarize the results
-summary(fit)
+y_pred <- rstan::summary(fit, pars = "y_pred")$summary %>%
+  tibble::as_tibble()
+
+
+tibble::tibble(
+    mu = y_pred$mean,
+    uncertainty = 1.96*sqrt(y_pred$sd),
+    upper = mu + uncertainty,
+    lower = mu - uncertainty,
+    x = X_pred,
+    f = objective_function(X_pred)
+  ) %>%
+    ggplot(aes(x = x)) +
+    geom_line(aes(y = mu, colour = "Mean")) +
+    geom_ribbon(
+      aes(ymin = lower, ymax = upper, fill = "89% interval"),
+      alpha = 0.2
+    ) +
+    geom_point(
+      data = tibble::tibble(x = X_train, y = y_train),
+      aes(x = x, y = y, shape = "Training point"),
+      colour = "#fb8500",
+      size = 4
+    ) +
+    geom_line(mapping = aes(y = f, colour = "True function")) +
+    scale_shape_manual(values = c("Training point" = "+")) +
+    scale_fill_manual(values = c("89% interval" = "#219ebc")) +
+    labs(shape = "") +
+    theme_minimal() +
+    labs(
+      y = "y",
+      x = "",
+      colour = "",
+      fill = "",
+      title = "Gaussian Process Surrogate"
+    ) +
+    theme(panel.grid = element_blank(), axis.text.x = element_blank())
 
 ```
 

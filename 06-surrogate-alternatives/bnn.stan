@@ -16,8 +16,10 @@ functions {
 data {
     int<lower=1> N;               // number of data points
     int<lower=1> K;               // number of predictors
+    int<lower=1> M;               // number of points in prediction grid
     matrix[N, K] X;               // predictor matrix
     vector[N] y;                  // response vector
+    matrix[M, K] X_pred;          // prediction grid
 }
 parameters {
     matrix[K, 10] w1;             // weights for first layer
@@ -36,4 +38,8 @@ model {
     to_vector(w2) ~ std_normal();
     b2 ~ std_normal();
     y ~ normal(output, 0.2);      // likelihood
+}
+generated quantities {
+  vector[M] y_pred;
+  y_pred = nn_forward(X_pred, w1, b1, w2, b2);
 }
