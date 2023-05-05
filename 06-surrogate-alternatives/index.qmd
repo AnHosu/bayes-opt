@@ -17,7 +17,8 @@ Along with the discussion, are implementations in R.
 ```{r func, echo=TRUE}
 library(ggplot2)
 library(magrittr)
-set.seed(4444)
+seed <- 4444
+set.seed(seed)
 ```
 
 ## Surrogate Models in Bayesian Optimisation
@@ -61,8 +62,8 @@ We will approximate the the objective function with different surrogate models.
 The surrogate model will receive four training points and it should be able to return $\mu(\mathbf{x})$ and $\sigma(\mathbf{x})$ for all points in the search space, which we will approximate with a grid.
 
 ```{r}
-X_train <- matrix(c(0.1, 0.2, 0.7, 0.75), 4, 1)
-y_train <- objective_function(X_train)
+X_train <-  matrix(c(0.02, 0.3, 0.5, 0.75, 0.98), 5, 1) # matrix(seq(0, 1, 0.1))
+y_train <- objective_function(X_train) + rnorm(5, 0, 0.05)
 X_pred <- matrix(seq(0, 1, length.out = 100), 100, 1)
 ```
 
@@ -193,7 +194,7 @@ gpr <- function(kernel, X_train, y_train, noise = 1e-8, ...) {
   }
 }
 
-gp <- gpr(rbf_kernel, X_train, y_train, noise = 1e-8, l = 1, sigma_f = 1)
+gp <- gpr(rbf_kernel, X_train, y_train, noise = 0.1, l = 1, sigma_f = 1)
 post_pred <- gp(X_pred)
 mu <- post_pred$mu
 sigma <- post_pred$sigma
@@ -243,40 +244,17 @@ Bayesian neural networks (BNNs) are neural networks with a Bayesian treatment of
 Calculating the Expected Improvement for a BNN is more challenging than for a Gaussian process, as BNNs do not have closed-form expressions for the predictive distribution. Instead, we can estimate the Expected Improvement using Monte Carlo methods. Given a BNN, we can draw weight samples from the posterior distribution and compute the predicted function values and improvement for each sample.
 
 ```{r}
-set.seed(123)
-x <- runif(100, -5, 5)
-y <- sin(x) + rnorm(100, 0, 0.2)
-
-formula <- brms::bf(y ~ x)
-
-model <- rstan::stan_gamm4(formula, 
-                    data = list(x = x, y = y), 
-                    family = gaussian(),
-                    prior = brms::set_prior("bnn(1, prior = normal(0, 1))"), 
-                    chains = 4, iter = 2000)
-
-
-
-model <- brms::brm(y ~ bnn(x, hidden = c(10, "relu")), 
-             prior = prior(normal(0, 1), class = "b"), 
-             family = gaussian(), 
-             chains = 4, iter = 2000)
-
-
-library(rstan)
-
-# Define the neural network architecture
-
-
 # Create a Stan model using the neural network architecture
 model <- rstan::stan_model("bnn.stan")
 
-x <- X_train # matrix(seq(0, 1, 0.05))
 # Prepare the data
-data <- list(N = dim(X_train)[[1]], K = dim(X_train)[[2]], X = X_train, y = as.vector(y_train), M = dim(X_pred)[[1]], X_pred = X_pred)
+# X_train <- matrix(seq(0, 1, 0.2))
+# y_train <- objective_function(X_train)
+data <- list(N = dim(X_train)[[1]], K = dim(X_train)[[2]], X = X_train, y = as.vector(y_train), M = dim(X_pred)[[1]], X_pred = X_pred, sigma = 0.05)
 
 # Fit the model using MCMC sampling
-fit <- rstan::sampling(model, data = data, chains = 4, cores = 4, iter = 2000)
+
+fit <- rstan::sampling(model, data = data, chains = 4, cores = 4, iter = 2000, seed = seed)
 
 # Summarize the results
 y_pred <- rstan::summary(fit, pars = "y_pred")$summary %>%
@@ -313,56 +291,17 @@ tibble::tibble(
       x = "",
       colour = "",
       fill = "",
-      title = "Gaussian Process Surrogate"
+      title = "Bayesian Neural Network Surrogate"
     ) +
     theme(panel.grid = element_blank(), axis.text.x = element_blank())
 
 ```
 
-
 ```{r}
-# Define the black-box function (for illustration purposes)
-black_box_function <- function(x) {
-  return(sin(2 * pi * x))
-}
-
-# BNN parameters (e.g., number of layers, hidden units, etc.)
-# ...
-
-# Define the acquisition function (Expected Improvement)
-expected_improvement <- function(x, bnn, best_y) {
-  improvement_sum <- 0
-  num_samples <- 1000
-  
-  for (i in 1:num_samples) {
-    # Draw a weight sample from the BNN's posterior distribution
-    weight_sample <- draw_weight_sample(bnn)
-    
-    # Compute the predicted function value with the current weight sample
-    y_pred <- bnn_predict(x, weight_sample)
-    
-    # Calculate the improvement
-    improvement <- max(0, best_y - y_pred)
-    
-    # Accumulate the improvement
-    improvement_sum <- improvement_sum + improvement
-  }
-  
-  # Compute the expected improvement
-  expected_improvement <- improvement_sum / num_samples
-  return(expected_improvement)
-}
-
-# Optimize the acquisition function to find the next point to evaluate
-optimize_acquisition_function <- function(bnn, best_y) {
-  # Define the optimization problem
-  # ...
-
-  # Find the input that maximizes the expected improvement
-  x_star <- optimize(function(x) -expected_improvement(x, bnn, best_y), lower = 0, upper = 1)$minimum
-  
-  return(x_star)
-}
+summ <- rstan::summary(fit)$summary
+tibble::as_tibble(summ) %>%
+  dplyr::mutate(param = rownames(summ)) %>% 
+  View()
 
 ```
 
