@@ -236,6 +236,31 @@ gp_plot
 
 Now let's look at some alternative surrogate models.
 
+
+## Ensembles as Surrogate Models
+
+Random Forests are an ensemble method that combines multiple decision trees to form a powerful and robust model. They can be used as surrogate models in Bayesian optimization to handle large datasets and high-dimensional input spaces efficiently.
+Calculating Expected Improvement
+
+To calculate the Expected Improvement (EI) for a Random Forest model, we can use the quantile regression forest variant, which provides estimates of the predictive distribution. The quantile regression forest can estimate multiple quantiles of the predictive distribution, enabling the computation of the Expected Improvement.
+
+Here is some R code to demonstrate this process:
+
+```{r}
+m <- randomForest::randomForest(x = X_train, y = y_train, ntree = 500)
+
+preds <- purrr::map(1:20, function(i) {
+  m <- randomForest::randomForest(x = X_train, y = y_train, ntree = 500)
+  predict(m, X_pred)
+}) %>%
+  dplyr::bind_rows() %>%
+  dplyr::summarise(dplyr::across(.fns = list(mean = mean, sd = sd))) %>%
+  tidyr::pivot_longer(cols = everything()) %>%
+  tidyr::separate(name, c("i", "param"), sep = "_") %>%
+  tidyr::pivot_wider(names_from = "param", values_from = "value")
+```
+
+
 ## Bayesian Neural Networks as Surrogate Models
 Bayesian neural networks (BNNs) are neural networks with a Bayesian treatment of weights, allowing them to capture uncertainty in the function approximation. BNNs can be an attractive alternative to GPs, as they can scale to high-dimensional input spaces and large datasets more efficiently.
 
@@ -311,52 +336,6 @@ In the example above, we first define the black_box_function that we want to opt
 The optimize_acquisition_function function is responsible for finding the next point to evaluate by optimizing the acquisition function. It takes the BNN model and the current best observed function value as inputs and returns the input x_star that maximizes the Expected Improvement.
 
 This example demonstrates how to calculate the Expected Improvement for Bayesian Neural Networks using Monte Carlo methods. Note that this is a simplified example that does not include the complete implementation of a BNN or the optimization of its hyperparameters.
-
-
-## Random Forests as Surrogate Models
-
-Random Forests are an ensemble method that combines multiple decision trees to form a powerful and robust model. They can be used as surrogate models in Bayesian optimization to handle large datasets and high-dimensional input spaces efficiently.
-Calculating Expected Improvement
-
-To calculate the Expected Improvement (EI) for a Random Forest model, we can use the quantile regression forest variant, which provides estimates of the predictive distribution. The quantile regression forest can estimate multiple quantiles of the predictive distribution, enabling the computation of the Expected Improvement.
-
-Here is some R code to demonstrate this process:
-
-```{r}
-# Load the randomForest package
-library(randomForest)
-
-# Define the black-box function (for illustration purposes)
-black_box_function <- function(x) {
-  return(sin(2 * pi * x))
-}
-
-# Fit a quantile regression forest model
-qrf_model <- randomForest(x = input_data, y = target_data, ntree = 500)
-
-# Define the acquisition function (Expected Improvement)
-expected_improvement <- function(x, qrf_model, best_y, alpha = 0.01) {
-  # Predict the lower and upper quantiles of the predictive distribution
-  lower_quantile <- predict(qrf_model, x, quantile = alpha / 2)
-  upper_quantile <- predict(qrf_model, x, quantile = 1 - alpha / 2)
-  
-  # Compute the Expected Improvement
-  improvement <- max(0, best_y - (upper_quantile + lower_quantile) / 2)
-  return(improvement)
-}
-
-# Optimize the acquisition function to find the next point to evaluate
-optimize_acquisition_function <- function(qrf_model, best_y) {
-  # Define the optimization problem
-  # ...
-
-  # Find the input that maximizes the expected improvement
-  x_star <- optimize(function(x) -expected_improvement(x, qrf_model, best_y), lower = 0, upper = 1)$minimum
-  
-  return(x_star)
-}
-
-```
 
 ## Student-t Processes
 
