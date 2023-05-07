@@ -194,20 +194,37 @@ gpr <- function(kernel, X_train, y_train, noise = 1e-8, ...) {
   }
 }
 
-gp <- gpr(rbf_kernel, X_train, y_train, noise = 0.1, l = 1, sigma_f = 1)
-post_pred <- gp(X_pred)
-mu <- post_pred$mu
-sigma <- post_pred$sigma
-gp_plot <- tibble::tibble(
-    mu = mu,
+#' Expected Improvement Acquisition Function
+#' 
+#' @mu vector of length m. Mean of a Gaussian process at m points.
+#' @sigma vector of length m. The diagonal of the covariance matrix of a
+#' Gaussian process evaluated at m points.
+#' @param y_best scalar. Best mean prediction so far on observed points
+#' @param xi scalar, exploration/exploitation trade off
+#' @task one of "max" or "min", indicating the optimisation problem
+#'
+#' @return EI, vector of length m
+expected_improvement <- function(mu, sigma, y_best, xi = 0.01, task = "min") {
+  if (task == "min") imp <- y_best - mu - xi
+  if (task == "max") imp <- mu - y_best - xi
+  if (is.null(imp)) stop('task must be "min" or "max"')
+  Z <- imp / sigma
+  ei <- imp * pnorm(Z) + sigma * dnorm(Z)
+  ei[sigma == 0.0] <- 0.0
+  ei
+}
+
+uncertainty_plot <- function(mu, sigma, X_train, y_train) {
+  tibble::tibble(
+    m = mu,
     uncertainty = 1.96*sqrt(sigma),
-    upper = mu + uncertainty,
-    lower = mu - uncertainty,
+    upper = m + uncertainty,
+    lower = m - uncertainty,
     x = X_pred,
     f = objective_function(X_pred)
   ) %>%
     ggplot(aes(x = x)) +
-    geom_line(aes(y = mu, colour = "Mean")) +
+    geom_line(aes(y = m, colour = "Mean")) +
     geom_ribbon(
       aes(ymin = lower, ymax = upper, fill = "89% interval"),
       alpha = 0.2
@@ -227,11 +244,41 @@ gp_plot <- tibble::tibble(
       y = "y",
       x = "",
       colour = "",
-      fill = "",
-      title = "Gaussian Process Surrogate"
+      fill = ""
     ) +
     theme(panel.grid = element_blank(), axis.text.x = element_blank())
-gp_plot
+}
+
+acquisition_plot <- function(X_pred,
+                             acquisition_function,
+                             gp_plot,
+                             xt1,
+                             label = "EI",
+                             title = "") {
+  p1 <- tibble::tibble(
+    x = X_pred,
+    a = acquisition_function
+  ) %>%
+    ggplot() +
+    geom_line(aes(x = x, y = a, colour = label)) +
+    geom_vline(xintercept = xt1, linetype = 2) +
+    theme_minimal() +
+    labs(x = "", y = label, colour = "") +
+    theme(panel.grid = element_blank())
+  p2 <- gp_plot +
+    geom_vline(xintercept = xt1, linetype = 2) +
+    labs(title = title)
+  aligned_plots <- cowplot::align_plots(p2, p1 , align = "v")
+  cowplot::plot_grid(aligned_plots[[1]], aligned_plots[[2]], ncol = 1)
+}
+
+gp <- gpr(rbf_kernel, X_train, y_train, noise = 0.1, l = 1, sigma_f = 1)
+post_pred <- gp(X_pred)
+mu <- post_pred$mu
+sigma <- post_pred$sigma
+ei <- expected_improvement(mu, sigma, min(y_train))
+gp_plot <- uncertainty_plot(mu, sigma, X_train, y_train)
+acquisition_plot(X_pred, ei, gp_plot, xt1 = X_pred[which.max(ei)], label = "EI", title = "Gaussian Process Surrogate")
 ```
 
 Now let's look at some alternative surrogate models.
@@ -265,40 +312,64 @@ preds <- purrr::map(1:20, function(i) {
 }) %>%
   do.call(cbind, .) %>%
   list(mean = apply(., 1, mean), sd = apply(., 1, sd))
+ei_nn_ens <- expected_improvement(preds$mean, preds$sd, min(y_train))
+ens_plot <- uncertainty_plot(preds$mean, preds$sd, X_train, y_train)
+acquisition_plot(X_pred, ei_nn_ens, ens_plot, X_pred[which.max(ei_nn_ens)], label = "EI", title = "Neural Network Ensemble Surrogate")
+```
 
-tibble::tibble(
-    mu = preds$mean,
-    uncertainty = 1.96*sqrt(preds$sd),
-    upper = mu + uncertainty,
-    lower = mu - uncertainty,
-    x = X_pred,
-    f = objective_function(X_pred)
-  ) %>%
-    ggplot(aes(x = x)) +
-    geom_line(aes(y = mu, colour = "Mean")) +
-    geom_ribbon(
-      aes(ymin = lower, ymax = upper, fill = "89% interval"),
-      alpha = 0.2
-    ) +
-    geom_point(
-      data = tibble::tibble(x = X_train, y = y_train),
-      aes(x = x, y = y, shape = "Training point"),
-      colour = "#fb8500",
-      size = 4
-    ) +
-    geom_line(mapping = aes(y = f, colour = "True function")) +
-    scale_shape_manual(values = c("Training point" = "+")) +
-    scale_fill_manual(values = c("89% interval" = "#219ebc")) +
-    labs(shape = "") +
-    theme_minimal() +
-    labs(
-      y = "y",
-      x = "",
-      colour = "",
-      fill = "",
-      title = "NN Ensemble Surrogate"
-    ) +
-    theme(panel.grid = element_blank(), axis.text.x = element_blank())
+
+
+```{r}
+preds <- purrr::map(1:100, function(i) {
+  m <- lm(
+    y ~ .,
+    data = dplyr::slice_sample(train, n = 3)
+  )
+  predict(m, pred)
+}) %>%
+  do.call(cbind, .) %>%
+  list(mean = apply(., 1, mean), sd = apply(., 1, sd))
+ei_lm_ens <- expected_improvement(preds$mean, preds$sd, min(y_train))
+lm_ens_plot <- uncertainty_plot(preds$mean, preds$sd, X_train, y_train)
+acquisition_plot(X_pred, ei_lm_ens, lm_ens_plot, X_pred[which.max(ei_nn_ens)], label = "EI", title = "Linear Model Ensemble Surrogate")
+```
+
+
+```{r}
+confidence_bound <- function(mu, sigma, kappa, task = "min") {
+  if (task == "min") return(mu - kappa * sigma)
+  if (task == "max") return(mu + kappa * sigma)
+}
+bo_train <- train
+ps <- purrr::map(1:10, function(i) {
+  preds <- purrr::map(1:20, function(i) {
+    m <- neuralnet::neuralnet(
+      y ~ .,
+      data = bo_train,
+      hidden = c(5, 5),
+      linear.output = TRUE,
+      threshold = 0.0001,
+      stepmax = 1e6
+    )
+    # m <- lm(
+    #   y ~ .,
+    #   data = dplyr::slice_sample(train, n = 3)
+    # )
+    predict(m, pred)
+  }) %>%
+    do.call(cbind, .) %>%
+    list(mean = apply(., 1, mean), sd = apply(., 1, sd))
+  ei_ens <- expected_improvement(preds$mean, preds$sd, min(bo_train$y))
+  ens_plot <- uncertainty_plot(preds$mean, preds$sd, bo_train$x, bo_train$y)
+  xt1 <- X_pred[which.max(ei_ens)]
+  bo_train <<- dplyr::bind_rows(
+    bo_train,
+    tibble::tibble(x = xt1, y = objective_function(xt1) + rnorm(1, 0, 0.1))
+  )
+  acquisition_plot(X_pred, ei_ens, ens_plot, xt1, label = "EI", title = "Linear Model Ensemble Surrogate")
+})
+
+
 ```
 
 
