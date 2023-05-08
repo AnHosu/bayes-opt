@@ -371,6 +371,41 @@ The optimize_acquisition_function function is responsible for finding the next p
 
 This example demonstrates how to calculate the Expected Improvement for Bayesian Neural Networks using Monte Carlo methods. Note that this is a simplified example that does not include the complete implementation of a BNN or the optimization of its hyperparameters.
 
+## Bespoke
+
+```{r}
+# Compile the model
+model <- rstan::stan_model("bespoke.stan")
+# Prepare the data
+data <- list(
+  N = dim(X_train)[[1]],
+  D = dim(X_train)[[2]],
+  X = X_train,
+  y = as.vector(y_train),
+  M = dim(X_pred)[[1]],
+  X_pred = X_pred,
+  sigma_rate = 100
+)
+# Fit the model using HMC sampling
+fit <- rstan::sampling(
+  object = model,
+  data = data,
+  chains = 4,
+  cores = 4,
+  iter = 4000,
+  warmup = 3000,
+  seed = seed
+)
+# Summarize the results
+y_pred <- rstan::summary(fit, pars = "y_pred")$summary %>%
+  tibble::as_tibble()
+
+
+ei_besp <- expected_improvement(y_pred$mean, y_pred$sd, min(y_train))
+besp_plot <- uncertainty_plot(y_pred$mean, y_pred$sd, X_train, y_train)
+acquisition_plot(X_pred, ei_besp, besp_plot, X_pred[which.max(ei_besp)], label = "EI", title = "Bespoke Model Surrogate")
+```
+
 ## Student-t Processes
 
 Student-t Processes (TPs) are an alternative to Gaussian Processes (GPs) that can better model heavy-tailed and non-Gaussian noise. They are defined similarly to GPs but use the Student-t distribution instead of the Gaussian distribution.
