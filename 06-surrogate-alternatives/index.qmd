@@ -317,131 +317,53 @@ ens_plot <- uncertainty_plot(preds$mean, preds$sd, X_train, y_train)
 acquisition_plot(X_pred, ei_nn_ens, ens_plot, X_pred[which.max(ei_nn_ens)], label = "EI", title = "Neural Network Ensemble Surrogate")
 ```
 
-
-
-```{r}
-preds <- purrr::map(1:100, function(i) {
-  m <- lm(
-    y ~ .,
-    data = dplyr::slice_sample(train, n = 3)
-  )
-  predict(m, pred)
-}) %>%
-  do.call(cbind, .) %>%
-  list(mean = apply(., 1, mean), sd = apply(., 1, sd))
-ei_lm_ens <- expected_improvement(preds$mean, preds$sd, min(y_train))
-lm_ens_plot <- uncertainty_plot(preds$mean, preds$sd, X_train, y_train)
-acquisition_plot(X_pred, ei_lm_ens, lm_ens_plot, X_pred[which.max(ei_nn_ens)], label = "EI", title = "Linear Model Ensemble Surrogate")
-```
-
-
-```{r}
-confidence_bound <- function(mu, sigma, kappa, task = "min") {
-  if (task == "min") return(mu - kappa * sigma)
-  if (task == "max") return(mu + kappa * sigma)
-}
-bo_train <- train
-ps <- purrr::map(1:10, function(i) {
-  preds <- purrr::map(1:20, function(i) {
-    m <- neuralnet::neuralnet(
-      y ~ .,
-      data = bo_train,
-      hidden = c(5, 5),
-      linear.output = TRUE,
-      threshold = 0.0001,
-      stepmax = 1e6
-    )
-    # m <- lm(
-    #   y ~ .,
-    #   data = dplyr::slice_sample(train, n = 3)
-    # )
-    predict(m, pred)
-  }) %>%
-    do.call(cbind, .) %>%
-    list(mean = apply(., 1, mean), sd = apply(., 1, sd))
-  ei_ens <- expected_improvement(preds$mean, preds$sd, min(bo_train$y))
-  ens_plot <- uncertainty_plot(preds$mean, preds$sd, bo_train$x, bo_train$y)
-  xt1 <- X_pred[which.max(ei_ens)]
-  bo_train <<- dplyr::bind_rows(
-    bo_train,
-    tibble::tibble(x = xt1, y = objective_function(xt1) + rnorm(1, 0, 0.1))
-  )
-  acquisition_plot(X_pred, ei_ens, ens_plot, xt1, label = "EI", title = "Linear Model Ensemble Surrogate")
-})
-
-
-```
-
-
 ## Bayesian Neural Networks as Surrogate Models
-Bayesian neural networks (BNNs) are neural networks with a Bayesian treatment of weights, allowing them to capture uncertainty in the function approximation. BNNs can be an attractive alternative to GPs, as they can scale to high-dimensional input spaces and large datasets more efficiently.
+Bayesian neural networks (BNNs) are neural networks with weigths and biases that are distributions over parameters rather than deterministic point estimates. BNNs can be an attractive alternative to GPs, as they have the dimensionality reduction capabilities of regular neural networks combined with the probabilistic approach to regression that works so well for GPs. However, as we shall see in a moment, BNNs are not a complete walk in the park.
 
-#### Expected Improvement for BNNs
+In order to calculate an acquisition function like Expected Improvement, we need a way to estimate the mean and standard deviation functions. Doing so for a BNN is more challenging than for a GP, as BNNs do not have closed-form expressions for the predictive distribution.
 
-Calculating the Expected Improvement for a BNN is more challenging than for a Gaussian process, as BNNs do not have closed-form expressions for the predictive distribution. Instead, we can estimate the Expected Improvement using Monte Carlo methods. Given a BNN, we can draw weight samples from the posterior distribution and compute the predicted function values and improvement for each sample.
+Instead, we have to condition the BNN on our training data and then sample from the resulting predictive posterior. There are a few ways to do this and conditioning BNNs is a subject all on its own and not the focus of this post. For now, we will condition our BNN using Hamiltonian Monte Carlo (HMC) in Stan.
+
+Prior, likelihood, model specification.
+
+```{r stan_model, echo=FALSE}
+writeLines(readLines("bnn.stan"))
+```
+
 
 ```{r}
-# Create a Stan model using the neural network architecture
+# Compile the model
 model <- rstan::stan_model("bnn.stan")
-
 # Prepare the data
-# X_train <- matrix(seq(0, 1, 0.2))
-# y_train <- objective_function(X_train)
-data <- list(N = dim(X_train)[[1]], K = dim(X_train)[[2]], X = X_train, y = as.vector(y_train), M = dim(X_pred)[[1]], X_pred = X_pred, sigma = 0.05)
-
-# Fit the model using MCMC sampling
-
-fit <- rstan::sampling(model, data = data, chains = 4, cores = 4, iter = 2000, seed = seed)
-
+data <- list(
+  N = dim(X_train)[[1]],
+  D = dim(X_train)[[2]],
+  X = X_train,
+  y = as.vector(y_train),
+  M = dim(X_pred)[[1]],
+  X_pred = X_pred,
+  sigma = 0.05
+)
+# Fit the model using HMC sampling
+fit <- rstan::sampling(
+  object = model,
+  data = data,
+  chains = 4,
+  cores = 4,
+  iter = 4000,
+  warmup = 3000,
+  seed = seed
+)
 # Summarize the results
 y_pred <- rstan::summary(fit, pars = "y_pred")$summary %>%
-  tibble::as_tibble()
+  tibble::as_tibble() %>%
+  dplyr::mutate(ei = expected_improvement(mean, sd, min(y_train)))
 
 
-tibble::tibble(
-    mu = y_pred$mean,
-    uncertainty = 1.96*sqrt(y_pred$sd),
-    upper = mu + uncertainty,
-    lower = mu - uncertainty,
-    x = X_pred,
-    f = objective_function(X_pred)
-  ) %>%
-    ggplot(aes(x = x)) +
-    geom_line(aes(y = mu, colour = "Mean")) +
-    geom_ribbon(
-      aes(ymin = lower, ymax = upper, fill = "89% interval"),
-      alpha = 0.2
-    ) +
-    geom_point(
-      data = tibble::tibble(x = X_train, y = y_train),
-      aes(x = x, y = y, shape = "Training point"),
-      colour = "#fb8500",
-      size = 4
-    ) +
-    geom_line(mapping = aes(y = f, colour = "True function")) +
-    scale_shape_manual(values = c("Training point" = "+")) +
-    scale_fill_manual(values = c("89% interval" = "#219ebc")) +
-    labs(shape = "") +
-    theme_minimal() +
-    labs(
-      y = "y",
-      x = "",
-      colour = "",
-      fill = "",
-      title = "Bayesian Neural Network Surrogate"
-    ) +
-    theme(panel.grid = element_blank(), axis.text.x = element_blank())
-
+ei_bnn <- expected_improvement(y_pred$mean, y_pred$sd, min(y_train))
+bnn_plot <- uncertainty_plot(y_pred$mean, y_pred$sd, X_train, y_train)
+acquisition_plot(X_pred, ei_bnn, bnn_plot, X_pred[which.max(ei_bnn)], label = "EI", title = "Bayesian Neural Network Surrogate")
 ```
-
-```{r}
-summ <- rstan::summary(fit)$summary
-tibble::as_tibble(summ) %>%
-  dplyr::mutate(param = rownames(summ)) %>% 
-  View()
-
-```
-
 
 In the example above, we first define the black_box_function that we want to optimize. Then, we set the parameters for the Bayesian Neural Network, such as the number of layers and hidden units. The main part of the code is the expected_improvement function, which calculates the Expected Improvement for a given input x, the BNN model, and the current best observed function value best_y. The function computes the improvement for each weight sample drawn from the BNN's posterior distribution and accumulates the total improvement. The Expected Improvement is calculated by dividing the total improvement by the number of samples.
 
