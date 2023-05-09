@@ -29,15 +29,15 @@ $$\mathbf{x}_{t+1} = \arg\min_{\mathbf{x} \in \mathcal{X}} a(\mathbf{x})$$
 
 The acquisition function is itself a function of the surrogate model. The surrogate is a regression model that is used to approximate the objective function and it provides predictions of the objective function values and uncertainty estimates at unobserved points in the input space.
 
-Specifically, many acquisition functions are functions of the mean $\mu(\mathbf{x})$ and standard deviation $\sigma(\mathbf{x})$ across the search space. In those cases, the surrogate model should provide estimates of those two.
+Specifically, many acquisition functions are functions of the mean $\mu(\mathbf{x})$ and standard deviation $\sigma(\mathbf{x})$ across the search space. In those cases, the surrogate model should provide estimates of those two. In this definition is also the implicit assumption that the likelihood of the surrogate model is Gaussian.
 
-Gaussian processes, are often used as surrogate models because it is easy to isolate those two components. $\mu(\mathbf{x})$ is simply the posterior mean function and $\sigma(\mathbf{x})$ is an entry on the diagonal of the posterior covariance matrix.
+Gaussian processes, are often used as surrogate models because they explicitly satisfy this assumption. With a Gaussian process, it is easy to isolate the two necessary components. $\mu(\mathbf{x})$ is simply the posterior mean function and $\sigma(\mathbf{x})$ is an entry on the diagonal of the posterior covariance matrix.
 
-There are, however, alternatives to Gaussian processes as surrogates and some of them are discussed below. While there are [acquisition functions](.../post/acquisition-functions-r/) that rely on more complex mechanisms, this post focuses on surrogate models that support acquisition functions that are in some way a function of $\mu(\mathbf{x})$ and $\sigma(\mathbf{x})$.
+There are, however, alternatives to Gaussian processes as surrogates and some of them are discussed below. While there are [acquisition functions](.../post/acquisition-functions-r/) that rely on more complex mechanisms, this post focuses on surrogate models that support acquisition functions which are in some way a function of $\mu(\mathbf{x})$ and $\sigma(\mathbf{x})$.
 
 #### An Example Problem
 
-For the demonstration of acquisition functions, we need a toy problem. We will use a simple objective function without noise and a single dimension.
+For the demonstration of acquisition functions, we need a toy problem. We will use a simple objective function with noise and a single dimension.
 
 ```{r}
 objective_function <- function(x) {
@@ -59,15 +59,15 @@ ggplot() +
 
 We will approximate the the objective function with different surrogate models.
 
-The surrogate model will receive four training points and it should be able to return $\mu(\mathbf{x})$ and $\sigma(\mathbf{x})$ for all points in the search space, which we will approximate with a grid.
+The surrogate model will receive five training points and it should be able to return $\mu(\mathbf{x})$ and $\sigma(\mathbf{x})$ for all points in the search space, which we will approximate with a grid.
 
 ```{r}
-X_train <-  matrix(c(0.02, 0.3, 0.5, 0.75, 0.98), 5, 1) # matrix(seq(0, 1, 0.1))
+X_train <-  matrix(c(0.02, 0.3, 0.5, 0.75, 0.98), 5, 1)
 y_train <- objective_function(X_train) + rnorm(5, 0, 0.05)
 X_pred <- matrix(seq(0, 1, length.out = 100), 100, 1)
 ```
 
-For reference, here is a Gaussian process conditioned on the four training points
+For reference, here is a Gaussian process conditioned on the five training points along with the Expected Improvement (EI) acquisition function evaluated across search space.
 
 ```{r}
 #| code-fold: true
@@ -283,15 +283,19 @@ acquisition_plot(X_pred, ei, gp_plot, xt1 = X_pred[which.max(ei)], label = "EI",
 
 Now let's look at some alternative surrogate models.
 
-
 ## Ensembles as Surrogate Models
 
-Random Forests are an ensemble method that combines multiple decision trees to form a powerful and robust model. They can be used as surrogate models in Bayesian optimization to handle large datasets and high-dimensional input spaces efficiently.
-Calculating Expected Improvement
+A single deterministic model will not work as a surrogate for Bayesian optimisation, as it does not offer a measure of uncertainty. Fortunately there is a way for us to use our favourite machine learning model for Bayesian optimisation. If we collect an ensemble of models, we can use the mean and standard deviation of the predictions in place of $\mu(\mathbf{x})$ and $\sigma(\mathbf{x})$.
 
-To calculate the Expected Improvement (EI) for a Random Forest model, we can use the quantile regression forest variant, which provides estimates of the predictive distribution. The quantile regression forest can estimate multiple quantiles of the predictive distribution, enabling the computation of the Expected Improvement.
+There are a few ways in which we could build an ensemble, and they all work as long as we can obtain a measure of uncertainty. For instance, if we had a lot of training data, we could do bagging and train several models on different subsets of the training data and use those as an ensemble. We could also use a stack of different models as an ensemble.
 
-Here is some R code to demonstrate this process:
+While Bayesian optimisation problems rarely come with a lot of training data, such a situation represents a case where an ensemble might be preferred over a Gaussian process, as Gaussian processes are difficult to scale for large data sets.
+
+Another situation where an ensemble might be preferred over a GP is the case where data is very high dimensional. In that case, we can include models with explicit dimensionality reduction in the ensemble to fit the data without introducing too many parameters.
+
+#### Example: A Neural Network Ensemble
+
+As a demonstration of an ensemble used as a surrogate model in the case of our running example, we will fit neural networks. We fit a simple two-layer NN with 5 nodes in each. Rather than fitting different models, we use 20 different initialisations of the same architecture to create an ensemble.
 
 ```{r}
 train <- dplyr::bind_cols(
@@ -314,8 +318,19 @@ preds <- purrr::map(1:20, function(i) {
   list(mean = apply(., 1, mean), sd = apply(., 1, sd))
 ei_nn_ens <- expected_improvement(preds$mean, preds$sd, min(y_train))
 ens_plot <- uncertainty_plot(preds$mean, preds$sd, X_train, y_train)
-acquisition_plot(X_pred, ei_nn_ens, ens_plot, X_pred[which.max(ei_nn_ens)], label = "EI", title = "Neural Network Ensemble Surrogate")
+acquisition_plot(
+  X_pred,
+  ei_nn_ens,
+  ens_plot,
+  X_pred[which.max(ei_nn_ens)],
+  label = "EI",
+  title = "Neural Network Ensemble Surrogate"
+)
 ```
+
+The acquisition function evaluated on the ensemble suggests that the next sampling point should be all the way to the right side of search space, as marked by the dashed line. There is another good candidate near the middle though.
+
+Not that an ensemble of NNs is not the right choice 
 
 ## Bayesian Neural Networks as Surrogate Models
 Bayesian neural networks (BNNs) are neural networks with weigths and biases that are distributions over parameters rather than deterministic point estimates. BNNs can be an attractive alternative to GPs, as they have the dimensionality reduction capabilities of regular neural networks combined with the probabilistic approach to regression that works so well for GPs. However, as we shall see in a moment, BNNs are not a complete walk in the park.
