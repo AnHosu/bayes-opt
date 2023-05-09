@@ -15,17 +15,17 @@ parameters {
 }
 transformed parameters {
   vector[N] mu;
-  mu = alpha * sin(X * weights) + beta;
+  mu = alpha * sin(X * weights) + beta * ((X * weights) .* (X * weights));
 }
 model {
   alpha ~ std_normal();
   beta ~ std_normal();
-  weights ~ std_normal();
+  weights ~ lognormal(0, 0.1);
   sigma ~ exponential(sigma_rate);
   y ~ normal(mu, sigma);
 }
 generated quantities {
   // predictions
   vector[M] y_pred;
-  y_pred = alpha * sin(X_pred * weights) + beta;
+  y_pred = alpha * sin(X_pred * weights) + beta * ((X_pred * weights) .* (X_pred * weights));
 }
