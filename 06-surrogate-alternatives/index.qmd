@@ -365,8 +365,8 @@ fit <- rstan::sampling(
   data = data,
   chains = 4,
   cores = 4,
-  iter = 4000,
-  warmup = 3000,
+  iter = 10000,
+  warmup = 4000,
   seed = seed
 )
 # Summarize the results
@@ -386,6 +386,11 @@ The optimize_acquisition_function function is responsible for finding the next p
 
 This example demonstrates how to calculate the Expected Improvement for Bayesian Neural Networks using Monte Carlo methods. Note that this is a simplified example that does not include the complete implementation of a BNN or the optimization of its hyperparameters.
 
+```{r}
+View(rstan::summary(fit)$summary)
+pairs(fit, pars = c("alpha", "beta", "sigma"))
+```
+
 ## Bespoke
 
 ```{r}
@@ -394,11 +399,10 @@ model <- rstan::stan_model("bespoke.stan")
 # Prepare the data
 data <- list(
   N = dim(X_train)[[1]],
-  D = dim(X_train)[[2]],
-  X = X_train,
+  X = as.vector(X_train),
   y = as.vector(y_train),
   M = dim(X_pred)[[1]],
-  X_pred = X_pred,
+  X_pred = as.vector(X_pred),
   sigma_rate = 100
 )
 # Fit the model using HMC sampling
@@ -407,8 +411,8 @@ fit <- rstan::sampling(
   data = data,
   chains = 4,
   cores = 4,
-  iter = 4000,
-  warmup = 3000,
+  iter = 10000,
+  warmup = 4000,
   seed = seed
 )
 # Summarize the results

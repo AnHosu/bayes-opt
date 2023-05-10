@@ -1,31 +1,33 @@
+functions {
+  vector bespoke_model(vector X, real alpha, real beta) {
+    return(X .* sin(X * alpha) + beta);
+  }
+}
 data {
   int<lower=1> N;               // number of data points
-  int<lower=1> D;               // number of dimensions
   int<lower=1> M;               // number of points in prediction grid
-  matrix[N, D] X;               // matrix of covariates
+  vector[N] X;               // matrix of covariates
   vector[N] y;                  // vector of observed responses
-  matrix[M, D] X_pred;          // matrix of covariates for prediction grid
+  vector[M] X_pred;          // matrix of covariates for prediction grid
   real<lower=0> sigma_rate;
 }
 parameters {
-  real alpha;
+  real<lower=0> alpha;
   real beta;
-  vector[D] weights;
   real<lower=0> sigma;
 }
 transformed parameters {
   vector[N] mu;
-  mu = alpha * sin(X * weights) + beta * ((X * weights) .* (X * weights));
+  mu = bespoke_model(X, alpha, beta);
 }
 model {
-  alpha ~ std_normal();
-  beta ~ std_normal();
-  weights ~ lognormal(0, 0.1);
+  alpha ~ normal(6, 2);
+  beta ~ normal(5, 2);
   sigma ~ exponential(sigma_rate);
   y ~ normal(mu, sigma);
 }
 generated quantities {
   // predictions
   vector[M] y_pred;
-  y_pred = alpha * sin(X_pred * weights) + beta * ((X_pred * weights) .* (X_pred * weights));
+  y_pred = bespoke_model(X_pred, alpha, beta);
 }

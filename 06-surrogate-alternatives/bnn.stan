@@ -32,7 +32,7 @@ parameters {
   vector[10] b1;                // biases for the first layer
   matrix[10, 3] w2;             // weights for the second layer
   vector[3] b2;                 // biases for the second layer
-  vector[3] w3;                 // weigths for the output layer
+  vector<lower=0>[3] w3;                 // weigths for the output layer
   real b3;                      // bias for the output layer
 }
 transformed parameters {
@@ -45,7 +45,7 @@ model {
   to_vector(b1) ~ std_normal();
   to_vector(w2) ~ std_normal();
   to_vector(b2) ~ std_normal();
-  to_vector(w3) ~ std_normal();
+  to_vector(w3) ~ lognormal(0, 1);
   b3 ~ std_normal();
   // likelihood
   y ~ normal(output, sigma);
