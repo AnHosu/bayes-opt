@@ -431,37 +431,43 @@ Student-t Processes (TPs) are an alternative to Gaussian Processes (GPs) that ca
 
 #### Expected Improvement with Student-t Processes
 
-Calculating the Expected Improvement for a Student-t Process is similar to the process for Gaussian Processes. The main difference is that the predictive distribution is a Student-t distribution rather than a Gaussian distribution.
+Robust to outliers (bayesoptbook 2.8)
+
+To implement a Student's t Process, we need three things: an expression for the negative log likelihood so we can optimise hyperparameters of the process, an expression for the posterior predictive distribution parameters so we can generate predictions, and a function for sampling from the multivariate Student's t distribution.
+
+Posterior predictive
+
+$$\nu_{post} = \nu + n_1$$
+
+mu_post
+
+Sigma_post
+
+Negative log likelihood
+
+$$\text{NLL}(y|X) = -\log\left(\frac{\Gamma\left(\frac{\nu + n}{2}\right)}{\Gamma\left(\frac{\nu}{2}\right)(\nu \pi)^{\frac{n}{2}}\sqrt{\lvert K + \sigma^2I \rvert}\left(1 + \frac{1}{\nu} y^T(K + \sigma^2I)^{-1}y\right)^{\frac{\nu + n}{2}}}\right)$$
+
+Sampling
 
 ```{r}
-# Define the black-box function (for illustration purposes)
-black_box_function <- function(x) {
-  return(sin(2 * pi * x))
-}
-
-# Fit a Student-t Process model
-# ...
-
-# Define the acquisition function (Expected Improvement)
-expected_improvement <- function(x, tp_model, best_y) {
-  # Obtain the predictive distribution (Student-t)
-  predictive_mean, predictive_variance, degrees_of_freedom <- tp_predict(x, tp_model)
+rmvst <- function(n = 1, nu, mu, sigma, epsilon = 1e-6) {
+  p <- length(mu)
+  if (!all(dim(sigma) == c(p, p))) stop("incompatible dimensions of arguments")
   
-  # Compute the Expected Improvement
-  improvement <- max(0, best_y - predictive_mean)
-  return(improvement)
-}
-
-# Optimize the acquisition function to find the next point to evaluate
-optimize_acquisition_function <- function(tp_model, best_y) {
-  # Define the optimization problem
-  # ...
-
-  # Find the input that maximizes the expected improvement
-  x_star <- optimize(function(x) -expected_improvement(x, tp_model, best_y), lower = 0, upper = 1)$minimum
+  ev <- eigen(sigma, symmetric = TRUE)$values
+  if (!all(ev >= -epsilon * abs(ev[1L]))) {
+    stop("The covariance matrix (sigma) is not positive definite")
+  }
   
-  return(x_star)
+  cholesky <- chol(sigma + diag(p) * epsilon)
+  standard_normal_samples <- matrix(rnorm(n * p), ncol = p)
+  chi_samples <- sqrt(nu / rchisq(n, df = nu))
+  # TODO: something is not quite right. The tails are not long enough...
+  t_samples <- sweep(standard_normal_samples %*% cholesky, 2, mu, FUN = `+`)
+  t_samples <- sweep(t_samples, 1, chi_samples, FUN = `/`)
+  t_samples
 }
+
 
 ```
 
