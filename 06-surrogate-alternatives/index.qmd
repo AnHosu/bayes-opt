@@ -453,21 +453,15 @@ Sampling
 rmvst <- function(n = 1, nu, mu, sigma, epsilon = 1e-6) {
   p <- length(mu)
   if (!all(dim(sigma) == c(p, p))) stop("incompatible dimensions of arguments")
-  
   ev <- eigen(sigma, symmetric = TRUE)$values
   if (!all(ev >= -epsilon * abs(ev[1L]))) {
     stop("The covariance matrix (sigma) is not positive definite")
   }
-  
   cholesky <- chol(sigma + diag(p) * epsilon)
   standard_normal_samples <- matrix(rnorm(n * p), ncol = p)
   chi_samples <- sqrt(nu / rchisq(n, df = nu))
-  # TODO: something is not quite right. The tails are not long enough...
-  t_samples <- sweep(standard_normal_samples %*% cholesky, 2, mu, FUN = `+`)
-  t_samples <- sweep(t_samples, 1, chi_samples, FUN = `/`)
-  t_samples
+  t_samples <- sweep(standard_normal_samples, 1, chi_samples, FUN = `*`)
+  sweep(t_samples %*% cholesky, 2, mu, FUN = `+`)
 }
-
-
 ```
 
