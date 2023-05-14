@@ -386,11 +386,6 @@ The optimize_acquisition_function function is responsible for finding the next p
 
 This example demonstrates how to calculate the Expected Improvement for Bayesian Neural Networks using Monte Carlo methods. Note that this is a simplified example that does not include the complete implementation of a BNN or the optimization of its hyperparameters.
 
-```{r}
-View(rstan::summary(fit)$summary)
-pairs(fit, pars = c("alpha", "beta", "sigma"))
-```
-
 ## Bespoke
 
 ```{r}
@@ -443,9 +438,61 @@ mu_post
 
 Sigma_post
 
+```{r}
+#' Get Parameters of the Posterior Student's t Process
+#'
+#' @param kernel kernel function used for the Student's t process
+#' @param X_pred matrix (m, d) of prediction points
+#' @param X_train matrix (n, d) of training points
+#' @param y_train column vector (n, d) of training observations
+#' @param noise scalar of observation noise
+#' @param ... named parameters for the kernel function
+#'
+#' @return list of mean (mu), covariance (sigma), and degrees of freedom (nu)
+#' for the Student's t distribution
+posterior_t <- function(kernel, X_pred, X_train, y_train, noise = 1e-8, ...) {
+  if (is.null(dim(X_pred))) dim(X_pred) <- c(length(X_pred), 1)
+  if (is.null(dim(X_train))) dim(X_train) <- c(length(X_train), 1)
+  if (is.null(dim(y_train))) dim(y_train) <- c(length(y_train), 1)
+  n_train <- dim(X_train)[[1]]
+  K <- kernel(X_train, X_train, ...) + noise**2 * diag(dim(X_train)[[1]])
+  K_s <- kernel(X_train, X_pred, ...)
+  K_ss <- kernel(X_pred, X_pred, ...) + 1e-8 * diag(dim(X_pred)[[1]])
+  K_inv <- solve(K)
+  mu <- (t(K_s) %*% K_inv) %*% y_train
+  K_tilde <- K_ss - (t(K_s) %*% K_inv) %*% K_s
+  scale <- ((t(y_train) %*% K_inv) %*% y_train - 2) / (n_train - 2)
+  sigma <- K_tilde * as.vector(scale)
+  list(mu = mu, sigma = sigma, nu = n_train)
+}
+```
+
+
 Negative log likelihood
 
 $$\text{NLL}(y|X) = -\log\left(\frac{\Gamma\left(\frac{\nu + n}{2}\right)}{\Gamma\left(\frac{\nu}{2}\right)(\nu \pi)^{\frac{n}{2}}\sqrt{\lvert K + \sigma^2I \rvert}\left(1 + \frac{1}{\nu} y^T(K + \sigma^2I)^{-1}y\right)^{\frac{\nu + n}{2}}}\right)$$
+
+```{r}
+#' Negative log-Likelihood of a Kernel
+#'
+#' @param kernel kernel function
+#' @param X_train matrix (n, d) of training points
+#' @param y_train column vector (n, d) of training observations
+#' @param noise scalar of observation noise
+#'
+#' @return function with kernel parameters as input and negative log likelihood
+#' as output
+nll <- function(kernel, X_train, y_train, noise) {
+  function(params) {
+    n <- dim(X_train)[[1]]
+    K <- rlang::exec(kernel, X1 = X_train, X2 = X_train, !!!params)
+    L <- chol(K + noise**2 * diag(n))
+    a <- backsolve(r = L, x = forwardsolve(l = t(L), x = y_train))
+    0.5*t(y_train)%*%a + sum(log(diag(L))) + 0.5*n*log(2*pi)
+  }
+}
+```
+
 
 Sampling
 
