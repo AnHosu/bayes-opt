@@ -473,11 +473,6 @@ Negative log likelihood
 $$\text{NLL}(y|X) = -\log\left(\frac{\Gamma\left(\frac{\nu + n}{2}\right)}{\Gamma\left(\frac{\nu}{2}\right)(\nu \pi)^{\frac{n}{2}}\sqrt{\lvert K + \sigma^2I \rvert}\left(1 + \frac{1}{\nu} y^T(K + \sigma^2I)^{-1}y\right)^{\frac{\nu + n}{2}}}\right)$$
 
 ```{r}
-log_marginal = 0.5 * (-N * np.log((nu - 2) * np.pi) - W_logdet - (nu + N) * np.log(1 + beta / (nu - 2)))
-log_marginal += gammaln((nu + N) / 2) - gammaln(nu / 2)
-
-L = jitchol(K + noise, *args)
-    logdet = 2.*np.sum(np.log(np.diag(L)))
 #' Negative log-Likelihood of a Kernel
 #'
 #' @param kernel kernel function
@@ -487,15 +482,17 @@ L = jitchol(K + noise, *args)
 #'
 #' @return function with kernel parameters as input and negative log likelihood
 #' as output
-nll <- function(kernel, X_train, y_train, nu, noise) {
+nll_t <- function(kernel, X_train, y_train, nu, noise) {
   function(params) {
     n <- dim(X_train)[[1]]
     K <- rlang::exec(kernel, X1 = X_train, X2 = X_train, !!!params)
-    L <- chol(K + diag(noise, n))
+    L <- chol(K + noise**2 * diag(n))
     logdet <- 2 * sum(log(diag(L)))
-    beta <- 1 # START HERE: beta is some function of L and y_train
-    log_marginal <- 0.5 * (-n * log((nu - 2) * pi) - logdet - (nu + n) * log(1 + beta / (nu - 2)))
-    log_marginal + lgamma((nu + n) / 2) - lgamma(nu / 2)
+    a <- backsolve(r = L, x = forwardsolve(l = t(L), x = y_train))
+    beta <- t(y_train) %*% a
+    (n * log((nu - 2) * pi) + logdet + (nu + n) * log(1 + beta / (nu - 2))) %>%
+      multiply_by(0.5) %>%
+      add(lgamma(nu / 2) - lgamma((nu + n) / 2))
   }
 }
 ```
