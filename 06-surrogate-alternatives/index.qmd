@@ -472,6 +472,8 @@ Negative log likelihood
 
 $$\text{NLL}(y|X) = -\log\left(\frac{\Gamma\left(\frac{\nu + n}{2}\right)}{\Gamma\left(\frac{\nu}{2}\right)(\nu \pi)^{\frac{n}{2}}\sqrt{\lvert K + \sigma^2I \rvert}\left(1 + \frac{1}{\nu} y^T(K + \sigma^2I)^{-1}y\right)^{\frac{\nu + n}{2}}}\right)$$
 
+Implementation inspired by algo from Rasmussen 2006 ch 2.
+
 ```{r}
 #' Negative log-Likelihood of a Kernel
 #'
@@ -487,7 +489,7 @@ nll_t <- function(kernel, X_train, y_train, nu, noise) {
     n <- dim(X_train)[[1]]
     K <- rlang::exec(kernel, X1 = X_train, X2 = X_train, !!!params)
     L <- chol(K + noise**2 * diag(n))
-    logdet <- 2 * sum(log(diag(L)))
+    logdet <- sum(log(diag(L)))
     a <- backsolve(r = L, x = forwardsolve(l = t(L), x = y_train))
     beta <- t(y_train) %*% a
     (n * log((nu - 2) * pi) + logdet + (nu + n) * log(1 + beta / (nu - 2))) %>%
@@ -501,7 +503,7 @@ nll_t <- function(kernel, X_train, y_train, nu, noise) {
 Sampling
 
 ```{r}
-rmvst <- function(n = 1, nu, mu, sigma, epsilon = 1e-6) {
+rmvst <- function(n = 1, mu, sigma, nu, epsilon = 1e-6) {
   p <- length(mu)
   if (!all(dim(sigma) == c(p, p))) stop("incompatible dimensions of arguments")
   ev <- eigen(sigma, symmetric = TRUE)$values
@@ -514,5 +516,73 @@ rmvst <- function(n = 1, nu, mu, sigma, epsilon = 1e-6) {
   t_samples <- sweep(standard_normal_samples, 1, chi_samples, FUN = `*`)
   sweep(t_samples %*% cholesky, 2, mu, FUN = `+`)
 }
+```
+
+
+```{r}
+#' Student's t Process Regression
+#'
+#' @param kernel kernel function
+#' @param X_train matrix (n, d) of training points
+#' @param y_train column vector (n, d) of training observations
+#' @param nu initial degrees of freedom
+#' @param noise scalar of observation noise
+#' @param ... parameters of the kernel function with initial guesses. Due to the
+#' optimiser used, all parameters must be given and the order unfortunately
+#' matters
+#'
+#' @return function that takes a matrix of prediction points as input and
+#' returns the posterior predictive distribution for the output
+tpr <- function(kernel, X_train, y_train, nu = 3, noise = 1e-8, ...) {
+  if (nu < 3) stop("nu must be > 2")
+  kernel_nll <- nll_t(kernel, X_train, y_train, nu, noise)
+  param <- list(...)
+  opt <- optim(par = rep(1, length(param)), fn = kernel_nll) # TODO needs restarts with random inits
+  opt_param <- opt$par
+  function(X_pred) {
+    post <- rlang::exec(
+      posterior_t,
+      kernel = kernel,
+      X_pred = X_pred,
+      X_train = X_train,
+      y_train = y_train,
+      noise = noise,
+      !!!opt_param
+    )
+    list(
+      mu = post$mu,
+      sigma = diag(post$sigma),
+      Sigma = post$sigma,
+      nu = post$nu,
+      parameters = set_names(opt_param, names(param))
+    )
+  }
+}
+```
+
+
+```{r}
+tp <- tpr(rbf_kernel, X_train, y_train, nu = 3, noise = 0.1, l = 1, sigma_f = 1)
+post_pred <- tp(X_pred)
+mu <- post_pred$mu
+sigma <- post_pred$Sigma
+nu <- post_pred$nu
+samples <- rmvst(n = 10, mu, sigma, nu)
+```
+
+```{r}
+samples <- rmvst(n = 1e3, mu, sigma, nu)
+tibble::tibble(
+  x = X_pred,
+  mu = mu,
+  upper = apply(samples, 2, quantile, probs = 0.945),
+  lower = apply(samples, 2, quantile, probs = 0.055)
+) %>%
+  ggplot() +
+  geom_ribbon(aes(x = x, ymin = lower, ymax = upper))
+```
+
+```{r}
+opt <- optim(par = c(1,1), fn = tnl, method = "BFGS")
 ```
 
