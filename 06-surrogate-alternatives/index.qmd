@@ -537,8 +537,11 @@ tpr <- function(kernel, X_train, y_train, nu = 3, noise = 1e-8, ...) {
   if (nu < 3) stop("nu must be > 2")
   kernel_nll <- nll_t(kernel, X_train, y_train, nu, noise)
   param <- list(...)
-  opt <- optim(par = rep(1, length(param)), fn = kernel_nll) # TODO needs restarts with random inits
-  opt_param <- opt$par
+  opt_params <- purrr::map(1:20, function(i) {
+    optim(par = rnorm(length(param)), fn = kernel_nll)$par
+  })
+  nll_vals <- purrr::map_dbl(opt_params, kernel_nll)
+  opt_param <- opt_params[[which.min(nll_vals)]]
   function(X_pred) {
     post <- rlang::exec(
       posterior_t,
@@ -562,27 +565,45 @@ tpr <- function(kernel, X_train, y_train, nu = 3, noise = 1e-8, ...) {
 
 
 ```{r}
-tp <- tpr(rbf_kernel, X_train, y_train, nu = 3, noise = 0.1, l = 1, sigma_f = 1)
+tp <- tpr(rbf_kernel, X_train, y_train, nu = 5, noise = 0.1, l = 1, sigma_f = 1)
 post_pred <- tp(X_pred)
 mu <- post_pred$mu
-sigma <- post_pred$Sigma
+sigma <- post_pred$sigma
 nu <- post_pred$nu
-samples <- rmvst(n = 10, mu, sigma, nu)
 ```
 
+
 ```{r}
-samples <- rmvst(n = 1e3, mu, sigma, nu)
 tibble::tibble(
   x = X_pred,
   mu = mu,
-  upper = apply(samples, 2, quantile, probs = 0.945),
-  lower = apply(samples, 2, quantile, probs = 0.055)
+  sigma = sigma,
+  upper = qt(0.945, nu, TRUE, FALSE) * sigma + mu,
+  lower = qt(0.055, nu, TRUE, FALSE) * sigma + mu
 ) %>%
-  ggplot() +
-  geom_ribbon(aes(x = x, ymin = lower, ymax = upper))
-```
-
-```{r}
-opt <- optim(par = c(1,1), fn = tnl, method = "BFGS")
+  ggplot(aes(x = x)) +
+  geom_line(aes(y = mu, colour = "Mean")) +
+  geom_ribbon(
+    aes(ymin = lower, ymax = upper, fill = "89% interval"),
+    alpha = 0.2
+  ) +
+  geom_point(
+    data = tibble::tibble(x = X_train, y = y_train),
+    aes(x = x, y = y, shape = "Training point"),
+    colour = "#fb8500",
+    size = 4
+  ) +
+  # geom_line(mapping = aes(y = f, colour = "True function")) +
+  scale_shape_manual(values = c("Training point" = "+")) +
+  scale_fill_manual(values = c("89% interval" = "#219ebc")) +
+  labs(shape = "") +
+  theme_minimal() +
+  labs(
+    y = "y",
+    x = "",
+    colour = "",
+    fill = ""
+  ) +
+  theme(panel.grid = element_blank(), axis.text.x = element_blank())
 ```
 
