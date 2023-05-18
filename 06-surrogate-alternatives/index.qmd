@@ -214,14 +214,14 @@ expected_improvement <- function(mu, sigma, y_best, xi = 0.01, task = "min") {
   ei
 }
 
-uncertainty_plot <- function(mu, sigma, X_train, y_train) {
+gp_1d_plot <- function(mu, sigma, X_pred, X_train, y_train, true_function) {
   tibble::tibble(
     m = mu,
     uncertainty = 1.96*sqrt(sigma),
     upper = m + uncertainty,
     lower = m - uncertainty,
     x = X_pred,
-    f = objective_function(X_pred)
+    f = true_function(X_pred)
   ) %>%
     ggplot(aes(x = x)) +
     geom_line(aes(y = m, colour = "Mean")) +
@@ -277,7 +277,7 @@ post_pred <- gp(X_pred)
 mu <- post_pred$mu
 sigma <- post_pred$sigma
 ei <- expected_improvement(mu, sigma, min(y_train))
-gp_plot <- uncertainty_plot(mu, sigma, X_train, y_train)
+gp_plot <- gp_1d_plot(mu, sigma, X_pred, X_train, y_train, objective_function)
 acquisition_plot(X_pred, ei, gp_plot, xt1 = X_pred[which.max(ei)], label = "EI", title = "Gaussian Process Surrogate")
 ```
 
@@ -317,7 +317,7 @@ preds <- purrr::map(1:20, function(i) {
   do.call(cbind, .) %>%
   list(mean = apply(., 1, mean), sd = apply(., 1, sd))
 ei_nn_ens <- expected_improvement(preds$mean, preds$sd, min(y_train))
-ens_plot <- uncertainty_plot(preds$mean, preds$sd, X_train, y_train)
+ens_plot <- gp_1d_plot(preds$mean, preds$sd, X_pred, X_train, y_train, objective_function)
 acquisition_plot(
   X_pred,
   ei_nn_ens,
@@ -376,7 +376,7 @@ y_pred <- rstan::summary(fit, pars = "y_pred")$summary %>%
 
 
 ei_bnn <- expected_improvement(y_pred$mean, y_pred$sd, min(y_train))
-bnn_plot <- uncertainty_plot(y_pred$mean, y_pred$sd, X_train, y_train)
+bnn_plot <- gp_1d_plot(y_pred$mean, y_pred$sd, X_pred, X_train, y_train, objective_function)
 acquisition_plot(X_pred, ei_bnn, bnn_plot, X_pred[which.max(ei_bnn)], label = "EI", title = "Bayesian Neural Network Surrogate")
 ```
 
@@ -413,10 +413,9 @@ fit <- rstan::sampling(
 # Summarize the results
 y_pred <- rstan::summary(fit, pars = "y_pred")$summary %>%
   tibble::as_tibble()
-
-
+# Calculate EI and plot
 ei_besp <- expected_improvement(y_pred$mean, y_pred$sd, min(y_train))
-besp_plot <- uncertainty_plot(y_pred$mean, y_pred$sd, X_train, y_train)
+besp_plot <- gp_1d_plot(y_pred$mean, y_pred$sd, X_pred, X_train, y_train, objective_function)
 acquisition_plot(X_pred, ei_besp, besp_plot, X_pred[which.max(ei_besp)], label = "EI", title = "Bespoke Model Surrogate")
 ```
 
@@ -565,16 +564,6 @@ tpr <- function(kernel, X_train, y_train, nu = 3, noise = 1e-8, ...) {
 }
 ```
 
-
-```{r}
-tp <- tpr(rbf_kernel, X_train, y_train, nu = 5, noise = 0.1, l = 1, sigma_f = 1)
-post_pred <- tp(X_pred)
-mu <- post_pred$mu
-sigma <- post_pred$sigma
-nu <- post_pred$nu
-```
-
-
 ```{r}
 dlst <- function(x, nu = 1, mu = 0, sigma = 1) {
   1 / sigma * dt((x - mu) / sigma, nu)
@@ -597,42 +586,52 @@ expected_improvement_t <- function(mu,
   ei[sigma == 0.0] <- 0.0
   ei
 }
-
-expected_improvement_t(mu, sigma, nu, min(y_train))
 ```
 
 
 ```{r}
-tibble::tibble(
-  x = X_pred,
-  mu = mu,
-  sigma = sigma,
-  upper = qt(0.945, nu, TRUE, FALSE) * sigma + mu,
-  lower = qt(0.055, nu, TRUE, FALSE) * sigma + mu
-) %>%
-  ggplot(aes(x = x)) +
-  geom_line(aes(y = mu, colour = "Mean")) +
-  geom_ribbon(
-    aes(ymin = lower, ymax = upper, fill = "89% interval"),
-    alpha = 0.2
-  ) +
-  geom_point(
-    data = tibble::tibble(x = X_train, y = y_train),
-    aes(x = x, y = y, shape = "Training point"),
-    colour = "#fb8500",
-    size = 4
-  ) +
-  # geom_line(mapping = aes(y = f, colour = "True function")) +
-  scale_shape_manual(values = c("Training point" = "+")) +
-  scale_fill_manual(values = c("89% interval" = "#219ebc")) +
-  labs(shape = "") +
-  theme_minimal() +
-  labs(
-    y = "y",
-    x = "",
-    colour = "",
-    fill = ""
-  ) +
-  theme(panel.grid = element_blank(), axis.text.x = element_blank())
+tp_1d_plot <- function(mu, sigma, nu, X_pred, X_train, y_train, true_function) {
+  tibble::tibble(
+    x = X_pred,
+    mu = mu,
+    sigma = sigma,
+    upper = qt(0.945, nu, TRUE, FALSE) * sigma + mu,
+    lower = qt(0.055, nu, TRUE, FALSE) * sigma + mu,
+    f = true_function(X_pred)
+  ) %>%
+    ggplot(aes(x = x)) +
+    geom_line(aes(y = mu, colour = "Mean")) +
+    geom_ribbon(
+      aes(ymin = lower, ymax = upper, fill = "89% interval"),
+      alpha = 0.2
+    ) +
+    geom_point(
+      data = tibble::tibble(x = X_train, y = y_train),
+      aes(x = x, y = y, shape = "Training point"),
+      colour = "#fb8500",
+      size = 4
+    ) +
+    geom_line(mapping = aes(y = f, colour = "True function")) +
+    scale_shape_manual(values = c("Training point" = "+")) +
+    scale_fill_manual(values = c("89% interval" = "#219ebc")) +
+    labs(shape = "") +
+    theme_minimal() +
+    labs(
+      y = "y",
+      x = "",
+      colour = "",
+      fill = ""
+    ) +
+    theme(panel.grid = element_blank(), axis.text.x = element_blank())
+}
+
+tp <- tpr(rbf_kernel, X_train, y_train, nu = 5, noise = 0.1, l = 1, sigma_f = 1)
+post_pred <- tp(X_pred)
+mu <- post_pred$mu
+sigma <- post_pred$sigma
+nu <- post_pred$nu
+ei <- expected_improvement_t(mu, sigma, nu, min(y_train))
+tp_plot <- tp_1d_plot(mu, sigma, nu, X_pred, X_train, y_train, objective_function)
+acquisition_plot(X_pred, ei, tp_plot, xt1 = X_pred[which.max(ei)], label = "EI", title = "Student's t Process Surrogate")
 ```
 
