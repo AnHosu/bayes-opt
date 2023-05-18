@@ -90,33 +90,6 @@ rbf_kernel <- function(X1, X2, l = 1.0, sigma_f = 1.0) {
   sigma_f**2 * exp(-0.5 / l**2 * sqdist)
 }
 
-#' Random Samples from a Multivariate Gaussian
-#' 
-#' This implementation is similar to MASS::mvrnorm, but uses chlosky
-#' decomposition instead. This should be more stable but is less efficient than
-#' the MASS implementation, which recycles the eigen decomposition for the
-#' sampling part.
-#'
-#' @param n number of samples to sample
-#' @param mu the mean of each input dimension
-#' @param sigma the covariance matrix
-#' @param epsilon numerical tolerance added to the diagonal of the covariance
-#'  matrix. This is necessary for the Cholesky decomposition, in some cases.
-#'
-#' @return numerical vector of n samples
-rmvnorm <- function(n = 1, mu, sigma, epsilon = 1e-6) {
-    p <- length(mu)
-    if(!all(dim(sigma) == c(p, p))) stop("incompatible dimensions of arguments")
-    ev <- eigen(sigma, symmetric = TRUE)$values
-    if(!all(ev >= -epsilon*abs(ev[1L]))) {
-      stop("The covariance matrix (sigma) is not positive definite")
-    }
-    cholesky <- chol(sigma + diag(p)*epsilon)
-    sample <- rnorm(p*n, 0, 1)
-    dim(sample) <- c(n, p)
-    sweep(sample %*% cholesky, 2, mu, FUN = `+`)
-}
-
 #' Get Parameters of the Posterior Gaussian Process
 #'
 #' @param kernel kernel function used for the Gaussian process
@@ -140,7 +113,7 @@ posterior <- function(kernel, X_pred, X_train, y_train, noise = 1e-8, ...) {
   list(mu = mu, sigma = sigma)
 }
 
-#' Negative log-Likelihood of a Kernel
+#' Gaussian Negative log-Likelihood of a Kernel
 #'
 #' @param kernel kernel function
 #' @param X_train matrix (n, d) of training points
@@ -197,12 +170,12 @@ gpr <- function(kernel, X_train, y_train, noise = 1e-8, ...) {
 
 #' Expected Improvement Acquisition Function for a Gaussian Surrogate
 #' 
-#' @mu vector of length m. Mean of a Gaussian process at m points.
-#' @sigma vector of length m. The diagonal of the covariance matrix of a
+#' @param mu vector of length m. Mean of a Gaussian process at m points.
+#' @param sigma vector of length m. The diagonal of the covariance matrix of a
 #' Gaussian process evaluated at m points.
 #' @param y_best scalar. Best mean prediction so far on observed points
 #' @param xi scalar, exploration/exploitation trade off
-#' @task one of "max" or "min", indicating the optimisation problem
+#' @param task one of "max" or "min", indicating the optimisation problem
 #'
 #' @return EI, vector of length m
 expected_improvement <- function(mu, sigma, y_best, xi = 0.01, task = "min") {
@@ -217,13 +190,13 @@ expected_improvement <- function(mu, sigma, y_best, xi = 0.01, task = "min") {
 
 #' Plot of a Gaussian Process in One Dimension
 #' 
-#' @mu vector of length m. Mean of a Gaussian process at m points.
-#' @sigma vector of length m. The diagonal of the covariance matrix of a
+#' @param mu vector of length m. Mean of a Gaussian process at m points.
+#' @param sigma vector of length m. The diagonal of the covariance matrix of a
 #' Gaussian process evaluated at m points.
-#' @X_pred matrix of dimensions (m X 1) representing m prediction points with 
-#' one dimension.
-#' @X_train matrix of dimensions (n X 1) representing n training points with one
-#' dimension
+#' @param X_pred matrix of dimensions (m X 1) representing m prediction points 
+#' with one dimension.
+#' @param X_train matrix of dimensions (n X 1) representing n training points
+#' with one dimension
 #' @param y_train vector of length n representing n observations at points
 #' X_train
 #' @param true_function function representing the objective function (in real
@@ -555,17 +528,29 @@ Sigma_post
 #' @param X_pred matrix (m, d) of prediction points
 #' @param X_train matrix (n, d) of training points
 #' @param y_train column vector (n, d) of training observations
-#' @param nu scalar, prior degrees of freedom
+#' @param nu scalar, prior degrees of freedom. Note that nu + n must be greater
+#' than 2.
 #' @param noise scalar of observation noise
 #' @param ... named parameters for the kernel function
 #'
 #' @return list of mean (mu), covariance (sigma), and degrees of freedom (nu)
-#' for the Student's t distribution
-posterior_t <- function(kernel, X_pred, X_train, y_train, nu, noise = 1e-8, ...) {
+#' for a posterior multivariate Student's t distribution
+posterior_t <- function(kernel,
+                        X_pred,
+                        X_train,
+                        y_train,
+                        nu,
+                        noise = 1e-8, ...) {
   if (is.null(dim(X_pred))) dim(X_pred) <- c(length(X_pred), 1)
   if (is.null(dim(X_train))) dim(X_train) <- c(length(X_train), 1)
   if (is.null(dim(y_train))) dim(y_train) <- c(length(y_train), 1)
   n_train <- dim(X_train)[[1]]
+  if (nu + n_train < 3) {
+    stop(
+      "The prior degrees of freedom plus the number of training points ",
+      "must be greater than 2."
+    )
+  }
   K <- kernel(X_train, X_train, ...) + noise**2 * diag(dim(X_train)[[1]])
   K_s <- kernel(X_train, X_pred, ...)
   K_ss <- kernel(X_pred, X_pred, ...) + 1e-8 * diag(dim(X_pred)[[1]])
@@ -586,11 +571,12 @@ $$\text{NLL}(y|X) = -\log\left(\frac{\Gamma\left(\frac{\nu + n}{2}\right)}{\Gamm
 Implementation inspired by algo from Rasmussen 2006 ch 2.
 
 ```{r}
-#' Negative log-Likelihood of a Kernel
+#' Student's t Negative log-Likelihood of a Kernel
 #'
 #' @param kernel kernel function
 #' @param X_train matrix (n, d) of training points
 #' @param y_train column vector (n, d) of training observations
+#' @param nu scalar, degrees of freedom
 #' @param noise scalar of observation noise
 #'
 #' @return function with kernel parameters as input and negative log likelihood
@@ -612,27 +598,6 @@ nll_t <- function(kernel, X_train, y_train, nu, noise) {
 
 
 Sampling
-
-```{r}
-rmvst <- function(n = 1, mu, sigma, nu, epsilon = 1e-6) {
-  p <- length(mu)
-  if (!all(dim(sigma) == c(p, p))) stop("incompatible dimensions of arguments")
-  ev <- eigen(sigma, symmetric = TRUE)$values
-  if (!all(ev >= -epsilon * abs(ev[1L]))) {
-    stop("The covariance matrix (sigma) is not positive definite")
-  }
-  cholesky <- chol(sigma + diag(p) * epsilon)
-  standard_normal_samples <- matrix(rnorm(n * p), ncol = p)
-  chi_samples <- sqrt(nu / rchisq(n, df = nu))
-  t_samples <- sweep(standard_normal_samples, 1, chi_samples, FUN = `*`)
-  sweep(t_samples %*% cholesky, 2, mu, FUN = `+`)
-}
-dlst <- function(x, nu = 1, mu = 0, sigma = 1) {
-  1 / sigma * dt((x - mu) / sigma, nu)
-}
-plst <- function(q, nu = 1, mu = 0, sigma = 1)  pt((q - mu) / sigma, nu)
-qlst <- function(p, nu = 1, mu = 0, sigma = 1)  qt(p, nu) * sigma + mu
-```
 
 
 ```{r}
@@ -681,8 +646,51 @@ tpr <- function(kernel, X_train, y_train, nu = 3, noise = 1e-8, ...) {
 ```
 
 ```{r}
+#| code-fold: true
+#| code-summary: "Show the code"
+#' Density Function of Location-Scale Student's t Distribution
+#'
+#' @param x vector of quantiles
+#' @param mu mean
+#' @param sigma standard deviation
+#' @param nu degrees of freedom
+#'
+#' @return density
+dst <- function(x, mu = 0, sigma = 1, nu = 1) {
+  1 / sigma * dt((x - mu) / sigma, nu)
+}
 
+#' Distribution Function of Location-Scale Student's t Distribution
+#'
+#' @param q vector of quantiles
+#' @param mu mean
+#' @param sigma standard deviation
+#' @param nu degrees of freedom
+#'
+#' @return distribution
+pst <- function(q, mu = 0, sigma = 1, nu = 1)  pt((q - mu) / sigma, nu)
 
+#' Quantile Function of Location-Scale Student's t Distribution
+#'
+#' @param p vector of probabilities
+#' @param mu mean
+#' @param sigma standard deviation
+#' @param nu degrees of freedom
+#'
+#' @return distribution
+qst <- function(p, mu = 0, sigma = 1, nu = 1)  qt(p, nu) * sigma + mu
+
+#' Expected Improvement Acquisition Function for a Student's t Surrogate
+#' 
+#' @param mu vector of length m. Mean of a Student's t process at m points.
+#' @param sigma vector of length m. The diagonal of the covariance matrix of a
+#' Student's t process evaluated at m points.
+#' @param nu scalar, degrees of freedom.
+#' @param y_best scalar. Best mean prediction so far on observed points
+#' @param xi scalar, exploration/exploitation trade off
+#' @param task one of "max" or "min", indicating the optimisation problem
+#'
+#' @return EI, vector of length m
 expected_improvement_t <- function(mu,
                                    sigma,
                                    nu,
@@ -694,14 +702,25 @@ expected_improvement_t <- function(mu,
   if (is.null(imp)) stop('task must be "min" or "max"')
   Z <- imp / sigma
   scaled_sigma <- sigma * (1 + (Z^2 - 1)/(nu - 1))
-  ei <- imp * plst(Z, nu = nu) + scaled_sigma * dlst(Z, nu = nu)
+  ei <- imp * pst(Z, nu = nu) + scaled_sigma * dst(Z, nu = nu)
   ei[sigma == 0.0] <- 0.0
   ei
 }
-```
 
-
-```{r}
+#' @param mu vector of length m. Mean of a Student's t process at m points.
+#' @param sigma vector of length m. The diagonal of the covariance matrix of a
+#' Student's t process evaluated at m points.
+#' @param nu scalar, degrees of freedom.
+#' @param X_pred matrix of dimensions (m X 1) representing m prediction points
+#' with one dimension.
+#' @param X_train matrix of dimensions (n X 1) representing n training points
+#' with one dimension
+#' @param y_train vector of length n representing n observations at points
+#' X_train
+#' @param true_function function representing the objective function (in real
+#' life, this function is unknown and cannot be plotted)
+#'
+#' @return ggplot2 plot
 tp_1d_plot <- function(mu,
                        sigma,
                        nu,
@@ -713,8 +732,8 @@ tp_1d_plot <- function(mu,
     x = X_pred,
     mu = mu,
     sigma = sigma,
-    upper = qt(0.945, nu, TRUE, FALSE) * sigma + mu,
-    lower = qt(0.055, nu, TRUE, FALSE) * sigma + mu,
+    upper = qst(0.945, mu, sigma, nu),
+    lower = qst(0.055, mu, sigma, nu),
     f = true_function(X_pred)
   ) %>%
     ggplot(aes(x = x)) +
@@ -742,14 +761,45 @@ tp_1d_plot <- function(mu,
     ) +
     theme(panel.grid = element_blank(), axis.text.x = element_blank())
 }
+```
 
-tp <- tpr(rbf_kernel, X_train, y_train, nu = 5, noise = 0.1, l = 1, sigma_f = 1)
+
+```{r}
+tp <- tpr(
+  kernel = rbf_kernel,
+  X_train = X_train,
+  y_train = y_train,
+  nu = 5,
+  noise = 0.1,
+  l = 1,
+  sigma_f = 1
+)
 post_pred <- tp(X_pred)
 mu <- post_pred$mu
 sigma <- post_pred$sigma
 nu <- post_pred$nu
-ei <- expected_improvement_t(mu, sigma, nu, min(y_train))
-tp_plot <- tp_1d_plot(mu, sigma, nu, X_pred, X_train, y_train, objective_function)
-acquisition_plot(X_pred, ei, tp_plot, xt1 = X_pred[which.max(ei)], label = "EI", title = "Student's t Process Surrogate")
+ei_t <- expected_improvement_t(
+  mu = mu,
+  sigma = sigma,
+  nu = nu,
+  y_best = min(y_train)
+)
+tp_plot <- tp_1d_plot(
+  mu = mu,
+  sigma = sigma,
+  nu = nu,
+  X_pred = X_pred,
+  X_train = X_train,
+  y_train = y_train,
+  true_function = objective_function
+)
+acquisition_plot(
+  X_pred = X_pred,
+  acquisition_function = ei_t,
+  uncertainty_plot = tp_plot,
+  xt1 = X_pred[which.max(ei)],
+  label = "EI",
+  title = "Student's t Process Surrogate"
+)
 ```
 
