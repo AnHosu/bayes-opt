@@ -313,8 +313,8 @@ The formulas can be implemented directly.
 ```{r}
 #' Expected Improvement Acquisition Function
 #' 
-#' @mu vector of length m. Mean of a Gaussian process at m points.
-#' @sigma vector of length m. The diagonal of the covariance matrix of a
+#' @param mu vector of length m. Mean of a Gaussian process at m points.
+#' @param sigma vector of length m. The diagonal of the covariance matrix of a
 #' Gaussian process evaluated at m points.
 #' @param y_best scalar. Best mean prediction so far on observed points
 #' @param xi scalar, exploration/exploitation trade off
