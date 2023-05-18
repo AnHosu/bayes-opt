@@ -63,7 +63,8 @@ The surrogate model will receive five training points and it should be able to r
 
 ```{r}
 X_train <-  matrix(c(0.02, 0.3, 0.5, 0.75, 0.98), 5, 1)
-y_train <- objective_function(X_train) + rnorm(5, 0, 0.05)
+noise <- 0.05
+y_train <- objective_function(X_train) + rnorm(5, 0, noise)
 X_pred <- matrix(seq(0, 1, length.out = 100), 100, 1)
 ```
 
@@ -194,7 +195,7 @@ gpr <- function(kernel, X_train, y_train, noise = 1e-8, ...) {
   }
 }
 
-#' Expected Improvement Acquisition Function
+#' Expected Improvement Acquisition Function for a Gaussian Surrogate
 #' 
 #' @mu vector of length m. Mean of a Gaussian process at m points.
 #' @sigma vector of length m. The diagonal of the covariance matrix of a
@@ -214,6 +215,21 @@ expected_improvement <- function(mu, sigma, y_best, xi = 0.01, task = "min") {
   ei
 }
 
+#' Plot of a Gaussian Process in One Dimension
+#' 
+#' @mu vector of length m. Mean of a Gaussian process at m points.
+#' @sigma vector of length m. The diagonal of the covariance matrix of a
+#' Gaussian process evaluated at m points.
+#' @X_pred matrix of dimensions (m X 1) representing m prediction points with 
+#' one dimension.
+#' @X_train matrix of dimensions (n X 1) representing n training points with one
+#' dimension
+#' @param y_train vector of length n representing n observations at points
+#' X_train
+#' @param true_function function representing the objective function (in real
+#' life, this function is unknown and cannot be plotted)
+#'
+#' @return ggplot2 plot
 gp_1d_plot <- function(mu, sigma, X_pred, X_train, y_train, true_function) {
   tibble::tibble(
     m = mu,
@@ -249,9 +265,21 @@ gp_1d_plot <- function(mu, sigma, X_pred, X_train, y_train, true_function) {
     theme(panel.grid = element_blank(), axis.text.x = element_blank())
 }
 
+#' Plot of Acquisition Function with Surrogate in One Dimension
+#' 
+#' @X_pred matrix of dimensions (m X 1) representing m prediction points with 
+#' one dimension.
+#' @acquisition_function vector of length m representing the acquisition
+#' function evaluated at the m points of X_pred
+#' @param uncertainty_plot the plot of a surrogate model in one dimension
+#' @param xt1 scalar, the point, x, that optimises the acquisition function
+#' @param label character, label for the acquisition function
+#' @param title character, a title for the plot
+#'
+#' @return ggplot2 plot
 acquisition_plot <- function(X_pred,
                              acquisition_function,
-                             gp_plot,
+                             uncertainty_plot,
                              xt1,
                              label = "EI",
                              title = "") {
@@ -265,20 +293,41 @@ acquisition_plot <- function(X_pred,
     theme_minimal() +
     labs(x = "", y = label, colour = "") +
     theme(panel.grid = element_blank())
-  p2 <- gp_plot +
+  p2 <- uncertainty_plot +
     geom_vline(xintercept = xt1, linetype = 2) +
     labs(title = title)
   aligned_plots <- cowplot::align_plots(p2, p1 , align = "v")
   cowplot::plot_grid(aligned_plots[[1]], aligned_plots[[2]], ncol = 1)
 }
 
-gp <- gpr(rbf_kernel, X_train, y_train, noise = 0.1, l = 1, sigma_f = 1)
+gp <- gpr(
+  kernel = rbf_kernel,
+  X_train = X_train,
+  y_train = y_train,
+  noise = 0.1,
+  l = 1,
+  sigma_f = 1
+)
 post_pred <- gp(X_pred)
 mu <- post_pred$mu
 sigma <- post_pred$sigma
-ei <- expected_improvement(mu, sigma, min(y_train))
-gp_plot <- gp_1d_plot(mu, sigma, X_pred, X_train, y_train, objective_function)
-acquisition_plot(X_pred, ei, gp_plot, xt1 = X_pred[which.max(ei)], label = "EI", title = "Gaussian Process Surrogate")
+ei <- expected_improvement(mu = mu, sigma = sigma, y_best = min(y_train))
+gp_plot <- gp_1d_plot(
+  mu = mu,
+  sigma = sigma,
+  X_pred = X_pred,
+  X_train = X_train,
+  y_train = y_train,
+  true_function = objective_function
+)
+acquisition_plot(
+  X_pred = X_pred,
+  acquisition_function = ei,
+  uncertainty_plot = gp_plot,
+  xt1 = X_pred[which.max(ei)],
+  label = "EI",
+  title = "Gaussian Process Surrogate"
+)
 ```
 
 Now let's look at some alternative surrogate models.
@@ -316,13 +365,24 @@ preds <- purrr::map(1:20, function(i) {
 }) %>%
   do.call(cbind, .) %>%
   list(mean = apply(., 1, mean), sd = apply(., 1, sd))
-ei_nn_ens <- expected_improvement(preds$mean, preds$sd, min(y_train))
-ens_plot <- gp_1d_plot(preds$mean, preds$sd, X_pred, X_train, y_train, objective_function)
+ei_nn_ens <- expected_improvement(
+  mu = preds$mean,
+  sigma = preds$sd,
+  y_best = min(y_train)
+)
+ens_plot <- gp_1d_plot(
+  mu = preds$mean,
+  sigma = preds$sd,
+  X_pred = X_pred,
+  X_train = X_train,
+  y_train = y_train,
+  true_function = objective_function
+)
 acquisition_plot(
-  X_pred,
-  ei_nn_ens,
-  ens_plot,
-  X_pred[which.max(ei_nn_ens)],
+  X_pred = X_pred,
+  acquisition_function = ei_nn_ens,
+  uncertainty_plot = ens_plot,
+  xt1 = X_pred[which.max(ei_nn_ens)],
   label = "EI",
   title = "Neural Network Ensemble Surrogate"
 )
@@ -374,15 +434,32 @@ fit <- rstan::sampling(
 )
 # Summarize the results
 y_pred <- rstan::summary(fit, pars = "y_pred")$summary %>%
-  tibble::as_tibble() %>%
-  dplyr::mutate(ei = expected_improvement(mean, sd, min(y_train)))
+  tibble::as_tibble()
 ```
 
 
 ```{r bnn_plot}
-ei_bnn <- expected_improvement(y_pred$mean, y_pred$sd, min(y_train))
-bnn_plot <- gp_1d_plot(y_pred$mean, y_pred$sd, X_pred, X_train, y_train, objective_function)
-acquisition_plot(X_pred, ei_bnn, bnn_plot, X_pred[which.max(ei_bnn)], label = "EI", title = "Bayesian Neural Network Surrogate")
+ei_bnn <- expected_improvement(
+  mu = y_pred$mean,
+  sigma = y_pred$sd,
+  y_best = min(y_train)
+)
+bnn_plot <- gp_1d_plot(
+  mu = y_pred$mean,
+  sigma = y_pred$sd,
+  X_pred = X_pred,
+  X_train = X_train,
+  y_train = y_train,
+  true_function = objective_function
+)
+acquisition_plot(
+  X_pred = X_pred,
+  acquisition_function = ei_bnn,
+  uncertainty_plot = bnn_plot,
+  xt1 = X_pred[which.max(ei_bnn)],
+  label = "EI",
+  title = "Bayesian Neural Network Surrogate"
+)
 ```
 
 In the example above, we first define the black_box_function that we want to optimize. Then, we set the parameters for the Bayesian Neural Network, such as the number of layers and hidden units. The main part of the code is the expected_improvement function, which calculates the Expected Improvement for a given input x, the BNN model, and the current best observed function value best_y. The function computes the improvement for each weight sample drawn from the BNN's posterior distribution and accumulates the total improvement. The Expected Improvement is calculated by dividing the total improvement by the number of samples.
@@ -396,7 +473,7 @@ This example demonstrates how to calculate the Expected Improvement for Bayesian
 ```{r stan_model_bespoke, echo=FALSE}
 #| output: asis
 cat("```stan\n")
-cat(paste(readLines("bnn.stan"), collapse = "\n"))
+cat(paste(readLines("bespoke.stan"), collapse = "\n"))
 cat("\n```")
 ```
 
@@ -430,10 +507,27 @@ y_pred <- rstan::summary(fit, pars = "y_pred")$summary %>%
 
 
 ```{r bespoke_plot}
-# Calculate EI and plot
-ei_besp <- expected_improvement(y_pred$mean, y_pred$sd, min(y_train))
-besp_plot <- gp_1d_plot(y_pred$mean, y_pred$sd, X_pred, X_train, y_train, objective_function)
-acquisition_plot(X_pred, ei_besp, besp_plot, X_pred[which.max(ei_besp)], label = "EI", title = "Bespoke Model Surrogate")
+ei_besp <- expected_improvement(
+  mu = y_pred$mean,
+  sigma = y_pred$sd,
+  y_best = min(y_train)
+)
+besp_plot <- gp_1d_plot(
+  mu = y_pred$mean,
+  sigma = y_pred$sd,
+  X_pred = X_pred,
+  X_train = X_train,
+  y_train = y_train,
+  true_function = objective_function
+)
+acquisition_plot(
+  X_pred = X_pred,
+  acquisition_function = ei_besp,
+  uncertainty_plot = besp_plot,
+  xt1 = X_pred[which.max(ei_besp)],
+  label = "EI",
+  title = "Bespoke Model Surrogate"
+)
 ```
 
 ## Student-t Processes
@@ -533,6 +627,11 @@ rmvst <- function(n = 1, mu, sigma, nu, epsilon = 1e-6) {
   t_samples <- sweep(standard_normal_samples, 1, chi_samples, FUN = `*`)
   sweep(t_samples %*% cholesky, 2, mu, FUN = `+`)
 }
+dlst <- function(x, nu = 1, mu = 0, sigma = 1) {
+  1 / sigma * dt((x - mu) / sigma, nu)
+}
+plst <- function(q, nu = 1, mu = 0, sigma = 1)  pt((q - mu) / sigma, nu)
+qlst <- function(p, nu = 1, mu = 0, sigma = 1)  qt(p, nu) * sigma + mu
 ```
 
 
@@ -582,11 +681,7 @@ tpr <- function(kernel, X_train, y_train, nu = 3, noise = 1e-8, ...) {
 ```
 
 ```{r}
-dlst <- function(x, nu = 1, mu = 0, sigma = 1) {
-  1 / sigma * dt((x - mu) / sigma, nu)
-}
-plst <- function(q, nu = 1, mu = 0, sigma = 1)  pt((q - mu) / sigma, nu)
-qlst <- function(p, nu = 1, mu = 0, sigma = 1)  qt(p, nu) * sigma + mu
+
 
 expected_improvement_t <- function(mu,
                                    sigma,
@@ -607,7 +702,13 @@ expected_improvement_t <- function(mu,
 
 
 ```{r}
-tp_1d_plot <- function(mu, sigma, nu, X_pred, X_train, y_train, true_function) {
+tp_1d_plot <- function(mu,
+                       sigma,
+                       nu,
+                       X_pred,
+                       X_train,
+                       y_train,
+                       true_function) {
   tibble::tibble(
     x = X_pred,
     mu = mu,
