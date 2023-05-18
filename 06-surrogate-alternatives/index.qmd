@@ -445,12 +445,13 @@ Sigma_post
 #' @param X_pred matrix (m, d) of prediction points
 #' @param X_train matrix (n, d) of training points
 #' @param y_train column vector (n, d) of training observations
+#' @param nu scalar, prior degrees of freedom
 #' @param noise scalar of observation noise
 #' @param ... named parameters for the kernel function
 #'
 #' @return list of mean (mu), covariance (sigma), and degrees of freedom (nu)
 #' for the Student's t distribution
-posterior_t <- function(kernel, X_pred, X_train, y_train, noise = 1e-8, ...) {
+posterior_t <- function(kernel, X_pred, X_train, y_train, nu, noise = 1e-8, ...) {
   if (is.null(dim(X_pred))) dim(X_pred) <- c(length(X_pred), 1)
   if (is.null(dim(X_train))) dim(X_train) <- c(length(X_train), 1)
   if (is.null(dim(y_train))) dim(y_train) <- c(length(y_train), 1)
@@ -461,9 +462,9 @@ posterior_t <- function(kernel, X_pred, X_train, y_train, noise = 1e-8, ...) {
   K_inv <- solve(K)
   mu <- (t(K_s) %*% K_inv) %*% y_train
   K_tilde <- K_ss - (t(K_s) %*% K_inv) %*% K_s
-  scale <- ((t(y_train) %*% K_inv) %*% y_train - 2) / (n_train - 2)
+  scale <- ((t(y_train) %*% K_inv) %*% y_train + nu - 2) / (nu + n_train - 2)
   sigma <- K_tilde * as.vector(scale)
-  list(mu = mu, sigma = sigma, nu = n_train)
+  list(mu = mu, sigma = sigma, nu = n_train + nu)
 }
 ```
 
@@ -549,6 +550,7 @@ tpr <- function(kernel, X_train, y_train, nu = 3, noise = 1e-8, ...) {
       X_pred = X_pred,
       X_train = X_train,
       y_train = y_train,
+      nu = nu,
       noise = noise,
       !!!opt_param
     )
@@ -570,6 +572,33 @@ post_pred <- tp(X_pred)
 mu <- post_pred$mu
 sigma <- post_pred$sigma
 nu <- post_pred$nu
+```
+
+
+```{r}
+dlst <- function(x, nu = 1, mu = 0, sigma = 1) {
+  1 / sigma * dt((x - mu) / sigma, nu)
+}
+plst <- function(q, nu = 1, mu = 0, sigma = 1)  pt((q - mu) / sigma, nu)
+qlst <- function(p, nu = 1, mu = 0, sigma = 1)  qt(p, nu) * sigma + mu
+
+expected_improvement_t <- function(mu,
+                                   sigma,
+                                   nu,
+                                   y_best,
+                                   xi = 0.01,
+                                   task = "min") {
+  if (task == "min") imp <- y_best - mu - xi
+  if (task == "max") imp <- mu - y_best - xi
+  if (is.null(imp)) stop('task must be "min" or "max"')
+  Z <- imp / sigma
+  scaled_sigma <- sigma * (1 + (Z^2 - 1)/(nu - 1))
+  ei <- imp * plst(Z, nu = nu) + scaled_sigma * dlst(Z, nu = nu)
+  ei[sigma == 0.0] <- 0.0
+  ei
+}
+
+expected_improvement_t(mu, sigma, nu, min(y_train))
 ```
 
 
