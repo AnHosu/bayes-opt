@@ -17,6 +17,35 @@ Gibbs kernel [@Rasmussen:2006] chapter 4 pg 93.
 
 Applications of Bayesian optimisation [@Reiker2021] & [@Yang2022]
 
+Student's t processes. Or sampling from a multivariate Student's t distribution. [@Hofert2013]
+
+```{r}
+#' Random Samples from a Multivariate Student's t Distribution
+#' 
+#' @param n number of samples to sample
+#' @param mu the mean of each input dimension
+#' @param sigma the covariance matrix
+#' @param nu degrees of freedom
+#' @param epsilon numerical tolerance added to the diagonal of the covariance
+#'  matrix. This is necessary for the Cholesky decomposition, in some cases.
+#'
+#' @return numerical vector of n samples
+rmvst <- function(n = 1, mu, sigma, nu, epsilon = 1e-6) {
+  p <- length(mu)
+  if (!all(dim(sigma) == c(p, p))) stop("incompatible dimensions of arguments")
+  ev <- eigen(sigma, symmetric = TRUE)$values
+  if (!all(ev >= -epsilon * abs(ev[1L]))) {
+    stop("The covariance matrix (sigma) is not positive definite")
+  }
+  cholesky <- chol(sigma + diag(p) * epsilon)
+  standard_normal_samples <- matrix(rnorm(n * p), ncol = p)
+  chi_samples <- sqrt(nu / rchisq(n, df = nu))
+  t_samples <- sweep(standard_normal_samples, 1, chi_samples, FUN = `*`)
+  sweep(t_samples %*% cholesky, 2, mu, FUN = `+`)
+}
+```
+
+
 # References {-}
 
 <div id="refs"></div>
