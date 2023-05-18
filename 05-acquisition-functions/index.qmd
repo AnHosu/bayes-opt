@@ -318,7 +318,7 @@ The formulas can be implemented directly.
 #' Gaussian process evaluated at m points.
 #' @param y_best scalar. Best mean prediction so far on observed points
 #' @param xi scalar, exploration/exploitation trade off
-#' @task one of "max" or "min", indicating the optimisation problem
+#' @param task one of "max" or "min", indicating the optimisation problem
 #'
 #' @return EI, vector of length m
 expected_improvement <- function(mu, sigma, y_best, xi = 0.01, task = "min") {
