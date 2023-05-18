@@ -342,11 +342,14 @@ Instead, we have to condition the BNN on our training data and then sample from 
 Prior, likelihood, model specification.
 
 ```{r stan_model, echo=FALSE}
-writeLines(readLines("bnn.stan"))
+#| output: asis
+cat("```stan\n")
+cat(paste(readLines("bnn.stan"), collapse = "\n"))
+cat("\n```")
 ```
 
 
-```{r}
+```{r bnn, output=FALSE}
 # Compile the model
 model <- rstan::stan_model("bnn.stan")
 # Prepare the data
@@ -373,8 +376,10 @@ fit <- rstan::sampling(
 y_pred <- rstan::summary(fit, pars = "y_pred")$summary %>%
   tibble::as_tibble() %>%
   dplyr::mutate(ei = expected_improvement(mean, sd, min(y_train)))
+```
 
 
+```{r bnn_plot}
 ei_bnn <- expected_improvement(y_pred$mean, y_pred$sd, min(y_train))
 bnn_plot <- gp_1d_plot(y_pred$mean, y_pred$sd, X_pred, X_train, y_train, objective_function)
 acquisition_plot(X_pred, ei_bnn, bnn_plot, X_pred[which.max(ei_bnn)], label = "EI", title = "Bayesian Neural Network Surrogate")
@@ -388,7 +393,15 @@ This example demonstrates how to calculate the Expected Improvement for Bayesian
 
 ## Bespoke
 
-```{r}
+```{r stan_model_bespoke, echo=FALSE}
+#| output: asis
+cat("```stan\n")
+cat(paste(readLines("bnn.stan"), collapse = "\n"))
+cat("\n```")
+```
+
+
+```{r bespoke, output=FALSE}
 # Compile the model
 model <- rstan::stan_model("bespoke.stan")
 # Prepare the data
@@ -413,6 +426,10 @@ fit <- rstan::sampling(
 # Summarize the results
 y_pred <- rstan::summary(fit, pars = "y_pred")$summary %>%
   tibble::as_tibble()
+```
+
+
+```{r bespoke_plot}
 # Calculate EI and plot
 ei_besp <- expected_improvement(y_pred$mean, y_pred$sd, min(y_train))
 besp_plot <- gp_1d_plot(y_pred$mean, y_pred$sd, X_pred, X_train, y_train, objective_function)
