@@ -307,9 +307,9 @@ Now let's look at some alternative surrogate models.
 
 ## Ensembles as Surrogate Models
 
-A single deterministic model will not work as a surrogate for Bayesian optimisation, as it does not offer a measure of uncertainty. Fortunately there is a way for us to use our favourite machine learning model for Bayesian optimisation. If we collect an ensemble of models, we can use the mean and standard deviation of the predictions in place of $\mu(\mathbf{x})$ and $\sigma(\mathbf{x})$.
+A single deterministic model will not work as a surrogate for Bayesian optimisation, as it does not offer a measure of uncertainty. Fortunately there is a way for us to use our favourite machine learning models for Bayesian optimisation. If we collect an ensemble of models, we can use the mean and standard deviation of the predictions in place of $\mu(\mathbf{x})$ and $\sigma(\mathbf{x})$.
 
-There are a few ways in which we could build an ensemble, and they all work as long as we can obtain a measure of uncertainty. For instance, if we had a lot of training data, we could do bagging and train several models on different subsets of the training data and use those as an ensemble. We could also use a stack of different models as an ensemble.
+There are a few ways in which we could build an ensemble, and they all work, as long as the distribution of predictions is Gaussian. For instance, if we had a lot of training data, we could do bagging and train several models on different subsets of the training data and use those as an ensemble. We could also use a stack of different models as an ensemble.
 
 While Bayesian optimisation problems rarely come with a lot of training data, such a situation represents a case where an ensemble might be preferred over a Gaussian process, as Gaussian processes are difficult to scale for large data sets.
 
@@ -317,7 +317,7 @@ Another situation where an ensemble might be preferred over a GP is the case whe
 
 #### Example: A Neural Network Ensemble
 
-As a demonstration of an ensemble used as a surrogate model in the case of our running example, we will fit neural networks. We fit a simple two-layer NN with 5 nodes in each. Rather than fitting different models, we use 20 different initialisations of the same architecture to create an ensemble.
+As a demonstration of an ensemble used as a surrogate model in the case of our running example, we will fit neural networks. We fit a simple two-layer NN with 5 nodes in each. Rather than fitting different models, we use 50 different initialisations of the same architecture to create an ensemble.
 
 ```{r}
 train <- dplyr::bind_cols(
@@ -325,7 +325,7 @@ train <- dplyr::bind_cols(
   tibble::as_tibble(X_train, .name_repair = ~ "x")
 )
 pred <- tibble::as_tibble(X_pred, .name_repair = ~ "x")
-preds <- purrr::map(1:20, function(i) {
+preds <- purrr::map(1:50, function(i) {
   m <- neuralnet::neuralnet(
     y ~ .,
     data = train,
@@ -338,6 +338,11 @@ preds <- purrr::map(1:20, function(i) {
 }) %>%
   do.call(cbind, .) %>%
   list(mean = apply(., 1, mean), sd = apply(., 1, sd))
+```
+
+Note the implicit assumption that the ensemble predictions follow a Gaussian distribution. Depending on the models and ensemble set up, this assumption might be difficult to satisfy, but it is required for calculating the Expected Improvement acquisition function.
+
+```{r}
 ei_nn_ens <- expected_improvement(
   mu = preds$mean,
   sigma = preds$sd,
@@ -363,14 +368,32 @@ acquisition_plot(
 
 The acquisition function evaluated on the ensemble suggests that the next sampling point should be all the way to the right side of search space, as marked by the dashed line. There is another good candidate near the middle though.
 
-Not that an ensemble of NNs is not the right choice 
+An ensemble of NNs is probably not the right choice of surrogate function in this particular case, where a Gaussian process is much more effective. It does work, however, and demonstrates how we might apply deterministic models to accomplish Bayesian optimisation.
+
+If we really like Neural Networks, but would like to extend the 'Bayesian' part to the surrogate as well, we do have an option: Bayesian Neural Networks.
 
 ## Bayesian Neural Networks as Surrogate Models
-Bayesian neural networks (BNNs) are neural networks with weigths and biases that are distributions over parameters rather than deterministic point estimates. BNNs can be an attractive alternative to GPs, as they have the dimensionality reduction capabilities of regular neural networks combined with the probabilistic approach to regression that works so well for GPs. However, as we shall see in a moment, BNNs are not a complete walk in the park.
+Bayesian neural networks (BNNs) are neural networks with weights and biases that are distributions over parameters rather than deterministic point estimates. BNNs can be an attractive alternative to GPs, as they have the dimensionality reduction capabilities of regular neural networks combined with the probabilistic approach to regression that works so well for GPs. However, as we shall see in a moment, BNNs are not a complete walk in the park.
 
 In order to calculate an acquisition function like Expected Improvement, we need a way to estimate the mean and standard deviation functions. Doing so for a BNN is more challenging than for a GP, as BNNs do not have closed-form expressions for the predictive distribution.
 
 Instead, we have to condition the BNN on our training data and then sample from the resulting predictive posterior. There are a few ways to do this and conditioning BNNs is a subject all on its own and not the focus of this post. For now, we will condition our BNN using Hamiltonian Monte Carlo (HMC) in Stan.
+
+#### Example: A Bayesian Neural Network in Stan
+
+To build a BNN, or any Bayesian model for that matter, we need to specify a likelihood function as well as priors for any parameters.
+
+Since we plan on using Expected Improvement as the acquisition function, our likelihood needs to be Gaussian, i.e.
+
+$$y \sim \mathcal{N}(\mu, \sigma|\mathbf{X})$$
+
+Where $\sigma$ is the, possibly known, noise of observations and $\mu$ is the Neural Network function of our training data, $\mathbf{X}$:
+
+$$\mu = NN(\mathbf{X})$$
+
+The NN has weights and biases that need priors.
+
+## PRIORS HERE
 
 Prior, likelihood, model specification.
 
