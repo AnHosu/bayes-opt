@@ -8,7 +8,7 @@ functions {
                      vector w3,
                      real b3) {
     int N = rows(X);
-    matrix[N, 10] hidden;       // output of first layer
+    matrix[N, 4] hidden;       // output of first layer
     matrix[N, 3] hidden2;       // output of the second layer
     vector[N] output;           // network output
     vector[N] ones = rep_vector(1., N);
@@ -28,9 +28,9 @@ data {
   real<lower=0> sigma;
 }
 parameters {
-  matrix[D, 10] w1;             // weights for the first layer
-  vector[10] b1;                // biases for the first layer
-  matrix[10, 3] w2;             // weights for the second layer
+  matrix<lower=0>[D, 4] w1;             // weights for the first layer
+  vector[4] b1;                // biases for the first layer
+  matrix<lower=0>[4, 3] w2;             // weights for the second layer
   vector[3] b2;                 // biases for the second layer
   vector<lower=0>[3] w3;        // weigths for the output layer
   real b3;                      // bias for the output layer
@@ -41,11 +41,11 @@ transformed parameters {
 }
 model {
   // parameter priors
-  to_vector(w1) ~ std_normal();
+  to_vector(w1) ~ inv_gamma(2, 1);
   to_vector(b1) ~ std_normal();
-  to_vector(w2) ~ std_normal();
+  to_vector(w2) ~ inv_gamma(2, 1);
   to_vector(b2) ~ std_normal();
-  to_vector(w3) ~ lognormal(0, 1);
+  to_vector(w3) ~ inv_gamma(2, 1);
   b3 ~ std_normal();
   // likelihood
   y ~ normal(output, sigma);
