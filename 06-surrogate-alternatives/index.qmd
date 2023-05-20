@@ -383,7 +383,7 @@ Instead, we have to condition the BNN on our training data and then sample from 
 
 To build a BNN, or any Bayesian model for that matter, we need to specify a likelihood function as well as priors for any parameters.
 
-Since we plan on using Expected Improvement as the acquisition function, our likelihood needs to be Gaussian, i.e.
+Since we plan on using Expected Improvement as the acquisition function, our likelihood  be Gaussian, i.e.
 
 $$y \sim \mathcal{N}(\mu, \sigma|\mathbf{X})$$
 
@@ -423,7 +423,7 @@ data <- list(
   y = as.vector(y_train),
   M = dim(X_pred)[[1]],
   X_pred = X_pred,
-  sigma = 0.05
+  sigma = noise
 )
 # Fit the model using HMC sampling
 fit <- rstan::sampling(
@@ -472,9 +472,25 @@ This example demonstrates how to use a Bayesian Neural Network and how to calcul
 
 In a real-world case, we should probably not use Stan and Hamiltonian Monte Carlo to work with BNNs, as the posterior is extremely difficult to sample. In fact, the simple example above took a very long time to get working. A better choice would probably be to use specialised NN libraries.
 
-## Bespoke Models as Surrogates
+## Bespoke Bayesian Models as Surrogates
 
-Since we
+In the precious section, we discussed how to build a Bayesian Neural Network using Hamiltonian Monte Carlo (HMC). While it did work, it is not what Stan was built for. Stan was built for applying HMC to bespoke models. In this case, bespoke means models that are uniquely tailored to the underlying generative process of the data.
+
+When using a GP, we are somewhat limited in the types of objective functions we can model. By combining kernels, we can do a lot to tweak the type of functions a GP surrogate can model, but even then the resulting kernel parameters might be hard to interpret. If we happen to have some prior knowledge about the objective process, then we might prefer a model that is parametrised in an interpretable way.
+
+In the context of Bayesian optimisation, it is not often the case that we have intimate knowledge of the objective process that generated the data. We typically also want to prioritise actual optimisation over obtaining interpretable process knowledge, which is why we apply a general purpose model like a GP.
+
+If, however, we have knowledge of the generative process and we can turn that knowledge into a bespoke probabilistic model, then we have a very powerful tool for optimisation and interpretation.
+
+#### Example: A Bespoke Model in Stan
+
+To demonstrate how to use a bespoke model as a surrogate for Bayesian optimisation, we are going to build one for our running example.
+
+Building a bespoke model requires some prior, possibly incomplete, knowledge of the process that generated the data. So in this case, we imagine that we know the general form of the objective function, but we have no idea about the value of the constants.
+
+The model has two general components: a likelihood function as well as priors for any parameters. Let's start with the likelihood.
+
+Since we plan on using the Expected Improvement acquisition function, we should probably assum
 
 ```{r stan_model_bespoke, echo=FALSE}
 #| output: asis
