@@ -391,11 +391,15 @@ Where $\sigma$ is the, possibly known, noise of observations and $\mu$ is the Ne
 
 $$\mu = NN(\mathbf{X})$$
 
-The NN has weights and biases that need priors.
+For this example we will use a NN with two hidden layers before the output layer. The NN has weights and biases that need priors. For the weights in the hidden layers and for all biases, we will just use a standard normal prior
 
-## PRIORS HERE
+$$\{\mathbf{w}_1, \mathbf{w}_2, \mathbf{b}_1, \mathbf{b}_2, b_{output}\} \sim \mathcal{N}(0, 1)$$
 
-Prior, likelihood, model specification.
+For the weights in the output layer, I went with a log-normal prior to prevent sampling two equal networks where the signs on the output weights are opposite.
+
+$$\mathbf{x}_{output} \sim {\sf LogNormal}(0, 1)$$
+
+Here is the full model specification:
 
 ```{r stan_model, echo=FALSE}
 #| output: asis
@@ -404,6 +408,9 @@ cat(paste(readLines("bnn.stan"), collapse = "\n"))
 cat("\n```")
 ```
 
+Now we can try to sample from the model. This means that we are essentially trying to collect samples from the posterior distribution of NNs with this particular architecture conditioned on our training data.
+
+While sampling the model, we also sample posterior predictions by generating a forward pass of the model for a grid of inputs.
 
 ```{r bnn, output=FALSE}
 # Compile the model
@@ -433,6 +440,7 @@ y_pred <- rstan::summary(fit, pars = "y_pred")$summary %>%
   tibble::as_tibble()
 ```
 
+We can use the mean and standard deviation of the posterior predictions to calculate the Expected Improvement acquisition function.
 
 ```{r bnn_plot}
 ei_bnn <- expected_improvement(
@@ -440,6 +448,8 @@ ei_bnn <- expected_improvement(
   sigma = y_pred$sd,
   y_best = min(y_train)
 )
+# We should actually use the samples to generate the ribbons on the uncertainty
+#  plot, but this method makes for a prettier plot.
 bnn_plot <- gp_1d_plot(
   mu = y_pred$mean,
   sigma = y_pred$sd,
@@ -458,13 +468,13 @@ acquisition_plot(
 )
 ```
 
-In the example above, we first define the black_box_function that we want to optimize. Then, we set the parameters for the Bayesian Neural Network, such as the number of layers and hidden units. The main part of the code is the expected_improvement function, which calculates the Expected Improvement for a given input x, the BNN model, and the current best observed function value best_y. The function computes the improvement for each weight sample drawn from the BNN's posterior distribution and accumulates the total improvement. The Expected Improvement is calculated by dividing the total improvement by the number of samples.
+This example demonstrates how to use a Bayesian Neural Network and how to calculate Expected Improvement to select a new sampling point.
 
-The optimize_acquisition_function function is responsible for finding the next point to evaluate by optimizing the acquisition function. It takes the BNN model and the current best observed function value as inputs and returns the input x_star that maximizes the Expected Improvement.
+In a real-world case, we should probably not use Stan and Hamiltonian Monte Carlo to work with BNNs, as the posterior is extremely difficult to sample. In fact, the simple example above took a very long time to get working. A better choice would probably be to use specialised NN libraries.
 
-This example demonstrates how to calculate the Expected Improvement for Bayesian Neural Networks using Monte Carlo methods. Note that this is a simplified example that does not include the complete implementation of a BNN or the optimization of its hyperparameters.
+## Bespoke Models as Surrogates
 
-## Bespoke
+Since we
 
 ```{r stan_model_bespoke, echo=FALSE}
 #| output: asis
@@ -589,7 +599,7 @@ posterior_t <- function(kernel,
 
 Negative log likelihood
 
-$$\text{NLL}(y|X) = -\log\left(\frac{\Gamma\left(\frac{\nu + n}{2}\right)}{\Gamma\left(\frac{\nu}{2}\right)(\nu \pi)^{\frac{n}{2}}\sqrt{\lvert K + \sigma^2I \rvert}\left(1 + \frac{1}{\nu} y^T(K + \sigma^2I)^{-1}y\right)^{\frac{\nu + n}{2}}}\right)$$
+
 
 Implementation inspired by algo from Rasmussen 2006 ch 2.
 

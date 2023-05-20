@@ -32,7 +32,7 @@ parameters {
   vector[10] b1;                // biases for the first layer
   matrix[10, 3] w2;             // weights for the second layer
   vector[3] b2;                 // biases for the second layer
-  vector<lower=0>[3] w3;                 // weigths for the output layer
+  vector<lower=0>[3] w3;        // weigths for the output layer
   real b3;                      // bias for the output layer
 }
 transformed parameters {
