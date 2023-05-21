@@ -391,13 +391,9 @@ Where $\sigma$ is the, possibly known, noise of observations and $\mu$ is the Ne
 
 $$\mu = NN(\mathbf{X})$$
 
-For this example we will use a NN with two hidden layers before the output layer. The NN has weights and biases that need priors. For the weights in the hidden layers and for all biases, we will just use a standard normal prior
+For this example, we will use a NN with a single hidden layer before the output layer. The NN has weights and biases that need priors. We will just use a wide normal prior
 
-$$\{\mathbf{w}_1, \mathbf{w}_2, \mathbf{b}_1, \mathbf{b}_2, b_{output}\} \sim \mathcal{N}(0, 1)$$
-
-For the weights in the output layer, I went with a log-normal prior to prevent sampling two equal networks where the signs on the output weights are opposite.
-
-$$\mathbf{x}_{output} \sim {\sf LogNormal}(0, 1)$$
+$$\{\mathbf{w}_{hidden}, \mathbf{b}_{hidden}, \mathbf{x}_{output}, b_{output}\} \sim \mathcal{N}(0, 4)$$
 
 Here is the full model specification:
 
@@ -423,7 +419,8 @@ data <- list(
   y = as.vector(y_train),
   M = dim(X_pred)[[1]],
   X_pred = X_pred,
-  sigma = noise
+  sigma = noise,
+  n_hidden = 5
 )
 # Fit the model using HMC sampling
 fit <- rstan::sampling(
@@ -431,9 +428,10 @@ fit <- rstan::sampling(
   data = data,
   chains = 4,
   cores = 4,
-  iter = 10000,
-  warmup = 4000,
-  seed = seed
+  iter = 16000,
+  warmup = 8000,
+  seed = seed,
+  control = list(adapt_delta = 0.99)
 )
 # Summarize the results
 y_pred <- rstan::summary(fit, pars = "y_pred")$summary %>%
@@ -466,6 +464,12 @@ acquisition_plot(
   label = "EI",
   title = "Bayesian Neural Network Surrogate"
 )
+```
+
+
+```{r}
+pairs(fit, pars = c("w1"))
+hist(extraDistr::rinvgamma(1e5, 6, 4), breaks = 1e3)
 ```
 
 This example demonstrates how to use a Bayesian Neural Network and how to calculate Expected Improvement to select a new sampling point.
