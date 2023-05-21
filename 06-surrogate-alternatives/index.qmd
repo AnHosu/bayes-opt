@@ -393,7 +393,7 @@ $$\mu = NN(\mathbf{X})$$
 
 For this example, we will use a NN with a single hidden layer before the output layer. The NN has weights and biases that need priors. We will just use a wide normal prior
 
-$$\{\mathbf{w}_{hidden}, \mathbf{b}_{hidden}, \mathbf{x}_{output}, b_{output}\} \sim \mathcal{N}(0, 4)$$
+$$\{\mathbf{w}_{hidden}, \mathbf{b}_{hidden}, \mathbf{x}_{output}, b_{output}\} \sim \mathcal{N}(0, 3)$$
 
 Here is the full model specification:
 
@@ -466,15 +466,9 @@ acquisition_plot(
 )
 ```
 
-
-```{r}
-pairs(fit, pars = c("w1"))
-hist(extraDistr::rinvgamma(1e5, 6, 4), breaks = 1e3)
-```
-
 This example demonstrates how to use a Bayesian Neural Network and how to calculate Expected Improvement to select a new sampling point.
 
-In a real-world case, we should probably not use Stan and Hamiltonian Monte Carlo to work with BNNs, as the posterior is extremely difficult to sample. In fact, the simple example above took a very long time to get working. A better choice would probably be to use specialised NN libraries.
+In a real-world case, we should probably not use Stan and Hamiltonian Monte Carlo to work with BNNs, as the posterior is extremely difficult to sample. This boils down two the fact that any two units in a layer are interchangeable, so the sampler has to navigate multiple equivalent areas of the posterior. Even the simple example above took a very long time to get working. A better choice would probably be to use specialised NN libraries like Pytorch to build a BNN.
 
 ## Bespoke Bayesian Models as Surrogates
 
@@ -494,7 +488,13 @@ Building a bespoke model requires some prior, possibly incomplete, knowledge of 
 
 The model has two general components: a likelihood function as well as priors for any parameters. Let's start with the likelihood.
 
-Since we plan on using the Expected Improvement acquisition function, we should probably assum
+For the likelihood we assume observations with Gaussian noise
+
+$$y \sim \mathcal{N}(\mu, \sigma|\mathbf{X})$$
+
+Where $\sigma$ is the, possibly known, noise of observations and $\mu$ is a function of our training data, $\mathbf{X}$:
+
+$$\mu = \mathbf{X} * sin(\mathbf{X} * \alpha) + \beta$$
 
 ```{r stan_model_bespoke, echo=FALSE}
 #| output: asis
@@ -524,7 +524,8 @@ fit <- rstan::sampling(
   cores = 4,
   iter = 10000,
   warmup = 4000,
-  seed = seed
+  seed = seed,
+  control = list(adapt_delta = 0.99)
 )
 # Summarize the results
 y_pred <- rstan::summary(fit, pars = "y_pred")$summary %>%

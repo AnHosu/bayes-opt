@@ -1,6 +1,6 @@
 functions {
   vector bespoke_model(vector X, real alpha, real beta) {
-    return(X .* sin(X * alpha) + beta);
+    return(X .* sin(X * alpha) + beta * (X .* X));
   }
 }
 data {
