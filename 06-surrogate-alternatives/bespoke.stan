@@ -6,9 +6,9 @@ functions {
 data {
   int<lower=1> N;               // number of data points
   int<lower=1> M;               // number of points in prediction grid
-  vector[N] X;               // matrix of covariates
+  vector[N] X;                  // matrix of covariates
   vector[N] y;                  // vector of observed responses
-  vector[M] X_pred;          // matrix of covariates for prediction grid
+  vector[M] X_pred;             // matrix of covariates for prediction grid
   real<lower=0> sigma_rate;
 }
 parameters {
@@ -21,8 +21,8 @@ transformed parameters {
   mu = bespoke_model(X, alpha, beta);
 }
 model {
-  alpha ~ normal(6, 2);
-  beta ~ normal(5, 2);
+  alpha ~ normal(10, 2);
+  beta ~ normal(2, 2);
   sigma ~ exponential(sigma_rate);
   y ~ normal(mu, sigma);
 }
