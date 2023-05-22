@@ -494,7 +494,7 @@ $$y \sim \mathcal{N}(\mu, \sigma|\mathbf{X})$$
 
 Where $\sigma$ is the, possibly known, noise of observations and $\mu$ is a function of our training data, $\mathbf{X}$:
 
-$$\mu = \mathbf{X} * sin(\mathbf{X} * \alpha) + \beta$$
+$$\mu = \mathbf{X} * sin(\mathbf{X} * \alpha) + \beta\mathbf{X}^2$$
 
 ```{r stan_model_bespoke, echo=FALSE}
 #| output: asis
@@ -561,15 +561,45 @@ acquisition_plot(
 
 Student-t Processes (TPs) are an alternative to Gaussian Processes (GPs) that can better model heavy-tailed and non-Gaussian noise. They are defined similarly to GPs but use the Student-t distribution instead of the Gaussian distribution.
 
-#### Expected Improvement with Student-t Processes
-
 Robust to outliers (bayesoptbook 2.8)
 
-To implement a Student's t Process, we need three things: an expression for the negative log likelihood so we can optimise hyperparameters of the process, an expression for the posterior predictive distribution parameters so we can generate predictions, and a function for sampling from the multivariate Student's t distribution.
+#### Implementing a Student's t Process
 
-Posterior predictive
+The multivariate Student's t distribution is parametrised by a mean function, $\mu$, a covariance matrix, $\mathbf{\Sigma}$, calculated with a kernel function, and the degrees of freedom, $\nu$
 
-$$\nu_{post} = \nu + n_1$$
+The core assumption of a Student's t process is that the likelihood of our observations, $y$, can be described... START HERE
+
+To implement a Student's t Process, we need two things: an expression for the negative log likelihood so we can optimise hyperparameters of the process and an expression for the posterior predictive distribution parameters so we can generate predictions.
+
+Since the focus of this post is the application of surrogate models, we will just quickly review the expressions for these components. This does mean that we will be making some tacit assumptions. For a comprehensive treatment of Student's t processes, see [@Shah2014] and [@Tang2017].
+
+We will start by looking at expressions for the posterior predictive distribution of a Student's t process.
+
+##### Posterior Predictive Multivariate Student's t
+
+
+
+Given a set of training data, $\mathbf{X}_t, \mathbf{y}_t$, and set of points on which to make predictions, $\mathbf{X}_p$, the mean of the posterior predictive distribution is
+
+$$\mathbf{\mu}_{p|t} = \mathbf{\mu}_p + \mathbf{\Sigma}_{tp}^T \mathbf{\Sigma}_{tt}^{-1} (\mathbf{y}_t - \mathbf{\mu}_t)$$
+
+Where $\mathbf{\Sigma}_{tp}$ is the covariance matrix between training and prediction points and $\mathbf{\Sigma}_{tt}$ is the covariance matrix between training points.
+
+We often assume that $\mathbf{\mu} = \mathbf{0}$, so the equation will show up as 
+
+$$\mathbf{\mu}_{p|t} = \mathbf{\Sigma}_{tp} \mathbf{\Sigma}_{tt}^{-1} \mathbf{y}_t$$
+
+This is also what we will implement below.
+
+The covariance matrix of the posterior predictive distribution is
+
+$$\mathbf{\Sigma}_{p|t} = \frac{\nu_{prior} - \mathbf{y}_t^T\mathbf{\Sigma}_{tt}^{-1}\mathbf{y}_t - 2}{\nu_{prior} + n_t - 2 }(\mathbf{\Sigma}_{pp} - \mathbf{\Sigma}_{tp}^T \mathbf{\Sigma}_{tt}^{-1} \mathbf{\Sigma}_{tp})$$
+
+Where $\mathbf{\Sigma}_{pp}$ is the covariance matrix between prediction points and where we once again assume $\mathbf{\mu} = \mathbf{0}$.
+
+Finally, we need the expression for posterior degrees of freedom.
+
+$$\nu_{post} = \nu_{prior} + n_{train}$$
 
 mu_post
 
