@@ -676,6 +676,7 @@ posterior_t <- function(kernel,
 
 Negative log likelihood
 
+$$\begin{aligned} \log p(\mathbf{y}_t \mid \mathbf{X}_t, \theta) =\,& \log\Gamma\left(\frac{\nu + n}{2}\right) \\ &- \log\Gamma\left(\frac{\nu}{2}\right) \\ &- \frac{1}{2}\log\det (\mathbf{\Sigma}_{tt} + \sigma_{\epsilon}^2 \mathbf{I}) \\ &- \frac{1}{2}(\nu+n)\log\left(1+\frac{\mathbf{y}_t^T (\mathbf{\Sigma}_{tt} + \sigma_{\epsilon}^2 \mathbf{I})^{-1} \mathbf{y}_t}{\nu-2}\right) \\ &- \frac{1}{2}n \log((\nu-2)\pi) \end{aligned}$$
 
 
 Implementation inspired by algo from Rasmussen 2006 ch 2 [@Rasmussen:2006].
