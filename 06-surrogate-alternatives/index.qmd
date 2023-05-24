@@ -1,5 +1,6 @@
 ---
 title: ""
+bibliography: references.bib
 csl: ../citation_style.csl
 format:
   html:
@@ -12,9 +13,9 @@ html-math-method:
 
 [Bayesian optimisation](../bayes-opt-r) is a powerful optimisation technique for black-box functions and processes with expensive evaluations. It is popular for hyperparameter tuning and model selection in machine learning, but has many real-world applications as well.
 
-One of the key components of Bayesian optimisation is the surrogate model, which models the objective function and helps guide optimisation by being a cheap to evaluate representation of our posterior beliefs. Gaussian processes are commonly used as surrogate functions, as they offer many of the qualities we need when doing Bayesian optimisation. However, there are alternatives to Gaussian processes and, in this post, we will dive into the role of surrogate models in Bayesian optimisation, focusing on four types of surrogate models that are not Gaussian processes.
+One of the key components of Bayesian optimisation is the surrogate model, which models the objective function and helps guide optimisation by being a cheap to evaluate representation of our posterior beliefs. Gaussian processes (GPs) are commonly used as surrogate functions, as they offer many of the qualities we need, when doing Bayesian optimisation. However, there are alternatives to GPs and, in this post, we will dive into the role of surrogate models in Bayesian optimisation, focusing on four types of surrogate models that are not GPs.
 
-Along with the discussion, are implementations in R.
+Specifically, we will discuss ensembles, Bayesian Neural Networks, bespoke Bayesian models, and Student's t processes as potential surrogate models for Bayesian optimisation. Along with the discussion, are implementations in R.
 
 ```{r func, echo=TRUE}
 library(ggplot2)
@@ -25,21 +26,21 @@ set.seed(seed)
 
 ## Surrogate Models in Bayesian Optimisation
 
-In Bayesian optimisation, we are conducting experiments on an objective function or process, $f$, that is very expensive to evaluate. The objective function is evaluated on a search space $\mathcal{X}$, one point, $\mathbf{x} \in \mathcal{X}$, at a time and we are looking for the point, $\mathbf{x}^+$ , that optimises the objective function. We do this in a sequential manner, where we consider the next point, $\mathbf{x}_{t+1}$, to evaluate after sampling the previous point. To help decide on the next point, we employ an acquisition function, $a(\mathbf{x})$, that should be easy to optimise on the search space:
+In Bayesian optimisation, we are conducting experiments on an objective function or process, $f$, that is very expensive to evaluate. The objective function is evaluated on a search space, $\mathcal{X}$, one point, $\mathbf{x} \in \mathcal{X}$, at a time and we are looking for the point, $\mathbf{x}^+$ , that optimises the objective function. We do this in a sequential manner, where we consider the next point, $\mathbf{x}_{t+1}$, given the knowledge from all previously sampled points. To help decide on the next point, we employ an acquisition function, $a(\mathbf{x})$, that should be easy to optimise on the search space:
 
-$$\mathbf{x}_{t+1} = \arg\min_{\mathbf{x} \in \mathcal{X}} a(\mathbf{x})$$
+$$\mathbf{x}_{t+1} = \arg\max_{\mathbf{x} \in \mathcal{X}} a(\mathbf{x})$$
 
-The acquisition function is itself a function of the surrogate model. The surrogate is a regression model that is used to approximate the objective function and it provides predictions of the objective function values and uncertainty estimates at unobserved points in the input space.
+The acquisition function is itself a function of the surrogate model. The surrogate is a regression model that is used to approximate the objective function and it provides predictions of the objective function values and uncertainty estimates at unobserved points in the search space.
 
 Specifically, many acquisition functions are functions of the mean $\mu(\mathbf{x})$ and standard deviation $\sigma(\mathbf{x})$ across the search space. In those cases, the surrogate model should provide estimates of those two. In this definition is also the implicit assumption that the likelihood of the surrogate model is Gaussian.
 
-Gaussian processes, are often used as surrogate models because they explicitly satisfy this assumption. With a Gaussian process, it is easy to isolate the two necessary components. $\mu(\mathbf{x})$ is simply the posterior mean function and $\sigma(\mathbf{x})$ is an entry on the diagonal of the posterior covariance matrix.
+Gaussian processes, are often used as surrogate models because they explicitly satisfy this assumption. With a Gaussian process, it is easy to isolate the two necessary components. $\mu(\mathbf{x})$ is simply the posterior predictive mean function and $\sigma(\mathbf{x})$ is an entry on the diagonal in the covariance matrix of the posterior predictive distribution.
 
-There are, however, alternatives to Gaussian processes as surrogates and four of them are discussed below. While there are [acquisition functions](.../post/acquisition-functions-r/) that rely on more complex mechanisms, this post focuses on surrogate models that support acquisition functions which are in some way a function of $\mu(\mathbf{x})$ and $\sigma(\mathbf{x})$. The first three also assume a Gaussian likelihood, whereas the last surrogate discussed, Student's t processes, assume a Student's t likelihood.
+There are, however, alternatives to Gaussian processes as surrogates and four of them are discussed below. While there are [acquisition functions](.../post/acquisition-functions-r/) that rely on more complex mechanisms, this post focuses on surrogate models that support acquisition functions which are in some way a function of $\mu(\mathbf{x})$ and $\sigma(\mathbf{x})$. The first three also assume a Gaussian likelihood, whereas the last surrogate discussed, Student's t processes, assumes a Student's t likelihood.
 
 #### An Example Problem
 
-For the demonstration of acquisition functions, we need a toy problem. We will use a simple objective function with noise and a single dimension.
+To demonstrate the surrogate models, we need a toy problem. We will use a simple objective function with noise and a single dimension.
 
 ```{r}
 objective_function <- function(x) {
@@ -61,7 +62,7 @@ ggplot() +
 
 We will approximate the the objective function with different surrogate models.
 
-The surrogate model will receive five training points. For evaluating the acquisition function, we use a prediction grid to approximate the search space.
+Each surrogate model will receive the same five training points. For evaluating the acquisition function, we use a prediction grid to approximate the search space.
 
 ```{r}
 X_train <-  matrix(c(0.02, 0.3, 0.5, 0.75, 0.98), 5, 1)
@@ -342,7 +343,7 @@ preds <- purrr::map(1:50, function(i) {
   list(mean = apply(., 1, mean), sd = apply(., 1, sd))
 ```
 
-Note the implicit assumption that the ensemble predictions follow a Gaussian distribution. Depending on the models and ensemble set up, this assumption might be difficult to satisfy, but it is required for calculating the Expected Improvement acquisition function.
+Note the assumption that the ensemble predictions follow a Gaussian distribution. Depending on the models and ensemble set up, this assumption might be difficult to satisfy, but it is required for calculating the Expected Improvement acquisition function.
 
 ```{r}
 ei_nn_ens <- expected_improvement(
@@ -392,11 +393,13 @@ $$y \sim \mathcal{N}(\mu, \sigma|\mathbf{X}, \theta)$$
 
 Where $\sigma$ is the, possibly known, noise of observations and $\mu$ is the Neural Network function of our training data, $\mathbf{X}$:
 
-$$\mu = NN(\mathbf{X}, \theta)$$
+$$\mu = {\sf NN}(\mathbf{X}, \theta)$$
 
 with $\theta$ representing the weights and bias parameters of the NN.
 
-For this example, we will use a NN with a single hidden layer before the output layer. The NN weights and biases need priors. We will just use a wide normal prior
+For this example, we will use a NN with a single hidden layer before the output layer.
+
+Next we need to specify priors for the weights and biases. Since we have no knowledge of what constitutes good values, we will just use a wide normal prior
 
 $$\theta = \{\mathbf{w}_{hidden}, \mathbf{b}_{hidden}, \mathbf{x}_{output}, b_{output}\} \sim \mathcal{N}(0, 3)$$
 
@@ -473,15 +476,13 @@ acquisition_plot(
 
 The acquisition function evaluated on the BNN surrogate suggests that the next sampling point should be all the way to the right side of search space, as marked by the dashed line. There is another good candidate near the middle though. This is very similar to the ensemble surrogate above.
 
-This example demonstrated how to use a Bayesian Neural Network as a surrogate model and how to calculate Expected Improvement to select a new sampling point. In a real-world case, we should probably not use Stan and HMC to work with BNNs, as the posterior is extremely difficult to sample. This boils down to the fact that any two units in a layer are interchangeable, so the sampler has to navigate multiple equivalent areas of the posterior. Even the simple example above took a very long time to get working. A better choice would probably be to use specialised NN libraries like Pytorch to build a BNN.
+This example demonstrated how to use a BNN as a surrogate model and how to calculate Expected Improvement to select a new sampling point. In a real-world case, we should probably not use Stan and HMC to work with BNNs, as the posterior is extremely difficult to sample. This boils down to the fact that any two units in a layer are interchangeable, so the sampler has to navigate multiple equivalent areas of the posterior. Even the simple example above took a very long time to get working. A better choice would probably be to use specialised NN libraries like Pytorch to build a BNN.
 
 ## Bespoke Bayesian Models as Surrogates
 
 In the precious section, we discussed how to build a Bayesian Neural Network using Hamiltonian Monte Carlo (HMC). While it did work, it is not what Stan was built for. Stan was built for applying HMC to bespoke models. In this case, bespoke means models that are uniquely tailored to the underlying generative process of the data.
 
-When using a GP, we are somewhat limited in the types of objective functions we can model. By combining kernels, we can do a lot to tweak the type of functions a GP surrogate can model, but even then, the resulting kernel parameters might be hard to interpret. If we happen to have some prior knowledge about the objective process, then we might prefer a model that is parametrised in an interpretable way.
-
-In the context of Bayesian optimisation, it is not often the case that we have intimate knowledge of the objective process that generated the data. We typically also want to prioritise actual optimisation over obtaining interpretable process knowledge, which is why we apply a general purpose model like a GP.
+When using a GP, we are somewhat limited in the types of objective functions we can model. By combining kernels, we can do a lot to tweak the type of functions a GP surrogate can model, but even then the resulting kernel parameters might be hard to interpret. If we happen to have some prior knowledge about the generative structure of the objective function, then we might be able to leverage that to create a surrogate that is parametrised in an interpretable way. In the context of Bayesian optimisation, it is not often the case that we have such intimate knowledge of the objective process that generated the data. We typically also want to prioritise actual optimisation over obtaining interpretable process knowledge, which is why we apply a general purpose model like a GP.
 
 If, however, we have knowledge of the generative process and we can turn that knowledge into a bespoke probabilistic model, then we have a very powerful tool for optimisation and interpretation.
 
@@ -499,7 +500,7 @@ $$y \sim \mathcal{N}(\mu, \sigma|\mathbf{X},\alpha,\beta)$$
 
 Where $\sigma$ is the, possibly known, noise of observations and $\mu$ is a function of our training data, $\mathbf{X}$:
 
-$$\mu = \mathbf{X} * sin(\mathbf{X} * \alpha) + \beta\mathbf{X}^2$$
+$$\mu = \mathbf{X}\sin(\mathbf{X}\alpha) + \beta\mathbf{X}^2$$
 
 with $\alpha$ and $\beta$ being unknown parameters of the model.
 
@@ -582,9 +583,9 @@ This is not our best surrogate so far, but since the model has the same function
 
 This example demonstrated how to use a bespoke Bayesian model as a surrogate and how to calculate Expected Improvement to select a new sampling point. In a real-world case, we need to have extensive knowledge of the objective function to use this type of surrogate, but it is a powerful tool to create interpretable models.
 
-## Student-t Processes
+## Student's t Processes as Surrogate Models
 
-Student-t Processes (TPs) are an alternative to Gaussian Processes (GPs) that can better model heavy-tailed and non-Gaussian noise. They are defined similarly to GPs but use the Student-t distribution instead of the Gaussian distribution.
+Student's t Processes (TPs) are an alternative to GPs that can better model heavy-tailed and non-Gaussian noise. They are defined similarly to GPs but use the Student-t distribution instead of the Gaussian distribution.
 
 Robust to outliers (bayesoptbook 2.8)
 
@@ -677,7 +678,7 @@ Negative log likelihood
 
 
 
-Implementation inspired by algo from Rasmussen 2006 ch 2.
+Implementation inspired by algo from Rasmussen 2006 ch 2 [@Rasmussen:2006].
 
 ```{r}
 #' Student's t Negative log-Likelihood of a Kernel
@@ -912,3 +913,10 @@ acquisition_plot(
 )
 ```
 
+# References {-}
+
+<div id="refs"></div>
+
+# License
+
+The content of this project itself is licensed under the [Creative Commons Attribution-ShareAlike 4.0 International license](https://creativecommons.org/licenses/by-sa/4.0/), and the underlying code is licensed under the [GNU General Public License v3.0 license](https://github.com/AnHosu/bespoke-bayesian-biochem/blob/main/LICENSE).
