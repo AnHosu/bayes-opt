@@ -585,9 +585,11 @@ This example demonstrated how to use a bespoke Bayesian model as a surrogate and
 
 ## Student's t Processes as Surrogate Models
 
-Student's t Processes (TPs) are an alternative to GPs that can better model heavy-tailed and non-Gaussian noise. They are defined similarly to GPs but use the Student-t distribution instead of the Gaussian distribution.
+While GPs are excellent general-purpose surrogate models, they come with the limitation that they expect observational noise to have a Gaussian distribution. This means that GPs might not be compatible with observations from processes that are prone to outliers or otherwise cause noise with a heavy-tailed distribution [@garnett_bayesoptbook_2023].
 
-Robust to outliers (bayesoptbook 2.8)
+A Student's t process (TP) can be viewed as a generalisation of a GP. It maintains many of the attractive features of GPs, such as a closed form for marginal and conditional distributions, and the ability to specify a covariance function directly, while offering additional advantages over GPs [@Shah2014]. One such advantage of the TP is its ability to model observations with heavy-tailed noise. In practice, this means that TPs can be robust to outliers or unexpected events that would disproportionately affect a GP [@Tracey2018].
+
+A TP does not solve all problems, as there will exist cases where the observational noise is not compatible with neither a GP nor a TP. However, by applying TP as surrogate model for Bayesian optimisation, we might better capture uncertainty when we have few data points or have extreme variations in data. This property can be particularly valuable when the noise in the data is not well-behaved or when the objective process is prone to abrupt, unpredictable changes.
 
 #### Implementing a Student's t Process
 
@@ -755,6 +757,9 @@ tpr <- function(kernel, X_train, y_train, nu = 3, noise = 1e-8, ...) {
   }
 }
 ```
+
+
+Expected improvement for TPs [@Shah2014] [@Tracey2018]
 
 ```{r}
 #| code-fold: true
