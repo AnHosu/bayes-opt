@@ -593,19 +593,13 @@ A TP does not solve all problems, as there will exist cases where the observatio
 
 #### Implementing a Student's t Process
 
-The multivariate Student's t distribution is parametrised by a mean function, $\mu$, a covariance matrix, $\mathbf{\Sigma}$, calculated with a kernel function, and the degrees of freedom, $\nu$
+The multivariate Student's t distribution is parametrised by a mean function, $\mu$, a covariance matrix, $\mathbf{\Sigma}$, calculated with a kernel function, and the degrees of freedom, $\nu$.
 
-The core assumption of a Student's t process is that the likelihood of our observations, $y$, can be described... START HERE
+To implement a TP, we need two things: an expression for the negative log likelihood so we can optimise hyperparameters of the process and an expression for the posterior predictive distribution parameters so we can generate predictions. Once we have the TP, we then need an acquisition function. Fortunately, a closed form for Expected Improvement also exists for TPs.
 
-To implement a Student's t Process, we need two things: an expression for the negative log likelihood so we can optimise hyperparameters of the process and an expression for the posterior predictive distribution parameters so we can generate predictions.
-
-Since the focus of this post is the application of surrogate models, we will just quickly review the expressions for these components. This does mean that we will be making some tacit assumptions. For a comprehensive treatment of Student's t processes, see [@Shah2014] and [@Tang2017].
-
-We will start by looking at expressions for the posterior predictive distribution of a Student's t process.
+Since the focus of this post is the application of surrogate models, we will just quickly review the expressions for these components. This does mean that we will be making some tacit assumptions. For a comprehensive treatment of TPs, see [@Shah2014] and [@Tang2017].
 
 ##### Posterior Predictive Multivariate Student's t
-
-
 
 Given a set of training data, $\mathbf{X}_t, \mathbf{y}_t$, and set of points on which to make predictions, $\mathbf{X}_p$, the mean of the posterior predictive distribution is
 
@@ -613,7 +607,7 @@ $$\mathbf{\mu}_{p|t} = \mathbf{\mu}_p + \mathbf{\Sigma}_{tp}^T \mathbf{\Sigma}_{
 
 Where $\mathbf{\Sigma}_{tp}$ is the covariance matrix between training and prediction points and $\mathbf{\Sigma}_{tt}$ is the covariance matrix between training points.
 
-We often assume that $\mathbf{\mu} = \mathbf{0}$, so the equation will show up as 
+We often assume that $\mathbf{\mu}_t = \mathbf{0}$, so the equation will show up as 
 
 $$\mathbf{\mu}_{p|t} = \mathbf{\Sigma}_{tp} \mathbf{\Sigma}_{tt}^{-1} \mathbf{y}_t$$
 
@@ -623,15 +617,13 @@ The covariance matrix of the posterior predictive distribution is
 
 $$\mathbf{\Sigma}_{p|t} = \frac{\nu_{prior} - \mathbf{y}_t^T\mathbf{\Sigma}_{tt}^{-1}\mathbf{y}_t - 2}{\nu_{prior} + n_t - 2 }(\mathbf{\Sigma}_{pp} - \mathbf{\Sigma}_{tp}^T \mathbf{\Sigma}_{tt}^{-1} \mathbf{\Sigma}_{tp})$$
 
-Where $\mathbf{\Sigma}_{pp}$ is the covariance matrix between prediction points and where we once again assume $\mathbf{\mu} = \mathbf{0}$.
+Where $\mathbf{\Sigma}_{pp}$ is the covariance matrix between prediction points, $n_t$ is the number of training observations, and where we once again assume $\mathbf{\mu}_t = \mathbf{0}$.
 
-Finally, we need the expression for posterior degrees of freedom.
+Finally, we need the expression for posterior degrees of freedom. We could be conservative and set $\nu_{post} = n_{t}$, but we will go with the following more lenient expression:
 
-$$\nu_{post} = \nu_{prior} + n_{train}$$
+$$\nu_{post} = \nu_{prior} + n_{t}$$
 
-mu_post
-
-Sigma_post
+The implementation is straightforward
 
 ```{r}
 #' Get Parameters of the Posterior Student's t Process
@@ -675,12 +667,13 @@ posterior_t <- function(kernel,
 }
 ```
 
+##### Log Likelihood for a Student's t Process
 
-Negative log likelihood
+The log likelihood [@Rasmussen:2006] [@Shah2014]
 
-$$\begin{aligned} \log p(\mathbf{y}_t \mid \mathbf{X}_t, \theta) =\,& \log\Gamma\left(\frac{\nu + n}{2}\right) \\ &- \log\Gamma\left(\frac{\nu}{2}\right) \\ &- \frac{1}{2}\log\det (\mathbf{\Sigma}_{tt} + \sigma_{\epsilon}^2 \mathbf{I}) \\ &- \frac{1}{2}(\nu+n)\log\left(1+\frac{\mathbf{y}_t^T (\mathbf{\Sigma}_{tt} + \sigma_{\epsilon}^2 \mathbf{I})^{-1} \mathbf{y}_t}{\nu-2}\right) \\ &- \frac{1}{2}n \log((\nu-2)\pi) \end{aligned}$$
+$$\begin{aligned} \log p(\mathbf{y}_t \mid \mathbf{X}_t, \theta) =\,& \log\Gamma\left(\frac{\nu + d}{2}\right) \\ &- \log\Gamma\left(\frac{\nu}{2}\right) \\ &- \frac{1}{2}\log\det (\mathbf{\Sigma}_{tt} + \sigma_{\epsilon}^2 \mathbf{I}) \\ &- \frac{1}{2}(\nu+d)\log\left(1+\frac{\mathbf{y}_t^T (\mathbf{\Sigma}_{tt} + \sigma_{\epsilon}^2 \mathbf{I})^{-1} \mathbf{y}_t}{\nu-2}\right) \\ &- \frac{1}{2}d \log((\nu-2)\pi) \end{aligned}$$
 
-
+Where $d$ is the number of dimensions of the distribution
 Implementation inspired by algo from Rasmussen 2006 ch 2 [@Rasmussen:2006].
 
 ```{r}
@@ -697,21 +690,27 @@ Implementation inspired by algo from Rasmussen 2006 ch 2 [@Rasmussen:2006].
 nll_t <- function(kernel, X_train, y_train, nu, noise) {
   function(params) {
     n <- dim(X_train)[[1]]
+    d <- dim(X_train)[[2]]
     K <- rlang::exec(kernel, X1 = X_train, X2 = X_train, !!!params)
     L <- chol(K + noise**2 * diag(n))
     logdet <- sum(log(diag(L)))
     a <- backsolve(r = L, x = forwardsolve(l = t(L), x = y_train))
     beta <- t(y_train) %*% a
-    (n * log((nu - 2) * pi) + logdet + (nu + n) * log(1 + beta / (nu - 2))) %>%
+    (d * log((nu - 2) * pi) + logdet + (nu + d) * log(1 + beta / (nu - 2))) %>%
       multiply_by(0.5) %>%
-      add(lgamma(nu / 2) - lgamma((nu + n) / 2))
+      add(lgamma(nu / 2) - lgamma((nu + d) / 2))
   }
 }
 ```
 
 
-Sampling
+##### Student's t Process Regression
 
+We are now ready to implement regression with TPs. For a kernel with parameters $\theta$, we apply an optimiser to find the parameter values, $\theta^+$, that minimise the negative log likelihood 
+
+$$\theta^+ = \arg\min_{\theta}(-\log p(\mathbf{y}_t \mid \mathbf{X}_t, \theta))$$
+
+We then utilise TP with these parameters for calculating the acquisition function.
 
 ```{r}
 #' Student's t Process Regression
@@ -731,6 +730,8 @@ tpr <- function(kernel, X_train, y_train, nu = 3, noise = 1e-8, ...) {
   if (nu < 3) stop("nu must be > 2")
   kernel_nll <- nll_t(kernel, X_train, y_train, nu, noise)
   param <- list(...)
+  # We do multiple restarts of the optimiser to avoid getting stuck in local
+  #  minima.
   opt_params <- purrr::map(1:20, function(i) {
     optim(par = rnorm(length(param)), fn = kernel_nll)$par
   })
@@ -758,8 +759,17 @@ tpr <- function(kernel, X_train, y_train, nu = 3, noise = 1e-8, ...) {
 }
 ```
 
+##### Expected Improvement for a Student's t Process
 
-Expected improvement for TPs [@Shah2014] [@Tracey2018]
+When using a TP surrogate model, EI can be calculated using the formula 
+
+$$a_{EI}(\mathbf{x}) = (y_{min} - \mu(\mathbf{x}) - \xi) \Lambda_{\nu_{post}}(Z) + \sigma(\mathbf{x})(1+\frac{Z^2-1}{\nu_{post}-1})\lambda_{\nu_{post}}(Z)$$
+
+with
+
+$$Z = \frac{y_{min} - \mu(\mathbf{x}) - \xi}{\sigma(\mathbf{x})}$$
+
+$\mu(\mathbf{x})$ and $\sigma(\mathbf{x})$ are the posterior predictive mean and standard deviation of the TP at $\mathbf{x}$. $\nu_{post}$ is the posterior degrees of freedom. $\Lambda_{\nu_{post}}$ and $\lambda_{\nu_{post}}$ are the standard Student's t cumulative distribution function and probability density function with $\nu_{post}$ degrees of freedom, respectively. $\xi$ is a trade-off parameter that balances exploration and exploitation [@Shah2014] [@Tracey2018].
 
 ```{r}
 #| code-fold: true
