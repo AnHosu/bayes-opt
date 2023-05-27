@@ -593,17 +593,32 @@ A TP does not solve all problems, as there will exist cases where the observatio
 
 #### Implementing a Student's t Process
 
-The multivariate Student's t distribution is parametrised by a mean function, $\mu$, a covariance matrix, $\mathbf{\Sigma}$, calculated with a kernel function, and the degrees of freedom, $\nu$.
+The multivariate Student's t distribution is parametrised by a mean function, $\mu$, a shape parameter, $\mathbf{\Sigma}$, which is related to the covariance matrix, and the degrees of freedom, $\nu$.
 
 To implement a TP, we need two things: an expression for the negative log likelihood so we can optimise hyperparameters of the process and an expression for the posterior predictive distribution parameters so we can generate predictions. Once we have the TP, we then need an acquisition function. Fortunately, a closed form for Expected Improvement also exists for TPs.
 
-Since the focus of this post is the application of surrogate models, we will just quickly review the expressions for these components. This does mean that we will be making some tacit assumptions. For a comprehensive treatment of TPs, see [@Shah2014] and [@Tang2017].
+Since the focus of this post is the application of surrogate models, we will just quickly review the expressions for these components. This does mean that we will be making some tacit assumptions. For a comprehensive treatment of TPs, see [@Shah2014], [@Tang2017], and [@Tracey2018].
+
+##### Covariance Matrix in Student's t Processes
+
+GPs are parametrised directly by a covariance matrix, $\mathbf{K}$, which is built from evaluation of pairs of input vectors:
+
+$$K_{ij} = k(\mathbf{x}_i,\mathbf{x}_j)$$
+
+Where $k$ is a [kernel function](.../kernels-r).
+
+TPs are a little bit different. Specifically, TPs are parametrised by a shape parameter, $\mathbf{\Sigma}$, which is a scaled covariance matrix:
+
+$$\mathbf{\Sigma} = \frac{\nu}{(\nu - 2)}\mathbf{K}$$
 
 ##### Posterior Predictive Multivariate Student's t
 
 Given a set of training data, $\mathbf{X}_t, \mathbf{y}_t$, and set of points on which to make predictions, $\mathbf{X}_p$, the mean of the posterior predictive distribution is
 
 $$\mathbf{\mu}_{p|t} = \mathbf{\mu}_p + \mathbf{\Sigma}_{tp}^T \mathbf{\Sigma}_{tt}^{-1} (\mathbf{y}_t - \mathbf{\mu}_t)$$
+##### SIGMA SCALING, see [@Tracey] eq 27
+
+Diagonal noise, see [@Shah2014] 4.6. We add noise to the diagonal before scaling, as if we were adding a white noise kernel with a fixed parameter. This is not equivalent to the GP way of accounting for the noise, since we have the scaling in TPs. But for infinite data or infinite nu prior, the two are equivalent.
 
 Where $\mathbf{\Sigma}_{tp}$ is the covariance matrix between training and prediction points and $\mathbf{\Sigma}_{tt}$ is the covariance matrix between training points.
 
@@ -615,6 +630,8 @@ This is also what we will implement below.
 
 The covariance matrix of the posterior predictive distribution is
 
+##### Change to K and add noise term for K_tt
+
 $$\mathbf{\Sigma}_{p|t} = \frac{\nu_{prior} - \mathbf{y}_t^T\mathbf{\Sigma}_{tt}^{-1}\mathbf{y}_t - 2}{\nu_{prior} + n_t - 2 }(\mathbf{\Sigma}_{pp} - \mathbf{\Sigma}_{tp}^T \mathbf{\Sigma}_{tt}^{-1} \mathbf{\Sigma}_{tp})$$
 
 Where $\mathbf{\Sigma}_{pp}$ is the covariance matrix between prediction points, $n_t$ is the number of training observations, and where we once again assume $\mathbf{\mu}_t = \mathbf{0}$.
@@ -623,7 +640,7 @@ Finally, we need the expression for posterior degrees of freedom. We could be co
 
 $$\nu_{post} = \nu_{prior} + n_{t}$$
 
-The implementation is straightforward
+The formulas can be implemented directly to calculate each posterior parameter
 
 ```{r}
 #' Get Parameters of the Posterior Student's t Process
@@ -663,17 +680,19 @@ posterior_t <- function(kernel,
   K_tilde <- K_ss - (t(K_s) %*% K_inv) %*% K_s
   scale <- ((t(y_train) %*% K_inv) %*% y_train + nu - 2) / (nu + n_train - 2)
   sigma <- K_tilde * as.vector(scale)
-  list(mu = mu, sigma = sigma, nu = n_train + nu)
+  list(mu = mu, sigma = sigma * (nu / (nu - 2)), nu = n_train + nu)
 }
 ```
 
 ##### Log Likelihood for a Student's t Process
 
-The log likelihood [@Rasmussen:2006] [@Shah2014]
+The covariance matrix, $\mathbf{\Sigma}$, is calculated using a kernel function with parameters, $\theta$. Analogous to Gaussian process regression, we find good values for these parameters by minimising the negative log likelihood in what is called Student's t process regression.
 
-$$\begin{aligned} \log p(\mathbf{y}_t \mid \mathbf{X}_t, \theta) =\,& \log\Gamma\left(\frac{\nu + d}{2}\right) \\ &- \log\Gamma\left(\frac{\nu}{2}\right) \\ &- \frac{1}{2}\log\det (\mathbf{\Sigma}_{tt} + \sigma_{\epsilon}^2 \mathbf{I}) \\ &- \frac{1}{2}(\nu+d)\log\left(1+\frac{\mathbf{y}_t^T (\mathbf{\Sigma}_{tt} + \sigma_{\epsilon}^2 \mathbf{I})^{-1} \mathbf{y}_t}{\nu-2}\right) \\ &- \frac{1}{2}d \log((\nu-2)\pi) \end{aligned}$$
+The log likelihood likelihood function for at TP is:
 
-Where $d$ is the number of dimensions of the distribution
+$$\begin{aligned} \log p(\mathbf{y}_t \mid \mathbf{X}_t, \theta) =\,& \log\Gamma\left(\frac{\nu + d}{2}\right) \\ &- \log\Gamma\left(\frac{\nu}{2}\right) \\ &- \frac{1}{2}\log\det (\mathbf{\Sigma}_{tt}) \\ &- \frac{1}{2}(\nu+d)\log\left(1+\frac{\mathbf{y}_t^T (\mathbf{\Sigma}_{tt})^{-1} \mathbf{y}_t}{\nu}\right) \\ &- \frac{1}{2}d \log(\nu\pi) \end{aligned}$$
+
+Where $\nu$ is the prior degrees of freedom, $d$ is the number of dimensions of the distribution, $\mathbf{\Sigma}_{tt}$ is the covariance matrix between training points,  [@Rasmussen:2006] [@Shah2014]
 Implementation inspired by algo from Rasmussen 2006 ch 2 [@Rasmussen:2006].
 
 ```{r}
@@ -691,12 +710,14 @@ nll_t <- function(kernel, X_train, y_train, nu, noise) {
   function(params) {
     n <- dim(X_train)[[1]]
     d <- dim(X_train)[[2]]
-    K <- rlang::exec(kernel, X1 = X_train, X2 = X_train, !!!params)
-    L <- chol(K + noise**2 * diag(n))
+    L <- rlang::exec(kernel, X1 = X_train, X2 = X_train, !!!params) %>%
+      add(noise**2 * diag(n)) %>%
+      multiply_by(nu / (nu - 2)) %>%
+      chol()
     logdet <- sum(log(diag(L)))
     a <- backsolve(r = L, x = forwardsolve(l = t(L), x = y_train))
     beta <- t(y_train) %*% a
-    (d * log((nu - 2) * pi) + logdet + (nu + d) * log(1 + beta / (nu - 2))) %>%
+    (d * log(nu * pi) + logdet + (nu + d) * log(1 + beta / nu)) %>%
       multiply_by(0.5) %>%
       add(lgamma(nu / 2) - lgamma((nu + d) / 2))
   }
@@ -763,7 +784,7 @@ tpr <- function(kernel, X_train, y_train, nu = 3, noise = 1e-8, ...) {
 
 When using a TP surrogate model, EI can be calculated using the formula 
 
-$$a_{EI}(\mathbf{x}) = (y_{min} - \mu(\mathbf{x}) - \xi) \Lambda_{\nu_{post}}(Z) + \sigma(\mathbf{x})(1+\frac{Z^2-1}{\nu_{post}-1})\lambda_{\nu_{post}}(Z)$$
+$$a_{EI}(\mathbf{x}) = (y_{min} - \mu(\mathbf{x}) - \xi) \Lambda_{\nu_{post}}(Z) + \sigma(\mathbf{x})\frac{\nu}{\nu-1}(1+\frac{Z^2}{\nu_{post}})\lambda_{\nu_{post}}(Z)$$
 
 with
 
@@ -896,7 +917,7 @@ tp <- tpr(
   X_train = X_train,
   y_train = y_train,
   nu = 5,
-  noise = 0.1,
+  noise = noise,
   l = 1,
   sigma_f = 1
 )
@@ -923,7 +944,7 @@ acquisition_plot(
   X_pred = X_pred,
   acquisition_function = ei_t,
   uncertainty_plot = tp_plot,
-  xt1 = X_pred[which.max(ei)],
+  xt1 = X_pred[which.max(ei_t)],
   label = "EI",
   title = "Student's t Process Surrogate"
 )
