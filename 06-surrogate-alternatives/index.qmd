@@ -607,34 +607,38 @@ $$K_{ij} = k(\mathbf{x}_i,\mathbf{x}_j)$$
 
 Where $k$ is a [kernel function](.../kernels-r).
 
-TPs are a little bit different. Specifically, TPs are parametrised by a shape parameter, $\mathbf{\Sigma}$, which is a scaled covariance matrix:
+TPs are a little bit different. Specifically, TPs are parametrised by a shape parameter, $\mathbf{\Sigma}$, which is a scaled covariance matrix [@Tracey]:
 
 $$\mathbf{\Sigma} = \frac{\nu}{(\nu - 2)}\mathbf{K}$$
+
+When calculating the log likelihood and posterior covariance of a GP, we often add noise to the diagonal of the covariance matrix to represent noise in observations. This same trick is not possible for TPs. 
+
+To account for observational noise in a TP, we instead add noise within the kernel function, as if we were adding a white noise kernel with a fixed parameter. This is not equivalent to the GP way of accounting for the noise, since it happens before the scaling mentioned above, but for infinite data or infinite nu prior, the two are equivalent [@Shah2014].
+
+In the definitions below, $\mathbf{\Sigma}$ represents the scaled covariance matrix, possibly with added noise using this trick, and $\mathbf{K}$ represents the regular covariance matrix.
 
 ##### Posterior Predictive Multivariate Student's t
 
 Given a set of training data, $\mathbf{X}_t, \mathbf{y}_t$, and set of points on which to make predictions, $\mathbf{X}_p$, the mean of the posterior predictive distribution is
 
-$$\mathbf{\mu}_{p|t} = \mathbf{\mu}_p + \mathbf{\Sigma}_{tp}^T \mathbf{\Sigma}_{tt}^{-1} (\mathbf{y}_t - \mathbf{\mu}_t)$$
-##### SIGMA SCALING, see [@Tracey] eq 27
+$$\mathbf{\mu}_{p|t} = \mathbf{\mu}_p + \mathbf{K}_{tp}^T \mathbf{K}_{tt}^{-1} (\mathbf{y}_t - \mathbf{\mu}_t)$$
 
-Diagonal noise, see [@Shah2014] 4.6. We add noise to the diagonal before scaling, as if we were adding a white noise kernel with a fixed parameter. This is not equivalent to the GP way of accounting for the noise, since we have the scaling in TPs. But for infinite data or infinite nu prior, the two are equivalent.
 
-Where $\mathbf{\Sigma}_{tp}$ is the covariance matrix between training and prediction points and $\mathbf{\Sigma}_{tt}$ is the covariance matrix between training points.
+Where $\mathbf{K}_{tp}$ is the covariance matrix between training and prediction points and $\mathbf{K}_{tt}$ is the covariance matrix between training points.
 
 We often assume that $\mathbf{\mu}_t = \mathbf{0}$, so the equation will show up as 
 
-$$\mathbf{\mu}_{p|t} = \mathbf{\Sigma}_{tp} \mathbf{\Sigma}_{tt}^{-1} \mathbf{y}_t$$
+$$\mathbf{\mu}_{p|t} = \mathbf{K}_{tp} \mathbf{K}_{tt}^{-1} \mathbf{y}_t$$
 
 This is also what we will implement below.
 
 The covariance matrix of the posterior predictive distribution is
 
-##### Change to K and add noise term for K_tt
+##### Change Sigma to K
 
-$$\mathbf{\Sigma}_{p|t} = \frac{\nu_{prior} - \mathbf{y}_t^T\mathbf{\Sigma}_{tt}^{-1}\mathbf{y}_t - 2}{\nu_{prior} + n_t - 2 }(\mathbf{\Sigma}_{pp} - \mathbf{\Sigma}_{tp}^T \mathbf{\Sigma}_{tt}^{-1} \mathbf{\Sigma}_{tp})$$
+$$\mathbf{\Sigma}_{p|t} = \frac{\nu_{prior}}{\nu_{prior} - 2}\frac{\nu_{prior} - \mathbf{y}_t^T\mathbf{K}_{tt}^{-1}\mathbf{y}_t - 2}{\nu_{prior} + n_t - 2 }(\mathbf{K}_{pp} - \mathbf{K}_{tp}^T \mathbf{K}_{tt}^{-1} \mathbf{K}_{tp})$$
 
-Where $\mathbf{\Sigma}_{pp}$ is the covariance matrix between prediction points, $n_t$ is the number of training observations, and where we once again assume $\mathbf{\mu}_t = \mathbf{0}$.
+Where $\mathbf{K}_{pp}$ is the covariance matrix between prediction points, $n_t$ is the number of training observations, and where we once again assume $\mathbf{\mu}_t = \mathbf{0}$.
 
 Finally, we need the expression for posterior degrees of freedom. We could be conservative and set $\nu_{post} = n_{t}$, but we will go with the following more lenient expression:
 
@@ -651,7 +655,8 @@ The formulas can be implemented directly to calculate each posterior parameter
 #' @param y_train column vector (n, d) of training observations
 #' @param nu scalar, prior degrees of freedom. Note that nu + n must be greater
 #' than 2.
-#' @param noise scalar of observation noise
+#' @param noise scalar of observation noise. The noise will be added to the
+#' covariance matrix for observations, as if it were a white noise kernel.
 #' @param ... named parameters for the kernel function
 #'
 #' @return list of mean (mu), covariance (sigma), and degrees of freedom (nu)
@@ -686,14 +691,15 @@ posterior_t <- function(kernel,
 
 ##### Log Likelihood for a Student's t Process
 
-The covariance matrix, $\mathbf{\Sigma}$, is calculated using a kernel function with parameters, $\theta$. Analogous to Gaussian process regression, we find good values for these parameters by minimising the negative log likelihood in what is called Student's t process regression.
+$\mathbf{\Sigma}$ is calculated using a kernel function with parameters, $\theta$. Analogous to Gaussian process regression, we find good values for these parameters by minimising the negative log likelihood in what is called Student's t process regression.
 
 The log likelihood likelihood function for at TP is:
 
 $$\begin{aligned} \log p(\mathbf{y}_t \mid \mathbf{X}_t, \theta) =\,& \log\Gamma\left(\frac{\nu + d}{2}\right) \\ &- \log\Gamma\left(\frac{\nu}{2}\right) \\ &- \frac{1}{2}\log\det (\mathbf{\Sigma}_{tt}) \\ &- \frac{1}{2}(\nu+d)\log\left(1+\frac{\mathbf{y}_t^T (\mathbf{\Sigma}_{tt})^{-1} \mathbf{y}_t}{\nu}\right) \\ &- \frac{1}{2}d \log(\nu\pi) \end{aligned}$$
 
-Where $\nu$ is the prior degrees of freedom, $d$ is the number of dimensions of the distribution, $\mathbf{\Sigma}_{tt}$ is the covariance matrix between training points,  [@Rasmussen:2006] [@Shah2014]
-Implementation inspired by algo from Rasmussen 2006 ch 2 [@Rasmussen:2006].
+Where $\nu$ is the prior degrees of freedom, $d$ is the number of dimensions of the distribution, $\mathbf{\Sigma}_{tt}$ is the scaled covariance matrix between training points [@Rasmussen:2006] [@Tracey2018].
+
+Despite being in the logarithmic domain, the log likelihood is still numerically challenged. To create a robust implementation we build and algorithm inspired by the one presented for GPs in chapter 2 of [@Rasmussen:2006].
 
 ```{r}
 #' Student's t Negative log-Likelihood of a Kernel
@@ -731,7 +737,7 @@ We are now ready to implement regression with TPs. For a kernel with parameters 
 
 $$\theta^+ = \arg\min_{\theta}(-\log p(\mathbf{y}_t \mid \mathbf{X}_t, \theta))$$
 
-We then utilise TP with these parameters for calculating the acquisition function.
+We then condition the resulting TP on our training data and create an expression for the predictive posterior.
 
 ```{r}
 #' Student's t Process Regression
@@ -782,7 +788,9 @@ tpr <- function(kernel, X_train, y_train, nu = 3, noise = 1e-8, ...) {
 
 ##### Expected Improvement for a Student's t Process
 
-When using a TP surrogate model, EI can be calculated using the formula 
+Now that we have an expression for the posterior predictive of a TP, all we need to be able to do Bayesian optimisation is an acquisition function.
+
+When using a TP surrogate model, Expected Improvement can be calculated using the formula 
 
 $$a_{EI}(\mathbf{x}) = (y_{min} - \mu(\mathbf{x}) - \xi) \Lambda_{\nu_{post}}(Z) + \sigma(\mathbf{x})\frac{\nu}{\nu-1}(1+\frac{Z^2}{\nu_{post}})\lambda_{\nu_{post}}(Z)$$
 
@@ -790,7 +798,9 @@ with
 
 $$Z = \frac{y_{min} - \mu(\mathbf{x}) - \xi}{\sigma(\mathbf{x})}$$
 
-$\mu(\mathbf{x})$ and $\sigma(\mathbf{x})$ are the posterior predictive mean and standard deviation of the TP at $\mathbf{x}$. $\nu_{post}$ is the posterior degrees of freedom. $\Lambda_{\nu_{post}}$ and $\lambda_{\nu_{post}}$ are the standard Student's t cumulative distribution function and probability density function with $\nu_{post}$ degrees of freedom, respectively. $\xi$ is a trade-off parameter that balances exploration and exploitation [@Shah2014] [@Tracey2018].
+$\mu(\mathbf{x})$ and $\sigma(\mathbf{x})$ are the posterior predictive mean and scale parameters of the TP at $\mathbf{x}$. $\nu_{post}$ is the posterior degrees of freedom. $\Lambda_{\nu_{post}}$ and $\lambda_{\nu_{post}}$ are the standard Student's t cumulative distribution function and probability density function with $\nu_{post}$ degrees of freedom, respectively. $\xi$ is a trade-off parameter that balances exploration and exploitation [@Shah2014] [@Tracey2018].
+
+We implement these formulas along with a nice plot.
 
 ```{r}
 #| code-fold: true
@@ -910,6 +920,7 @@ tp_1d_plot <- function(mu,
 }
 ```
 
+Now we are ready to apply our Student's t process on the example 
 
 ```{r}
 tp <- tpr(
