@@ -759,8 +759,8 @@ tpr <- function(kernel, X_train, y_train, nu = 3, noise = 1e-8, ...) {
   param <- list(...)
   # We do multiple restarts of the optimiser to avoid getting stuck in local
   #  minima.
-  opt_params <- purrr::map(1:500, function(i) {
-    optim(par = rexp(length(param), 1), fn = kernel_nll)$par
+  opt_params <- purrr::map(1:50, function(i) {
+    optim(par = rexp(length(param), 1), fn = kernel_nll, method = "BFGS")$par
   })
   nll_vals <- purrr::map_dbl(opt_params, kernel_nll)
   opt_param <- opt_params[[which.min(nll_vals)]]
@@ -965,19 +965,34 @@ acquisition_plot(
 
 
 ```{r}
-n_extra <- 8
-noise_extra <- 0.2
-X_extra_train <- matrix(seq(0, 1, length.out = n_extra), n_extra, 1)
-y_extra_train <- objective_function(X_extra_train) + rnorm(n_extra, 0, noise_extra) / sqrt(6 / rchisq(n_extra, 6))
+n_extra <- 10
+noise_extra <- 0.25
+X_extra_train <- matrix(runif(n_extra), n_extra, 1)
+y_extra_train <- objective_function(X_extra_train) + rnorm(n_extra, 0, noise_extra) / sqrt(5 / rchisq(n_extra, 5))
 
-kernel_nll <- nll_t(rbf_kernel, X_train = X_extra_train, y_train = y_extra_train, nu = 5, noise = 02)
-
-opt_params <- purrr::map(1:1000, function(i) {
-  optim(par = rexp(2, 1), fn = kernel_nll)$par
-})
-a <- opt_params %>% do.call(rbind, .)
-nll_vals <- purrr::map_dbl(opt_params, kernel_nll)
-opt_param <- opt_params[[which.min(nll_vals)]]
+# kernel_nll <- nll_t(rbf_kernel, X_train = X_extra_train, y_train = y_extra_train, nu = 5, noise = 02)
+# 
+# opt_params <- purrr::map(1:1000, function(i) {
+#   optim(par = rexp(2, 1), fn = kernel_nll, method = "BFGS")$par
+# })
+# a <- opt_params %>% do.call(rbind, .)
+# nll_vals <- purrr::map_dbl(opt_params, kernel_nll)
+# opt_param <- opt_params[[which.min(nll_vals)]]
+# 
+# L <- rlang::exec(rbf_kernel, X1 = X_extra_train, X2 = X_extra_train, l = 0.0254096, sigma_f = 0.27813) %>%
+#       add(noise**2 * diag(n_extra)) %>%
+#       multiply_by(nu / (nu - 2)) %>%
+#       chol()
+# logdet <- sum(log(diag(L)))
+# a <- backsolve(r = L, x = forwardsolve(l = t(L), x = y_extra_train))
+# beta <- t(y_extra_train) %*% a
+# d <- 1
+# nu <- 5
+# (nu + d) * log(1 + beta / nu) + logdet
+# 
+# (d * log(nu * pi) + logdet + (nu + d) * log(1 + beta / nu)) %>%
+#   multiply_by(0.5) %>%
+#   add(lgamma(nu / 2) - lgamma((nu + d) / 2))
 
 tp <- tpr(
   kernel = rbf_kernel,
