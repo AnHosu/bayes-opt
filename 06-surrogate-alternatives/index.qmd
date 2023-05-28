@@ -759,8 +759,8 @@ tpr <- function(kernel, X_train, y_train, nu = 3, noise = 1e-8, ...) {
   param <- list(...)
   # We do multiple restarts of the optimiser to avoid getting stuck in local
   #  minima.
-  opt_params <- purrr::map(1:20, function(i) {
-    optim(par = rnorm(length(param)), fn = kernel_nll)$par
+  opt_params <- purrr::map(1:500, function(i) {
+    optim(par = rexp(length(param), 1), fn = kernel_nll)$par
   })
   nll_vals <- purrr::map_dbl(opt_params, kernel_nll)
   opt_param <- opt_params[[which.min(nll_vals)]]
@@ -920,7 +920,9 @@ tp_1d_plot <- function(mu,
 }
 ```
 
-Now we are ready to apply our Student's t process on the example 
+#### Applying a Student's t Process
+
+Now we are ready to apply our Student's t process to our running example. 
 
 ```{r}
 tp <- tpr(
@@ -949,6 +951,60 @@ tp_plot <- tp_1d_plot(
   X_pred = X_pred,
   X_train = X_train,
   y_train = y_train,
+  true_function = objective_function
+)
+acquisition_plot(
+  X_pred = X_pred,
+  acquisition_function = ei_t,
+  uncertainty_plot = tp_plot,
+  xt1 = X_pred[which.max(ei_t)],
+  label = "EI",
+  title = "Student's t Process Surrogate"
+)
+```
+
+
+```{r}
+n_extra <- 8
+noise_extra <- 0.2
+X_extra_train <- matrix(seq(0, 1, length.out = n_extra), n_extra, 1)
+y_extra_train <- objective_function(X_extra_train) + rnorm(n_extra, 0, noise_extra) / sqrt(6 / rchisq(n_extra, 6))
+
+kernel_nll <- nll_t(rbf_kernel, X_train = X_extra_train, y_train = y_extra_train, nu = 5, noise = 02)
+
+opt_params <- purrr::map(1:1000, function(i) {
+  optim(par = rexp(2, 1), fn = kernel_nll)$par
+})
+a <- opt_params %>% do.call(rbind, .)
+nll_vals <- purrr::map_dbl(opt_params, kernel_nll)
+opt_param <- opt_params[[which.min(nll_vals)]]
+
+tp <- tpr(
+  kernel = rbf_kernel,
+  X_train = X_extra_train,
+  y_train = y_extra_train,
+  nu = 5,
+  noise = noise_extra,
+  l = 1,
+  sigma_f = 1
+)
+post_pred <- tp(X_pred)
+mu <- post_pred$mu
+sigma <- post_pred$sigma
+nu <- post_pred$nu
+ei_t <- expected_improvement_t(
+  mu = mu,
+  sigma = sigma,
+  nu = nu,
+  y_best = min(y_extra_train)
+)
+tp_plot <- tp_1d_plot(
+  mu = mu,
+  sigma = sigma,
+  nu = nu,
+  X_pred = X_pred,
+  X_train = X_extra_train,
+  y_train = y_extra_train,
   true_function = objective_function
 )
 acquisition_plot(
