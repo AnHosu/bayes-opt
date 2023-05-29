@@ -314,7 +314,7 @@ A single deterministic model will not work as a surrogate for Bayesian optimisat
 
 There are a few ways in which we could build an ensemble, and they all work, as long as the distribution of predictions is Gaussian. For instance, if we had a lot of training data, we could do bagging and train several models on different subsets of the training data and use those as an ensemble. We could also use a stack of different models as an ensemble.
 
-While Bayesian optimisation problems rarely come with a lot of training data, such a situation represents a case where an ensemble might be preferred over a Gaussian process, as Gaussian processes are difficult to scale for large data sets.
+While Bayesian optimisation problems rarely come with a lot of training data, such a situation represents a case where an ensemble might be preferred over a GP, as GPs are difficult to scale for large data sets.
 
 Another situation where an ensemble might be preferred over a GP is the case where data is very high dimensional. In that case, we can include models with explicit dimensionality reduction in the ensemble to fit the data without introducing too many parameters.
 
@@ -403,14 +403,7 @@ Next we need to specify priors for the weights and biases. Since we have no know
 
 $$\theta = \{\mathbf{w}_{hidden}, \mathbf{b}_{hidden}, \mathbf{x}_{output}, b_{output}\} \sim \mathcal{N}(0, 3)$$
 
-Here is the full model specification in Stan:
-
-```{r stan_model, echo=FALSE}
-#| output: asis
-cat("```stan\n")
-cat(paste(readLines("bnn.stan"), collapse = "\n"))
-cat("\n```")
-```
+The full model specification in Stan is [here](https://github.com/AnHosu/bayes-opt/blob/34f9f02cd39f8b5ea198a246179b0e3fc0eef383/06-surrogate-alternatives/bnn.stan).
 
 Now we can try to condition the model on our training data. This essentially means collecting samples from the posterior distribution of NNs with this particular architecture.
 
@@ -512,14 +505,7 @@ $$\alpha \sim \mathcal{N}(10,2)$$
 
 $$\beta \sim \mathcal{N}(2,2)$$
 
-Here is the full model specification in Stan:
-
-```{r stan_model_bespoke, echo=FALSE}
-#| output: asis
-cat("```stan\n")
-cat(paste(readLines("bespoke.stan"), collapse = "\n"))
-cat("\n```")
-```
+The full model specification in Stan is [here](https://github.com/AnHosu/bayes-opt/blob/34f9f02cd39f8b5ea198a246179b0e3fc0eef383/06-surrogate-alternatives/bespoke.stan).
 
 Now we can try to condition our model on the training data. While conditioning the model, we also sample posterior predictions on a grid of inputs.
 
@@ -595,7 +581,7 @@ A TP does not solve all problems, as there will exist cases where the observatio
 
 The multivariate Student's t distribution is parametrised by a mean function, $\mu$, a shape parameter, $\mathbf{\Sigma}$, which is related to the covariance matrix, and the degrees of freedom, $\nu$.
 
-To implement a TP, we need two things: an expression for the negative log likelihood so we can optimise hyperparameters of the process and an expression for the posterior predictive distribution parameters so we can generate predictions. Once we have the TP, we then need an acquisition function. Fortunately, a closed form for Expected Improvement also exists for TPs.
+To implement a TP, we need two things: an expression for the negative log likelihood, so we can optimise hyperparameters of the process, and an expression for the posterior predictive distribution parameters, so we can generate predictions. Once we have the TP, we then need an acquisition function. Fortunately, a closed form for Expected Improvement also exists for TPs.
 
 Since the focus of this post is the application of surrogate models, we will just quickly review the expressions for these components. This does mean that we will be making some tacit assumptions. For a comprehensive treatment of TPs, see [@Shah2014], [@Tang2017], and [@Tracey2018].
 
@@ -607,13 +593,13 @@ $$K_{ij} = k(\mathbf{x}_i,\mathbf{x}_j)$$
 
 Where $k$ is a [kernel function](.../kernels-r).
 
-TPs are a little bit different. Specifically, TPs are parametrised by a shape parameter, $\mathbf{\Sigma}$, which is a scaled covariance matrix [@Tracey]:
+TPs are a little bit different. Specifically, TPs are parametrised by a shape parameter, $\mathbf{\Sigma}$, which is a scaled covariance matrix [@Tracey2018]:
 
 $$\mathbf{\Sigma} = \frac{\nu}{(\nu - 2)}\mathbf{K}$$
 
 When calculating the log likelihood and posterior covariance of a GP, we often add noise to the diagonal of the covariance matrix to represent noise in observations. This same trick is not possible for TPs. 
 
-To account for observational noise in a TP, we instead add noise within the kernel function, as if we were adding a white noise kernel with a fixed parameter. This is not equivalent to the GP way of accounting for the noise, since it happens before the scaling mentioned above, but for infinite data or infinite nu prior, the two are equivalent [@Shah2014].
+To account for observational noise in a TP, we instead add noise within the kernel function, as if we were adding a white noise kernel with a fixed parameter. This is not equivalent to the GP way of accounting for the noise, since it happens before the scaling mentioned above, but for infinite data or infinite $\nu$ prior, the two are equivalent [@Shah2014].
 
 In the definitions below, $\mathbf{\Sigma}$ represents the scaled covariance matrix, possibly with added noise using this trick, and $\mathbf{K}$ represents the regular covariance matrix.
 
@@ -633,8 +619,6 @@ $$\mathbf{\mu}_{p|t} = \mathbf{K}_{tp} \mathbf{K}_{tt}^{-1} \mathbf{y}_t$$
 This is also what we will implement below.
 
 The covariance matrix of the posterior predictive distribution is
-
-##### Change Sigma to K
 
 $$\mathbf{\Sigma}_{p|t} = \frac{\nu_{prior}}{\nu_{prior} - 2}\frac{\nu_{prior} - \mathbf{y}_t^T\mathbf{K}_{tt}^{-1}\mathbf{y}_t - 2}{\nu_{prior} + n_t - 2 }(\mathbf{K}_{pp} - \mathbf{K}_{tp}^T \mathbf{K}_{tt}^{-1} \mathbf{K}_{tp})$$
 
@@ -697,9 +681,9 @@ The log likelihood likelihood function for at TP is:
 
 $$\begin{aligned} \log p(\mathbf{y}_t \mid \mathbf{X}_t, \theta) =\,& \log\Gamma\left(\frac{\nu + d}{2}\right) \\ &- \log\Gamma\left(\frac{\nu}{2}\right) \\ &- \frac{1}{2}\log\det (\mathbf{\Sigma}_{tt}) \\ &- \frac{1}{2}(\nu+d)\log\left(1+\frac{\mathbf{y}_t^T (\mathbf{\Sigma}_{tt})^{-1} \mathbf{y}_t}{\nu}\right) \\ &- \frac{1}{2}d \log(\nu\pi) \end{aligned}$$
 
-Where $\nu$ is the prior degrees of freedom, $d$ is the number of dimensions of the distribution, $\mathbf{\Sigma}_{tt}$ is the scaled covariance matrix between training points [@Rasmussen:2006] [@Tracey2018].
+Where $\nu$ is the prior degrees of freedom, $d$ is the number of dimensions of the distribution, and $\mathbf{\Sigma}_{tt}$ is the scaled covariance matrix between training points [@Rasmussen:2006] [@Tracey2018].
 
-Despite being in the logarithmic domain, the log likelihood is still numerically challenged. To create a robust implementation we build and algorithm inspired by the one presented for GPs in chapter 2 of [@Rasmussen:2006].
+Despite being in the logarithmic domain, the log likelihood is still numerically challenged. To create a robust implementation we build an algorithm inspired by the one presented for GPs in chapter 2 of [@Rasmussen:2006].
 
 ```{r}
 #' Student's t Negative log-Likelihood of a Kernel
@@ -924,7 +908,7 @@ tp_1d_plot <- function(mu,
 
 #### Applying a Student's t Process
 
-Now we are finally ready to apply our Student's t process to our running example. 
+Now we are finally ready to apply a TP to our running example. 
 
 ```{r}
 tp <- tpr(
@@ -965,7 +949,7 @@ acquisition_plot(
 )
 ```
 
-The acquisition function evaluated on the bespoke surrogate suggests that the next sampling point should be just to the left of the middle, as marked by the dashed line. This pattern is very similar to the one obtained with a GP, demonstrating that the performance of TPs can be very similar to GPs.
+The acquisition function evaluated on the TP suggests that the next sampling point should be just to the left of the middle, as marked by the dashed line. This pattern is very similar to the one obtained with a GP, demonstrating that the performance of TPs can be very similar to GPs.
 
 However, the power of TPs lies in resilience to outliers. To demonstrate this, we attempt to apply our TP tp an additional example with much more heavy-tailed non-Gaussian noise.
 
@@ -1009,7 +993,7 @@ acquisition_plot(
   uncertainty_plot = tp_plot,
   xt1 = X_pred[which.max(ei_t)],
   label = "EI",
-  title = "Student's t Process Surrogate"
+  title = "Student's t Process Surrogate, Heavy-Tailed Noise"
 )
 ```
 
