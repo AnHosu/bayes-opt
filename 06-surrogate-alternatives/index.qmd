@@ -739,6 +739,8 @@ $$\theta^+ = \arg\min_{\theta}(-\log p(\mathbf{y}_t \mid \mathbf{X}_t, \theta))$
 
 We then condition the resulting TP on our training data and create an expression for the predictive posterior.
 
+Minimising the negative log likelihood for a TP can be somewhat tricky. In the following implementation, the optimiser is restarted multiple times to reduce the risk of getting stuck in a local minimum. While this method will work for the simple examples below, more robust approaches are needed for real life problems with higher dimensionality, more complex kernels, or more observations.
+
 ```{r}
 #' Student's t Process Regression
 #'
@@ -788,7 +790,7 @@ tpr <- function(kernel, X_train, y_train, nu = 3, noise = 1e-8, ...) {
 
 ##### Expected Improvement for a Student's t Process
 
-Now that we have an expression for the posterior predictive of a TP, all we need to be able to do Bayesian optimisation is an acquisition function.
+Now that we have an expression for the posterior predictive of a TP, the only component missing for Bayesian optimisation is an acquisition function.
 
 When using a TP surrogate model, Expected Improvement can be calculated using the formula 
 
@@ -798,7 +800,7 @@ with
 
 $$Z = \frac{y_{min} - \mu(\mathbf{x}) - \xi}{\sigma(\mathbf{x})}$$
 
-$\mu(\mathbf{x})$ and $\sigma(\mathbf{x})$ are the posterior predictive mean and scale parameters of the TP at $\mathbf{x}$. $\nu_{post}$ is the posterior degrees of freedom. $\Lambda_{\nu_{post}}$ and $\lambda_{\nu_{post}}$ are the standard Student's t cumulative distribution function and probability density function with $\nu_{post}$ degrees of freedom, respectively. $\xi$ is a trade-off parameter that balances exploration and exploitation [@Shah2014] [@Tracey2018].
+$\mu(\mathbf{x})$ and $\sigma(\mathbf{x})$ are the posterior predictive mean and scale parameters of the TP at $\mathbf{x}$. $\nu_{post}$ is the posterior degrees of freedom. $\Lambda_{\nu_{post}}$ and $\lambda_{\nu_{post}}$ are the standard Student's t cumulative distribution function and probability density function with $\nu_{post}$ degrees of freedom, respectively. $y_{min}$ is the best observation seen so far. $\xi$ is a trade-off parameter that balances exploration and exploitation [@Shah2014] [@Tracey2018].
 
 We implement these formulas along with a nice plot.
 
@@ -922,7 +924,7 @@ tp_1d_plot <- function(mu,
 
 #### Applying a Student's t Process
 
-Now we are ready to apply our Student's t process to our running example. 
+Now we are finally ready to apply our Student's t process to our running example. 
 
 ```{r}
 tp <- tpr(
@@ -963,37 +965,16 @@ acquisition_plot(
 )
 ```
 
+The acquisition function evaluated on the bespoke surrogate suggests that the next sampling point should be just to the left of the middle, as marked by the dashed line. This pattern is very similar to the one obtained with a GP, demonstrating that the performance of TPs can be very similar to GPs.
+
+However, the power of TPs lies in resilience to outliers. To demonstrate this, we attempt to apply our TP tp an additional example with much more heavy-tailed non-Gaussian noise.
 
 ```{r}
 n_extra <- 10
 noise_extra <- 0.25
 X_extra_train <- matrix(runif(n_extra), n_extra, 1)
-y_extra_train <- objective_function(X_extra_train) + rnorm(n_extra, 0, noise_extra) / sqrt(5 / rchisq(n_extra, 5))
-
-# kernel_nll <- nll_t(rbf_kernel, X_train = X_extra_train, y_train = y_extra_train, nu = 5, noise = 02)
-# 
-# opt_params <- purrr::map(1:1000, function(i) {
-#   optim(par = rexp(2, 1), fn = kernel_nll, method = "BFGS")$par
-# })
-# a <- opt_params %>% do.call(rbind, .)
-# nll_vals <- purrr::map_dbl(opt_params, kernel_nll)
-# opt_param <- opt_params[[which.min(nll_vals)]]
-# 
-# L <- rlang::exec(rbf_kernel, X1 = X_extra_train, X2 = X_extra_train, l = 0.0254096, sigma_f = 0.27813) %>%
-#       add(noise**2 * diag(n_extra)) %>%
-#       multiply_by(nu / (nu - 2)) %>%
-#       chol()
-# logdet <- sum(log(diag(L)))
-# a <- backsolve(r = L, x = forwardsolve(l = t(L), x = y_extra_train))
-# beta <- t(y_extra_train) %*% a
-# d <- 1
-# nu <- 5
-# (nu + d) * log(1 + beta / nu) + logdet
-# 
-# (d * log(nu * pi) + logdet + (nu + d) * log(1 + beta / nu)) %>%
-#   multiply_by(0.5) %>%
-#   add(lgamma(nu / 2) - lgamma((nu + d) / 2))
-
+y_extra_train <- objective_function(X_extra_train) %>%
+  add(rnorm(n_extra, 0, noise_extra) / sqrt(5 / rchisq(n_extra, 5)))
 tp <- tpr(
   kernel = rbf_kernel,
   X_train = X_extra_train,
@@ -1011,7 +992,7 @@ ei_t <- expected_improvement_t(
   mu = mu,
   sigma = sigma,
   nu = nu,
-  y_best = min(y_extra_train)
+  y_best = min(tp(X_extra_train)$mu)
 )
 tp_plot <- tp_1d_plot(
   mu = mu,
@@ -1031,6 +1012,10 @@ acquisition_plot(
   title = "Student's t Process Surrogate"
 )
 ```
+
+Despite the extreme noise, the TP manages a decent fit that can be used for Bayesian optimisation.
+
+This example demonstrated how to use a Student's t process as a surrogate and how to calculate Expected Improvement to select a new sampling point. In a real-world case, where noise might be heavy-tailed, a TP might succeed where a GP fails. As more training data is gathered, the posterior of a TP converges to a GP. The only trade-off in using TPs is the additional computational complexity and the fact that there are much fewer tools supporting TPs than there are tools implementing GPs.
 
 # References {-}
 
