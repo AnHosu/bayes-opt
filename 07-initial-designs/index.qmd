@@ -13,7 +13,7 @@ html-math-method:
 
 [Bayesian optimisation](../bayes-opt-r) is a powerful optimisation technique for black-box functions and processes with expensive evaluations. It is popular for hyperparameter tuning and model selection in machine learning, but has many real-world applications as well. One of the key components of Bayesian optimisation is the initial experiment design, which forms the foundation for the first fit of the surrogate model. In this blog post, we will discuss the importance of initial experiment designs in Bayesian optimisation and dive into a few examples of initial designs.
 
-Along with the discussion are implementations of the designs in R, using only base R and the Tidyverse.
+Along with the discussion are examples of the designs in R.
 
 ```{r func, echo=TRUE}
 library(ggplot2)
@@ -69,7 +69,7 @@ $$\mathbf{x} \sim \text{Unif}(0, 1)$$
 random_sampling <- function(n, d) matrix(runif(n * d), n, d)
 ```
 
-```{r}
+```{r random_sampling, fig.width=6, fig.height=6}
 samples <- random_sampling(n, d)
 # Create a scatter plot of the samples
 plot_design(samples, "Random Sampling")
@@ -128,7 +128,7 @@ A large drawback of LHS is that additional points cannot be sampled after the de
 
 #### LHS in 2D
 
-```{r}
+```{r lhs, fig.width=6, fig.height=6}
 samples <- latin_hypercube_sampling(n, d)
 plot_design(samples, "Latin Hypercube Sampling")
 ```
@@ -139,7 +139,7 @@ plot_design(samples, "Latin Hypercube Sampling")
 
 #### Sobol Sequence in 2D
 
-```{r}
+```{r sobol, fig.width=6, fig.height=6}
 samples <- randtoolbox::sobol(n, d)
 plot_design(samples, "Quasi-Random Design")
 ```
@@ -149,7 +149,7 @@ plot_design(samples, "Quasi-Random Design")
 
 This design expands on LHS to add prior knowledge or assumptions to the initial design.
 
-```{r}
+```{r scale, fig.width=6, fig.height=6}
 l <- latin_hypercube_sampling(1e3, 2)
 l[,1] <- qnorm(l[,1])
 l[,2] <- qexp(l[,2])
