@@ -46,8 +46,8 @@ plot_design <- function(samples, title = "") {
   data.frame(samples) %>%
   ggplot() +
   geom_point(aes(x = X1, y = X2), size = 3) +
-  xlim(0, 1) +
-  ylim(0, 1) +
+  # xlim(0, 1) +
+  # ylim(0, 1) +
   theme_minimal() +
   labs(
     title = title,
@@ -133,175 +133,29 @@ samples <- latin_hypercube_sampling(n, d)
 plot_design(samples, "Latin Hypercube Sampling")
 ```
 
-## Maxmin Design
 
-Maxmin design, also known as the maximum-minimum distance design, is an initial experiment design technique that aims to maximize the minimum distance between any two points in the initial set of experiments. By ensuring that the experiments are well-separated, maxmin design promotes exploration throughout the search space.
+## Quasi-Random Design
 
-Mathematically, given a set of $n$ samples, $X = {x_1, x_2, \cdots, x_n}$, in a $d$-dimensional search space, the maxmin design seeks to find the set of samples that maximizes the minimum pairwise distance:
 
-$$\max_X \min_{i \neq j} \|x_i - x_j\|$$
+#### Sobol Sequence in 2D
 
 ```{r}
-maxmin_design <- function(n, d) {
-  samples <- matrix(nrow = n, ncol = d)
-  samples[1,] <- runif(d) # Initialize with a random point
-  
-  for (i in 2:n) {
-    candidate_points <- matrix(runif(1000 * d), ncol = d)
-    min_dists <- apply(candidate_points, 1, function(p) {
-      min(sqrt(rowSums((t(samples[1:(i-1),]) - p)^2)))
-    })
-    samples[i,] <- candidate_points[which.max(min_dists),]
-  }
-  
-  return(samples)
-}
+samples <- randtoolbox::sobol(n, d)
+plot_design(samples, "Quasi-Random Design")
 ```
 
-
-Advantages of Maxmin Design
-
-Maxmin design provides several benefits in the context of initial experiment design for Bayesian optimization:
-
-    It promotes exploration by ensuring a well-separated set of samples in the search space, reducing the risk of missing potential optima.
-    The design is suitable for problems with unknown or complex underlying distributions, as it does not rely on any assumptions about the distribution of the objective function.
-
-Limitations of Maxmin Design
-
-Despite its advantages, maxmin design has some limitations as well:
-
-    Computing the maxmin design can be computationally expensive, particularly in high-dimensional problems. This is because it involves searching for the set of points that maximizes the minimum pairwise distance, which is a combinatorial optimization problem.
-    Like LHS, maxmin design is a random sampling technique and does not take into account any prior knowledge about the objective function, which may result in inefficient sampling for some problems.
-
-Generating a 2D Maxmin Design in R
-
-To create a maxmin design, we can use a greedy algorithm that iteratively adds points to the design while maximizing the minimum distance to the existing points. Here's a simple R implementation:
-
-```{r}
-samples <- maxmin_design(n, d)
-# Create a scatter plot of the samples
-ggplot() +
-  geom_point(data = data.frame(samples), aes(x = X1, y = X2), size = 3) +
-  theme_minimal() +
-  labs(title = "2D Maxmin Design",
-       x = "Dimension 1", y = "Dimension 2")
-```
-
-
-## Quasi-Random Sequences
-
-```{r}
-import numpy as np
-
-def i2_generator(dim, n):
-    v = np.zeros(dim)
-    a = np.zeros(dim, dtype=int)
-    m = np.zeros(dim, dtype=int)
-    m[0] = 1
-    for i in range(1, dim):
-        a[i] = a[i-1] ^ (a[i-1] >> 1)
-        m[i] = m[i-1] << 1
-    x = np.zeros((n, dim))
-    for i in range(n):
-        x[i, 0] = 0
-        for j in range(1, dim):
-            v[j] = v[j-1] ^ (v[j-1] >> 1) ^ a[j]
-            x[i, j] = v[j] / 2**m[j]
-    return x
-
-def sobol_sequence(dim, n, skip=0):
-    x = i2_generator(dim, n+skip)
-    return x[skip:]
-
-
-```
-
-```{r}
-i2_generator <- function(dim, n) {
-  v <- rep(0, times = dim)
-  a <- rep(0L, times = dim)
-  m <- rep(0L, times = dim)
-  m[1] <- 1L
-  for (i in seq_len(dim - 1) + 1) {
-    a[i] <- a[i - 1]^(bitwShiftR(a[i - 1], 1))
-    m[i] <- bitwShiftL(m[i - 1], 1)
-  }
-  x <- matrix(0, n, dim)
-  for (i in seq_len(n)) {
-    x[i, 0] <- 0
-    for (j in seq_len(dim - 1) + 1) {
-      v[j] <- v[j - 1]^(bitwShiftR(v[j - 1], 1))^a[j]
-      x[i, j] <- v[j] / 2**m[j]
-    }
-  }
-  return(x)
-}
-
-
-```
-
-
-```{r}
-i2_generator <- function(dim, n) {
-  v <- numeric(dim)
-  a <- integer(dim)
-  m <- integer(dim)
-  m[1] <- 1L
-  for (i in 2:dim) {
-    a[i] <- bitwXor(a[i-1], bitwShiftR(a[i-1], 1))
-    m[i] <- bitwShiftL(1, i-1)
-  }
-  x <- matrix(0, n, dim)
-  for (i in 1:n) {
-    x[i,1] <- 0
-    for (j in 2:dim) {
-      v[j] <- bitwXor(v[j-1], bitwXor(bitwShiftR(v[j-1], 1), a[j]))
-      x[i,j] <- v[j] / bitwShiftL(1, m[j])
-    }
-  }
-  x
-}
-
-sobol_sequence <- function(dim, n, skip=0) {
-  x <- i2_generator(dim, n+skip)
-  x[(skip+1):n,]
-}
-
-van_der_corput <- function(n, base=2) {
-  seq <- numeric(n)
-  for (i in 1:n) {
-    x <- i
-    y <- 0
-    denom <- base
-    while (x > 0) {
-      y <- y + (x %% base) / denom
-      x <- floor(x / base)
-      denom <- denom * base
-    }
-    seq[i] <- y
-  }
-  seq
-}
-
-quasi_random_sequence <- function(n, dim=2, bases=c(2,3)) {
-  seq <- matrix(0, n, dim)
-  for (d in 1:dim) {
-    seq[,d] <- van_der_corput(n, bases[d])
-  }
-  seq
-}
-
-
-```
-
-
-## Deterministic Design
-
-This design is based entirely on established practices or assumptions about a the objective function or process.
 
 ## Augmented Latin Hypercube Sampling
 
 This design expands on LHS to add prior knowledge or assumptions to the initial design.
+
+```{r}
+l <- latin_hypercube_sampling(1e3, 2)
+l[,1] <- qnorm(l[,1])
+l[,2] <- qexp(l[,2])
+plot_design(l, "yay")
+```
+
 
 ## Designing with Discrete or Categorical Features
 
