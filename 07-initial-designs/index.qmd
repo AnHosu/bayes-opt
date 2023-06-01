@@ -135,6 +135,12 @@ The main thing to notice in this design is the neat stratification of each dimen
 
 ## Quasi-Random Design
 
+The pure random sampling design struggled to provide an efficient exploration of the search space. The LHS design had guaranteed space filling but had the drawback of not being expandable. What we might want is a space filling design that we can keep adding points to if necessary.
+
+To create such a design, we turn to quasi random numbers. Quasi random numbers are not random, they are a deterministic sequence of numbers that have some of the space filling properties that we looked to randomness to solve in the previous sections.
+
+Sobol sequences and their application in improving optimization efficiency, specifically in the context of Bayesian optimization.
+
 
 #### Sobol Sequence in 2D
 
