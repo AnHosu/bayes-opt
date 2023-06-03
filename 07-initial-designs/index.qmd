@@ -143,7 +143,7 @@ To create such a design, we turn to quasi random numbers. Quasi random numbers a
 
 Several quasi random number generators exist. One example is a Sobol sequence, which is demonstrated here for our running example.
 
-```{r sobol_extended, fig.width=6, fig.height=6}
+```{r sobol, fig.width=6, fig.height=6}
 samples <- randtoolbox::sobol(n, d)
 plot_design(samples, "Quasi-Random Design")
 ```
@@ -165,7 +165,38 @@ plot_design(samples, "Quasi-Random Design with Additional Samples") +
 
 The additional samples fit snugly in the unoccupied spaces between the first batch of samples.
 
-## Augmenting Initial
+## Improving Initial Designs
+
+In their pure, unmodified form, random sampling, LHS, and quasi random sequences all represent designs that efficiently explore the unit cube in the face of complete uncertainty. That works well if we have normalised inputs with no prior intuition for which part of the range might be optimal. If, however, we have prior intuition, we should try to incorporate it in the initial design.
+
+Imagine for instance that we are trying to optimise the settings on a piece of manufacturing equipment. Cranking all the dials and levers to their maximum position is a valid setting, but it would very likely result in very poor performance, so we should probably try to include more points closer to the median settings and fewer points at the extremes, in our initial design.
+
+To incorporate such prior knowledge or intuition we can scale or transform the unit cube design.
+
+#### Scaling feature bounds
+
+Imagine that we have a design for two input dimensions:
+
+```{r}
+design <- latin_hypercube_sampling(20, 2)
+```
+
+We are happy with the first dimension, but we would like to have the second dimension range from -2 to 4.
+
+To linearly scale a feature from the unit range $\mathbf{x} \in [0,1]$ to a different range $\mathbf{x}_{scaled} \in [a,b]$, we simply apply the transformation
+
+$$\mathbf{x}_{scaled} = \mathbf{x}(b - a) + a$$
+
+In the case of our example
+
+```{r scaled_design, fig.height=6, fig.width=4}
+design_transformed <- cbind(design[, 1], design[, 2] * (4 + 2) - 2)
+plot_design(design_transformed, "Linearly Scaled Design")
+```
+
+It should be noted that for the best performance of Gaussian processes in Bayesian optimisation, the scale should be similar across features. Additionally, for the kernels that have length scale parameters, the interpretability of those parameters are complicated by differing scales. Normalising to the unit cube is generally a good idea for the actual calculations, but for presentation purposes we might want to scale to an range that matches the physical setting.
+
+#### Applying prior knowledge to a design
 
 This design expands on LHS to add prior knowledge or assumptions to the initial design.
 
