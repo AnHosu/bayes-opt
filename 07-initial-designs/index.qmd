@@ -137,20 +137,35 @@ The main thing to notice in this design is the neat stratification of each dimen
 
 The pure random sampling design struggled to provide an efficient exploration of the search space. The LHS design had guaranteed space filling but had the drawback of not being expandable. What we might want is a space filling design that we can keep adding points to if necessary.
 
-To create such a design, we turn to quasi random numbers. Quasi random numbers are not random, they are a deterministic sequence of numbers that have some of the space filling properties that we looked to randomness to solve in the previous sections.
+To create such a design, we turn to quasi random numbers. Quasi random numbers are deterministic sequences of numbers that uniformly fill a space. A quasi random number generator will sequentially generate a set of numbers in such a way that the unit cube is filled evenly. Unless randomness is added, the generator will produce the same sequence when restarted. Even if the generator was stopped, we can start it from where it left off and continue generating points that are compatible with the initially generated sequence.
 
-Sobol sequences and their application in improving optimization efficiency, specifically in the context of Bayesian optimization.
+#### Example: Sobol Sequence in 2D
 
+Several quasi random number generators exist. One example is a Sobol sequence, which is demonstrated here for our running example.
 
-#### Sobol Sequence in 2D
-
-```{r sobol, fig.width=6, fig.height=6}
+```{r sobol_extended, fig.width=6, fig.height=6}
 samples <- randtoolbox::sobol(n, d)
 plot_design(samples, "Quasi-Random Design")
 ```
 
+The main thing to notice in this design is the neat stratification of each dimension, just like we had for LHS.
 
-## Augmented Latin Hypercube Sampling
+In case we had to expand the initial design, we can just resume the generator and get additional points that fit with the ones previously generated.
+
+```{r sobol_extended, fig.width=7, fig.height=6}
+samples_next <- randtoolbox::sobol(8, d, init = FALSE)
+plot_design(samples, "Quasi-Random Design with Additional Samples") +
+  geom_point(
+    data = data.frame(samples_next),
+    aes(x = X1, y = X2, color = "additional samples"),
+    size = 3
+  ) +
+  labs(colour = "")
+```
+
+The additional samples fit snugly in the unoccupied spaces between the first batch of samples.
+
+## Augmenting Initial
 
 This design expands on LHS to add prior knowledge or assumptions to the initial design.
 
