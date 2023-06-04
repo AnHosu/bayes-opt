@@ -25,9 +25,9 @@ set.seed(4444)
 
 Bayesian optimisation works by constructing a surrogate probabilistic model, typically a Gaussian process, of the objective function. The surrogate model is then used to guide the search for an optimum through sequential experimentation. The initial experiment design influences this process in two major ways: it provides initial data points for fitting the surrogate model and it is the initial trade off between exploration and exploitation.
 
-In the initial design, we decide on a set of $n$ observations $\mathbf{X} = \{\mathbf{x}_1, \dots, \mathbf{x}_n\}$. Each point, $\mathbf{x}$, is somewhere in the search space, $\mathcal{X} \in \mathbb{R}^d$, with dimensionality $d$. Ideally, we want to restrict the optimisation to a subset of $\mathbb{R}^d$ and the initial design can help achieve that by keeping the observations within a realistic range. For the designs mentioned here, the search space $\mathcal{X} = [0,1]^d$ is assumed. It is a good idea to normalise the input dimensions, but when normalised inputs are not an option, the range $[0,1]$ can easily be scaled to a broader range.
+In the initial design, we decide on a set of $n$ samples $\mathbf{X} = \{\mathbf{x}_1, \dots, \mathbf{x}_n\}$. Each point, $\mathbf{x}$, is somewhere in the search space, $\mathcal{X} \in \mathbb{R}^d$, with dimensionality $d$. Ideally, we want to restrict the optimisation to a subset of $\mathbb{R}^d$ and the initial design can help achieve that by keeping the samples within a realistic range. For the base designs discussed here, the search space $\mathcal{X} = [0,1]^d$ is assumed. It is a good idea to normalise the input dimensions, but when normalised inputs are not an option, the range $[0,1]$ can easily be scaled to a broader range, as discussed later.
 
-Considering that the experimental budget is limited and that it is expensive to evaluate the objective function, the number of initial training observations should be limited. However, considering that the surrogate models generally are not great for extrapolation, the number of initial observations should not be too small either.
+Considering that the experimental budget is limited and that it is expensive to evaluate the objective function, the number of initial training samples should be limited. However, considering that the surrogate models generally are not great for extrapolation, the number of initial samples should not be too small either.
 
 In general, the initial training data should be chosen to provide a good representation of the objective function. This means that the data should be chosen to cover the range of each input dimension. The data should also include inputs that are expected to be both good and bad performers.
 
@@ -85,7 +85,7 @@ samples <- random_sampling(n, d)
 plot_design(samples, "Random Sampling")
 ```
 
-The main thing to notice is that we there are clusters of points and large swaths of empty space. This seems a bit wasteful, when each evaluation of the objective function is expensive.
+The main thing to notice is the clusters of points and large swaths of empty space. This seems a bit wasteful, when each evaluation of the objective function is expensive.
 
 ## Latin Hypercube Sampling
 
@@ -95,11 +95,11 @@ Given a search space with $d$ dimensions or features, we want to sample $n$ poin
 
 We do this by dividing each dimension into $n$ equally spaced intervals. Then, for each dimension, we sample a random permutation of the numbers $1, ..., n$ and the resulting sequence determines which interval of that dimension is sampled for each of the $n$ samples. This ensures that each interval in each dimension is sampled exactly once. Finally a sample is drawn from each of the chosen intervals.
 
-Let $x_{j,i}$, $j = 1, ..., n$, $i = 1, ..., d$ be the $i^{\text{th}}$ dimension of the $j^{\text{th}}$ observation. Let $\mathbf{\pi}_i$, $i = 1, ..., d$ be $d$ independent random permutations of the numbers $\{1,...,n\}$, then
+Let $x_{j,i}$, $j = 1, ..., n$, $i = 1, ..., d$ be the $i^{\text{th}}$ dimension of the $j^{\text{th}}$ sample. Let $\mathbf{\pi}_i$, $i = 1, ..., d$ be $d$ independent random permutations of the numbers $\{1,...,n\}$, then
 
 $$\mathbf{x}_{i,:} = \frac{\mathbf{\pi}_i - 1 + \mathbf{\nu}_i}{n}$$
 
-Where $\mathbf{x}_{i,:}$ are the $i^{\text{th}}$ dimension of all observations, and
+Where $\mathbf{x}_{i,:}$ is the $i^{\text{th}}$ dimension of all samples, and
 
 $$\mathbf{\nu}_i \sim \text{Unif}(0, 1)$$
 
@@ -108,7 +108,7 @@ Here is an implementation of LHS:
 ```{r}
 #' Latin Hypercube Sampling
 #'
-#' @param n <int> number of observations
+#' @param n <int> number of samples
 #' @param d <int> number of features
 #'
 #' @return matrix of shape (n,d)
@@ -122,9 +122,11 @@ latin_hypercube_sampling <- function(n, d) {
 
 LHS ensures a uniform coverage of the search space, which is great for efficient exploration. Furthermore, it is relatively simple to implement, so it is an easy place to start.
 
-A large drawback of LHS is that additional points cannot be sampled after the design is complete. Imagine the very likely scenario that we are about to do Bayesian optimisation we chose initial number of observations, $n$, that was too small, so we are unable to fit a useful surrogate model. We have already done the $n$ observations and they are good, but we would like to add just a few more, $m$, initial observations before starting optimisation in earnest. Unfortunately, we cannot add the $m$ points to the original LHS. Neither is the LHS of size $n$ a subset of the LHS of size $n + m$. To get a LHS of size $n + m$, we would have to create an entirely new design. The intuition for this is that, as part of the design, we split each dimension into $n$ equally spaced intervals, so we cannot retroactively split them into $n + m$, once the $n$ samples are done. Another way to think about it is that the design is generated in a for loop over each dimension, so the total number of samples must be known from the beginning. In practice, we could use some space-filling criterion or just random sampling to generate the $m$ points, but they would not fit in the Latin Hypercube.
+A large drawback of LHS is that additional points cannot be sampled after the design is complete. Imagine a scenario where we are about to do Bayesian optimisation, but we chose an initial number of samples, $n$, that was too small, so we are unable to fit a useful surrogate model. We have already done the $n$ samples and they are good, but we would like to add just a few more, $m$, initial samples before starting optimisation in earnest. Unfortunately, we cannot add the $m$ points to the original LHS. Neither is the LHS of size $n$ a subset of the LHS of size $n + m$. To get a LHS of size $n + m$, we would have to create an entirely new design. The intuition for this is that, as part of the design, we split each dimension into $n$ equally spaced intervals, so we cannot retroactively split them into $n + m$, once the $n$ samples are done. Another way to think about it is that the design is generated in a for loop over each dimension, so the total number of samples must be known from the beginning. In practice, we could use some space-filling criterion or just random sampling to generate the $m$ points, but they would not fit in the Latin Hypercube.
 
 #### LHS in 2D
+
+Here is LHS applied to our running example:
 
 ```{r lhs, fig.width=6, fig.height=6}
 samples <- latin_hypercube_sampling(n, d)
@@ -194,15 +196,15 @@ design_transformed <- cbind(design[, 1], design[, 2] * (4 + 2) - 2)
 plot_design(design_transformed, "Linearly Scaled Design")
 ```
 
-It should be noted that for the best performance of Gaussian processes in Bayesian optimisation, the scale should be similar across features. Additionally, for the kernels that have length scale parameters, the interpretability of those parameters are complicated by differing scales. Normalising to the unit cube is generally a good idea for the actual calculations, but for presentation purposes we might want to scale to an range that matches the physical setting.
+It should be noted that for the best performance of Gaussian processes in Bayesian optimisation, the scale should be similar across features. Additionally, for the kernels that have length scale parameters, the interpretability of those parameters are complicated by differing scales. Normalising to the unit cube is generally a good idea for the actual calculations, but for presentation purposes we might want to scale to a range that matches the physical setting.
 
 #### Applying prior knowledge to a design
 
 Samples that are uniformly distributed in the unit cube can easily be scaled to any other distribution that fits with our prior intuition.
 
-$$\mathbf{x}_{scaled} = Q(\mathbf{x},\theta)$$
+$$\mathbf{\hat{x}_{i,:}} = Q(\mathbf{x}_{i,:},\theta)$$
 
-Where $Q$ is the quantile function of a distribution with parameters $\theta$.
+Where $\mathbf{x}_{i,:}$ is the $i^{\text{th}}$ dimension of all samples and $Q$ is the quantile function of a distribution with parameters $\theta$.
 
 For instance, let's make a design with two feature dimensions. For demonstration purposes, we will do a design with many points:
 
@@ -220,19 +222,17 @@ plot_design(design, "Prior Informed Design")
 
 The main thing to notice in this design is that the dimensions are scaled to match a prior distribution but the samples still retain the stratification of the LHS design. 
 
-We could have chosen any distribution that fit with our prior intuition or knowledge about where might obtain good samples.
+We could have chosen any distribution that fits with our prior intuition or knowledge about where we might obtain good samples.
 
 ## Designing with Discrete or Categorical Features
 
 So far, we have implicitly assumed that all our features are continuous. This is not always the case and it is easy to imagine a situation where we want to include a discrete or categorical feature in the initial design. Let's look at how we can extend the continuous unit cube designs to include discrete or categorical features.
 
-We can turn a continuous range into a discrete range by cutting it into intervals.
-
-Imagine that we had a discrete feature with five possible values. To include it in the initial design, we generate a dimension for this feature, just as we would for a continuous feature. We then define five intervals along the unit range and let each interval correspond to a step in the discrete feature.
+We can turn a continuous range into a discrete range by cutting it into intervals. For instance, imagine that we had a discrete feature with five possible values. To include it in the initial design, we generate a dimension for this feature, just as we would for a continuous feature. We then define five intervals along the unit range and let each interval correspond to a step in the discrete feature.
 
 ```{r}
 design <- latin_hypercube_sampling(n, d)
-design[,2] <- cut(design[,2], breaks = 5)
+design[,2] <- cut(design[,2], breaks = seq(0, 1, 1 / 5))
 plot_design(design, "Design with Discrete Feature")
 ```
 
@@ -244,7 +244,7 @@ design[,2] <- cut(design[,2], breaks = c(0, 0.2, 0.3, 0.7, 0.8, 1))
 plot_design(design, "Design with Discrete Feature and Uneaven Intervals")
 ```
 
-When given as inputs to a surrogate model for Bayesian optimisation, it might be easier to keep pretending that the discrete feature is continuous. For presentation purposes, we can transform the feature into something more in line with the physical process. Alternatively, we could treat the discrete feature as categorical.
+When given as input to a surrogate model for Bayesian optimisation, it might be easier to keep pretending that the discrete feature is continuous. For presentation purposes, we can transform the feature into something more in line with the physical process. Alternatively, we could treat the discrete feature as categorical.
 
 To include a categorical feature in the initial design, we can use the same trick of cutting the unit range into even intervals and then assign each a category label.
 
@@ -265,6 +265,7 @@ plot_design(design, "Design with Categorical Feature, Uneaven Distribution")
 Once we have defined the sampling scheme, we can turn the categorical feature into one-hot features that can be given as inputs to a surrogate model for Bayesian optimisation.
 
 ```{r}
+#| tbl-colwidths: [20]
 tibble::as_tibble(
   randtoolbox::sobol(10, d),
   .name_repair = ~ c("X1", "X2")
@@ -274,7 +275,7 @@ tibble::as_tibble(
     value = 1
   ) %>%
   tidyr::pivot_wider(names_from = X2, values_from = value, values_fill = 0) %>%
-  knitr::kable(digits = 3)
+  knitr::kable(digits = 3, row.names = FALSE, align = "l")
 ```
 
 # References {-}
