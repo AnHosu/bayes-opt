@@ -198,17 +198,33 @@ It should be noted that for the best performance of Gaussian processes in Bayesi
 
 #### Applying prior knowledge to a design
 
-This design expands on LHS to add prior knowledge or assumptions to the initial design.
+Samples that are uniformly distributed in the unit cube can easily be scaled to any other distribution that fits with our prior intuition.
+
+$$\mathbf{x}_{scaled} = Q(\mathbf{x},\theta)$$
+
+Where $Q$ is the quantile function of a distribution with parameters $\theta$.
+
+For instance, let's make a design with two feature dimensions. For demonstration purposes, we will do a design with many points:
 
 ```{r scale, fig.width=6, fig.height=6}
-l <- latin_hypercube_sampling(1e3, 2)
-l[,1] <- qnorm(l[,1])
-l[,2] <- qexp(l[,2])
-plot_design(l, "yay")
+design <- latin_hypercube_sampling(40, 2)
 ```
 
+Now we want the first feature to be normally distributed with mean at 1 and a standard deviation of 2. We want our second dimension to be positive but with a preference towards small values, so we will transform it to an exponential distribution with rate 1.
+
+```{r qscale, fig.width=6, fig.height=6}
+design[,1] <- qnorm(design[,1], mean = 1, sd = 2)
+design[,2] <- qexp(design[,2], rate = 1)
+plot_design(design, "Prior Informed Design")
+```
+
+The main thing to notice in this design is that the dimensions are scaled to match a prior distribution but the samples still retain the stratification of the LHS design. 
+
+We could have chosen any distribution that fit with our prior intuition or knowledge about where might obtain good samples.
 
 ## Designing with Discrete or Categorical Features
+
+So far, we have implicitly assumed that all our features are continuous. This is not always the case - it is easy to imagine a situation where we want to include a discrete or categorical feature in the initial design. Let's look at how we can extend the unit cube designs to include discrete or categorical features.
 
 Assign discrete feature to intervals in range [0,1].
 
