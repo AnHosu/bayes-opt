@@ -224,12 +224,58 @@ We could have chosen any distribution that fit with our prior intuition or knowl
 
 ## Designing with Discrete or Categorical Features
 
-So far, we have implicitly assumed that all our features are continuous. This is not always the case - it is easy to imagine a situation where we want to include a discrete or categorical feature in the initial design. Let's look at how we can extend the unit cube designs to include discrete or categorical features.
+So far, we have implicitly assumed that all our features are continuous. This is not always the case and it is easy to imagine a situation where we want to include a discrete or categorical feature in the initial design. Let's look at how we can extend the continuous unit cube designs to include discrete or categorical features.
 
-Assign discrete feature to intervals in range [0,1].
+We can turn a continuous range into a discrete range by cutting it into intervals.
 
-One-hot encoding of categorical features. Use continuous design with softmax on one-hot features or maximum gets 1.
+Imagine that we had a discrete feature with five possible values. To include it in the initial design, we generate a dimension for this feature, just as we would for a continuous feature. We then define five intervals along the unit range and let each interval correspond to a step in the discrete feature.
 
+```{r}
+design <- latin_hypercube_sampling(n, d)
+design[,2] <- cut(design[,2], breaks = 5)
+plot_design(design, "Design with Discrete Feature")
+```
+
+The intervals do not have to be even. We can define the breaks that match with the nature of our discrete feature.
+
+```{r}
+design <- latin_hypercube_sampling(n, d)
+design[,2] <- cut(design[,2], breaks = c(0, 0.2, 0.3, 0.7, 0.8, 1))
+plot_design(design, "Design with Discrete Feature and Uneaven Intervals")
+```
+
+When given as inputs to a surrogate model for Bayesian optimisation, it might be easier to keep pretending that the discrete feature is continuous. For presentation purposes, we can transform the feature into something more in line with the physical process. Alternatively, we could treat the discrete feature as categorical.
+
+To include a categorical feature in the initial design, we can use the same trick of cutting the unit range into even intervals and then assign each a category label.
+
+```{r}
+design <- data.frame(latin_hypercube_sampling(n, d))
+design[,2] <- cut(design[,2], breaks = seq(0, 1, 1 / 5), labels = letters[1:5])
+plot_design(design, "Design with Categorical Feature")
+```
+
+This approach works particularly well with LHS, as this design offers guaranteed even stratification when $n$ is an integer multiple of $d$. The same is not true for random sampling or quasi random sequences.
+
+```{r}
+design <- data.frame(randtoolbox::sobol(10, d))
+design[,2] <- cut(design[,2], breaks = seq(0, 1, 1 / 5), labels = letters[1:5])
+plot_design(design, "Design with Categorical Feature, Uneaven Distribution")
+```
+
+Once we have defined the sampling scheme, we can turn the categorical feature into one-hot features that can be given as inputs to a surrogate model for Bayesian optimisation.
+
+```{r}
+tibble::as_tibble(
+  randtoolbox::sobol(10, d),
+  .name_repair = ~ c("X1", "X2")
+) %>%
+  dplyr::mutate(
+    X2 = cut(X2, breaks = seq(0, 1, 1 / 5), labels = letters[1:5]),
+    value = 1
+  ) %>%
+  tidyr::pivot_wider(names_from = X2, values_from = value, values_fill = 0) %>%
+  knitr::kable(digits = 3)
+```
 
 # References {-}
 
