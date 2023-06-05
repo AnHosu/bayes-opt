@@ -29,20 +29,20 @@ This post contains a comprehensive list and discussion of kernels to use in the 
 This post discusses acquisition functions, which are used to recommend the next point to sample in the experiment sequence. Acquisition functions are the main means of balancing exploration and exploitation during optimisation. The post lists a number of acquisition functions and implements them in R.
 
 
-**Neural Networks as Surrogate Models**
+**[Alternative Surrogate Models](https://anhosu.com/post/alternative-surrogates-r/)**
 
-This post is coming soon.
-
-
-**Initial Designs for Bayesian Optimisation**
-
-This post is coming soon.
+Gaussian processes are almost the default choice for surrogate models in Bayesian optimisation and they do perform well for many diverse tasks. However, a Gaussian process might not always be the right choice. This post discusses and implements four alternatives to Gaussian processes as surrogate models for Bayesian optimisation. 
 
 
-**Benchmarking Bayesian Optimisation**
+**[Initial Designs](https://anhosu.com/post/initial-designs-r/)**
+
+The first step in Bayesian optimisation is the initial experiment design, which provides the base data for a surrogate model. This post discusses the significance of initial experiment designs for Bayesian optimisation, and explores a few examples, including Latin Hypercube Sampling (LHS), while highlighting their advantages and limitations.
+
+
+**Benchmarking and Testing Bayesian Optimisation**
 
 This post is coming soon.
 
 ## License
 
-The content of this project itself is licensed under the [Creative Commons Attribution-ShareAlike 4.0 International license](https://creativecommons.org/licenses/by-sa/4.0/), and the underlying code is licensed under the [GNU General Public License v3.0 license](LICENSE).
+The content of this project itself is licensed under the [Creative Commons Attribution-ShareAlike 4.0 International license](https://creativecommons.org/licenses/by-sa/4.0/), and the underlying code is licensed under the [GNU General Public License v3.0 license](https://github.com/AnHosu/bayes-opt/blob/2b81cc2c765cf5aa76e62a2da387c3b4ca1695a9/LICENSE).
