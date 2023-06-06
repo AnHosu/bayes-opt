@@ -11,6 +11,67 @@ html-math-method:
 ---
 
 Bayesian optimization is a powerful technique for optimizing black-box functions, particularly when the number of evaluations of the objective function is limited. It has found applications in various fields, including hyperparameter tuning, model selection, and optimization of physical experiments. In this blog post, we will discuss the role of the objective function in Bayesian optimization and provide a practical guide on how to benchmark Bayesian optimization algorithms using synthetic test functions. Our aim is to equip engineers with the knowledge and tools required to apply Bayesian optimization to real-world problems effectively.
+```{r setup, echo=TRUE}
+library(ggplot2)
+library(magrittr)
+seed <- 4444
+set.seed(seed)
+```
+
+
+```{r}
+ackley <- function(X) {
+  if (is.null(dim(X))) dim(X) <- c(1, length(X))
+  d <- ncol(X)
+  part1 <- -20*exp(-0.2*sqrt(1/d*rowSums(X^2)))
+  part2 <- -exp(1/d*rowSums(cos(2*pi*X)))
+  part1 + part2 + 20 + exp(1)
+}
+
+lspace <- seq(-1.5, 1.5, 0.01)
+obs <- lspace %>%
+  tidyr::expand_grid(x1 = ., x2 = .) %>%
+  dplyr::mutate(y = ackley(cbind(x1, x2)))
+  
+plotly::plot_ly(
+  x = lspace,
+  y = lspace,
+  z = `dim<-`(obs$y, c(length(lspace), length(lspace))),
+  showscale = FALSE
+) %>%
+  plotly::add_surface(
+    contours = list(
+
+    z = list(
+
+      show=TRUE,
+      start = 0.5, end = 7, size = 0.5, color = "white",
+      usecolormap=TRUE,
+
+      highlightcolor="#ff0000",
+
+      project=list(z=TRUE)
+
+      )
+
+    )
+  ) %>%
+  plotly::layout(
+    plot_bgcolor = "rgba(0,0,0,0)",
+    paper_bgcolor = "rgba(0,0,0,0)",
+    scene = list(
+
+      camera=list(
+
+        eye = list(x=2.2, y=1.8, z=1.5)
+
+        )
+
+      )
+
+  )
+```
+
 
 ## The Role of the Objective Function in Bayesian Optimization
 
@@ -116,78 +177,78 @@ $$w(\mathbf{c}) = \begin{cases}
 \end{cases}$$
 
 ```{r}
-# Weight function for the categorical variable
-weight_function <- function(c) {
-  if (all(c == c(1, 0, 0))) {
-    return(10)
-  } else if (all(c == c(0, 1, 0))) {
-    return(20)
-  } else if (all(c == c(0, 0, 1))) {
-    return(30)
-  } else {
-    stop("Invalid categorical input")
-  }
-}
-
-# Combined Branin-Hoo function with categorical features
-branin_hoo_categorical <- function(x, c) {
-  return(branin_hoo(x) + weight_function(c))
-}
+# # Weight function for the categorical variable
+# weight_function <- function(c) {
+#   if (all(c == c(1, 0, 0))) {
+#     return(10)
+#   } else if (all(c == c(0, 1, 0))) {
+#     return(20)
+#   } else if (all(c == c(0, 0, 1))) {
+#     return(30)
+#   } else {
+#     stop("Invalid categorical input")
+#   }
+# }
+# 
+# # Combined Branin-Hoo function with categorical features
+# branin_hoo_categorical <- function(x, c) {
+#   return(branin_hoo(x) + weight_function(c))
+# }
 ```
 
 
 ```{r}
-bayesian_optimization <- function(gp, acquisition_function, X_initial, y_initial, max_iter, test_function, ...) {
-  # Start with initial observations
-  X <- X_initial
-  y <- y_initial
-  
-  for (i in 1:max_iter) {
-    # Fit the Gaussian process model using the current observations
-    gp.fit(X, y)
-    
-    # Use the acquisition function to select the next point to evaluate
-    x_next <- acquisition_function(gp, ...)
-    
-    # Evaluate the test function at the chosen point
-    y_next <- test_function(x_next, ...)
-    
-    # Update the observations
-    X <- rbind(X, x_next)
-    y <- c(y, y_next)
-  }
-  
-  # Return the best solution found
-  return(list("x_best" = X[which.min(y),], "y_best" = min(y)))
-}
-
-expected_improvement <- function(gp, X_pred, y_min, xi = 0.01) {
-  mu <- gp.predict_mean(X_pred)
-  sigma <- gp.predict_sd(X_pred)
-  
-  z <- (mu - y_min - xi) / sigma
-  ei <- (mu - y_min - xi) * pnorm(z) + sigma * dnorm(z)
-  return(ei)
-}
-
-
-# Benchmarking for Branin-Hoo Function
-X_initial_bh <- ... # Initial points for the Branin-Hoo function
-y_initial_bh <- apply(X_initial_bh, 1, branin_hoo)
-
-result_bh <- bayesian_optimization(gp, expected_improvement, X_initial_bh, y_initial_bh, max_iter = 50, test_function = branin_hoo)
-
-# Benchmarking for Mixed-Integer Ackley Function
-X_initial_mia <- ... # Initial points for the Mixed-Integer Ackley function
-y_initial_mia <- apply(X_initial_mia, 1, mixed_integer_ackley, m = ...)
-
-result_mia <- bayesian_optimization(gp, expected_improvement, X_initial_mia, y_initial_mia, max_iter = 50, test_function = mixed_integer_ackley, m = ...)
-
-# Benchmarking for Branin-Hoo Function with Categorical Features
-X_initial_bhc <- ... # Initial points for the Branin-Hoo function with categorical features
-y_initial_bhc <- apply(X_initial_bhc[, 1:2], 1, branin_hoo_categorical, c = X_initial_bhc[, 3:5])
-
-result_bhc <- bayesian_optimization(gp, expected_improvement, X_initial_bhc, y_initial_bhc, max_iter = 50, test_function = branin_hoo_categorical)
+# bayesian_optimization <- function(gp, acquisition_function, X_initial, y_initial, max_iter, test_function, ...) {
+#   # Start with initial observations
+#   X <- X_initial
+#   y <- y_initial
+#   
+#   for (i in 1:max_iter) {
+#     # Fit the Gaussian process model using the current observations
+#     gp.fit(X, y)
+#     
+#     # Use the acquisition function to select the next point to evaluate
+#     x_next <- acquisition_function(gp, ...)
+#     
+#     # Evaluate the test function at the chosen point
+#     y_next <- test_function(x_next, ...)
+#     
+#     # Update the observations
+#     X <- rbind(X, x_next)
+#     y <- c(y, y_next)
+#   }
+#   
+#   # Return the best solution found
+#   return(list("x_best" = X[which.min(y),], "y_best" = min(y)))
+# }
+# 
+# expected_improvement <- function(gp, X_pred, y_min, xi = 0.01) {
+#   mu <- gp.predict_mean(X_pred)
+#   sigma <- gp.predict_sd(X_pred)
+#   
+#   z <- (mu - y_min - xi) / sigma
+#   ei <- (mu - y_min - xi) * pnorm(z) + sigma * dnorm(z)
+#   return(ei)
+# }
+# 
+# 
+# # Benchmarking for Branin-Hoo Function
+# X_initial_bh <- ... # Initial points for the Branin-Hoo function
+# y_initial_bh <- apply(X_initial_bh, 1, branin_hoo)
+# 
+# result_bh <- bayesian_optimization(gp, expected_improvement, X_initial_bh, y_initial_bh, max_iter = 50, test_function = branin_hoo)
+# 
+# # Benchmarking for Mixed-Integer Ackley Function
+# X_initial_mia <- ... # Initial points for the Mixed-Integer Ackley function
+# y_initial_mia <- apply(X_initial_mia, 1, mixed_integer_ackley, m = ...)
+# 
+# result_mia <- bayesian_optimization(gp, expected_improvement, X_initial_mia, y_initial_mia, max_iter = 50, test_function = mixed_integer_ackley, m = ...)
+# 
+# # Benchmarking for Branin-Hoo Function with Categorical Features
+# X_initial_bhc <- ... # Initial points for the Branin-Hoo function with categorical features
+# y_initial_bhc <- apply(X_initial_bhc[, 1:2], 1, branin_hoo_categorical, c = X_initial_bhc[, 3:5])
+# 
+# result_bhc <- bayesian_optimization(gp, expected_improvement, X_initial_bhc, y_initial_bhc, max_iter = 50, test_function = branin_hoo_categorical)
 
 ```
 
