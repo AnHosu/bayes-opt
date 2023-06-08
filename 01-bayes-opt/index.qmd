@@ -288,7 +288,7 @@ Where $\mathbf{\Sigma}_{tp}$ is the covariance matrix between training and predi
 
 Recall though that often $\mathbf{\mu} = \mathbf{0}$, so the equation will often show up as 
 
-$$\mathbf{\mu}_{p|t} = \mathbf{\Sigma}_{tp} \mathbf{\Sigma}_{tt}^{-1} \mathbf{y}_t$$
+$$\mathbf{\mu}_{p|t} = \mathbf{\Sigma}_{tp}^T \mathbf{\Sigma}_{tt}^{-1} \mathbf{y}_t$$
 
 This is also what is implemented below.
 
