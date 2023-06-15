@@ -13,7 +13,7 @@ html-math-method:
 
 [Bayesian optimisation](../bayes-opt-r) is a powerful optimisation technique for black-box functions and processes with expensive evaluations. It is popular for hyperparameter tuning in machine learning, but has many real-world applications as well.
 
-One of the key components of Bayesian optimisation is the surrogate model, which models the objective function and helps guide optimisation by being a cheap to evaluate representation of our posterior beliefs. Gaussian processes (GPs) are commonly used as surrogate functions, as they offer many of the qualities we need, when doing Bayesian optimisation. However, there are alternatives to GPs and, in this post, we will dive into the role of surrogate models in Bayesian optimisation, focusing on four types of surrogate models that are not GPs.
+One of the key components of Bayesian optimisation is the surrogate model, which models the objective function and helps guide optimisation by being a cheap to evaluate representation of our posterior beliefs. Gaussian processes (GPs) are commonly used as surrogate functions, as they offer many of the qualities we need, when doing Bayesian optimisation. However, there are alternatives to GPs and, in this post, we will dive into the role of surrogate models in Bayesian optimisation, focusing on four types of surrogate models that are *not* GPs.
 
 Specifically, we will discuss ensembles, Bayesian Neural Networks, bespoke Bayesian models, and Student's t processes as potential surrogate models for Bayesian optimisation. Along with the discussion, are implementations in R.
 
@@ -32,23 +32,21 @@ $$\mathbf{x}_{t+1} = \arg\max_{\mathbf{x} \in \mathcal{X}} a(\mathbf{x})$$
 
 The acquisition function is itself a function of the surrogate model. The surrogate is a regression model that is used to approximate the objective function and it provides predictions of the objective function values and uncertainty estimates at unobserved points in the search space.
 
-Specifically, many acquisition functions are functions of the mean $\mu(\mathbf{x})$ and standard deviation $\sigma(\mathbf{x})$ across the search space. In those cases, the surrogate model should provide estimates of those two. In this definition is also the implicit assumption that the likelihood of the surrogate model is Gaussian.
+Specifically, many acquisition functions are functions of the mean $\mu(\mathbf{x})$ and standard deviation $\sigma(\mathbf{x})$ across the search space. The surrogate model should provide estimates of those two. In this definition is also the implicit assumption that the likelihood of the surrogate model is Gaussian.
 
 Gaussian processes, are often used as surrogate models because they explicitly satisfy this assumption. With a Gaussian process, it is easy to isolate the two necessary components. $\mu(\mathbf{x})$ is simply the posterior predictive mean function and $\sigma(\mathbf{x})$ is an entry on the diagonal in the covariance matrix of the posterior predictive distribution.
 
-There are, however, alternatives to Gaussian processes as surrogates and four of them are discussed below. While there are [acquisition functions](.../post/acquisition-functions-r/) that rely on more complex mechanisms, this post focuses on surrogate models that support acquisition functions which are in some way a function of $\mu(\mathbf{x})$ and $\sigma(\mathbf{x})$. The first three also assume a Gaussian likelihood, whereas the last surrogate discussed, Student's t processes, assumes a Student's t likelihood.
+There are, however, alternatives to Gaussian processes as surrogates and four of them are discussed below. While there are [acquisition functions](.../post/acquisition-functions-r/) that rely on more complex mechanisms, this post focuses on surrogate models that support acquisition functions which are in some way a function of $\mu(\mathbf{x})$ and $\sigma(\mathbf{x})$. The first three also assume a Gaussian likelihood, whereas the last surrogate discussed, Student's t processes, assumes a Student's t likelihood and consequently requires a modification to the acquisition function.
 
 #### An Example Problem
 
 To demonstrate the surrogate models, we need a toy problem. We will use a simple objective function with noise and a single dimension.
 
 ```{r}
-objective_function <- function(x) {
-  sin(12 * x) * x + 0.5 * x^2
-}
+objective_function <- function(x) sin(12 * x) * x + 0.5 * x^2
 ```
 
-This function has two minima and two maxima in the search space $\mathcal{X} = [0,1]$, so it will not be too easy to maximise or minimise.
+We assume that we want to minimise this function. There are two minima in the search space $\mathcal{X} = [0,1]$, so it will not be too easy to minimise.
 
 ```{r}
 #| code-fold: true
@@ -280,7 +278,7 @@ gp <- gpr(
   kernel = rbf_kernel,
   X_train = X_train,
   y_train = y_train,
-  noise = 0.1,
+  noise = noise,
   l = 1,
   sigma_f = 1
 )
@@ -306,13 +304,15 @@ acquisition_plot(
 )
 ```
 
+The dashed line indicates the next sampling point, $\mathbf{x}_{t+1}$, as suggested by the acquisition function.
+
 Now let's look at some alternative surrogate models.
 
 ## Ensembles as Surrogate Models
 
-A single deterministic model will not work as a surrogate for Bayesian optimisation, as it does not offer a measure of uncertainty. Fortunately there is a way for us to use our favourite machine learning models for Bayesian optimisation. If we collect an ensemble of models, we can use the mean and standard deviation of the predictions in place of $\mu(\mathbf{x})$ and $\sigma(\mathbf{x})$.
+A single deterministic model will not work as a surrogate for Bayesian optimisation, as it does not offer a measure of uncertainty. Fortunately there is a way for us to use our favourite machine learning models for Bayesian optimisation. If we collect an ensemble of models, we can use the mean and standard deviation of the predictions as estimates of $\mu(\mathbf{x})$ and $\sigma(\mathbf{x})$.
 
-There are a few ways in which we could build an ensemble, and they all work, as long as the distribution of predictions is Gaussian. For instance, if we had a lot of training data, we could do bagging and train several models on different subsets of the training data and use those as an ensemble. We could also use a stack of different models as an ensemble.
+There are a few ways in which we could build an ensemble, and they all work, as long as the distribution of predictions is approximately Gaussian. For instance, if we had a lot of training data, we could do bagging and train several models on different subsets of the training data and use those as an ensemble. We could also use a stack of different models as an ensemble.
 
 While Bayesian optimisation problems rarely come with a lot of training data, such a situation represents a case where an ensemble might be preferred over a GP, as GPs are difficult to scale for large data sets.
 
@@ -391,7 +391,7 @@ We will assume a Gaussian likelihood, $y$, i.e.
 
 $$y \sim \mathcal{N}(\mu, \sigma|\mathbf{X}, \theta)$$
 
-Where $\sigma$ is the, possibly known, noise of observations and $\mu$ is the Neural Network function of our training data, $\mathbf{X}$:
+where $\sigma$ is the, possibly known, noise of observations and $\mu$ is the Neural Network function of our training data, $\mathbf{X}$:
 
 $$\mu = {\sf NN}(\mathbf{X}, \theta)$$
 
@@ -487,11 +487,11 @@ Building a bespoke model requires some prior, possibly incomplete, knowledge of 
 
 The model has two general components: a likelihood function as well as priors for any parameters. Let's start with the likelihood.
 
-For the likelihood we assume observations with Gaussian noise
+For the likelihood, we assume observations with Gaussian noise
 
 $$y \sim \mathcal{N}(\mu, \sigma|\mathbf{X},\alpha,\beta)$$
 
-Where $\sigma$ is the, possibly known, noise of observations and $\mu$ is a function of our training data, $\mathbf{X}$:
+where $\sigma$ is the, possibly known, noise of observations and $\mu$ is a function of our training data, $\mathbf{X}$:
 
 $$\mu = \mathbf{X}\sin(\mathbf{X}\alpha) + \beta\mathbf{X}^2$$
 
@@ -609,7 +609,7 @@ Given a set of training data, $\mathbf{X}_t, \mathbf{y}_t$, and set of points on
 
 $$\mathbf{\mu}_{p|t} = \mathbf{K}_{tp}^T \mathbf{K}_{tt}^{-1} \mathbf{y}_t$$
 
-Where we have assumed a zero mean function $\mathbf{\mu} = \mathbf{0}$.
+Where $\mathbf{\Sigma}_{tp}$ is the covariance matrix between training and prediction points and $\mathbf{\Sigma}_{tt}$ is the covariance matrix between training points. We have also assumed a zero mean function $\mathbf{\mu} = \mathbf{0}$.
 
 The covariance matrix of the posterior predictive distribution is
 
