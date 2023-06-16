@@ -8,7 +8,7 @@ format:
     fig-height: 5
     theme: none
 html-math-method:
-  method: katex
+  method: mathjax
 ---
 
 [Bayesian optimisation](../bayes-opt-r) is a powerful optimisation technique for black-box functions and processes with expensive evaluations. It is popular for hyperparameter tuning in machine learning, but has many real-world applications as well.
@@ -672,7 +672,7 @@ $\mathbf{\Sigma}$ is calculated using a kernel function with parameters, $\theta
 
 The log likelihood likelihood function for a TP is:
 
-$$\begin{aligned} \log p(\mathbf{y}_t \mid \mathbf{X}_t, \theta) =\,& \log\Gamma\left(\frac{\nu_{prior} + d}{2}\right) \\ &- \log\Gamma\left(\frac{\nu_{prior}}{2}\right) \\ &- \frac{1}{2}\log\det (\mathbf{\Sigma}_{tt}) \\ &- \frac{1}{2}(\nu_{prior}+d)\log\left(1+\frac{\mathbf{y}_t^T (\mathbf{\Sigma}_{tt})^{-1} \mathbf{y}_t}{\nu_{prior}}\right) \\ &- \frac{1}{2}d \log(\nu_{prior}\pi) \end{aligned}$$
+$$\begin{aligned} \log p(\mathbf{y}_t \mid \mathbf{X}_t, \theta) =\,& \log\Gamma\left(\frac{\nu_{prior} + d}{2}\right) \\\ &- \log\Gamma\left(\frac{\nu_{prior}}{2}\right) \\\ &- \frac{1}{2}\log\det (\mathbf{\Sigma}_{tt}) \\\ &- \frac{1}{2}(\nu_{prior}+d)\log\left(1+\frac{\mathbf{y}_t^T (\mathbf{\Sigma}_{tt})^{-1} \mathbf{y}_t}{\nu_{prior}}\right) \\\ &- \frac{1}{2}d \log(\nu_{prior}\pi) \end{aligned}$$
 
 Where $\nu_{prior}$ is the prior degrees of freedom, $d$ is the number of dimensions of the distribution, and $\mathbf{\Sigma}_{tt}$ is the scaled covariance matrix between training points [@Rasmussen:2006] [@Tracey2018].
 
@@ -771,7 +771,7 @@ Now that we have an expression for the posterior predictive of a TP, the only co
 
 When using a TP surrogate model, Expected Improvement can be calculated using the formula 
 
-$$a_{EI}(\mathbf{x}) = (y_{min} - \mu(\mathbf{x}) - \xi) \Lambda_{\nu_{post}}(Z) + \sigma(\mathbf{x})\frac{\nu_{post}}{\nu_{post}-1}(1+\frac{Z^2}{\nu_{post}})\lambda_{\nu_{post}}(Z)$$
+$$\begin{aligned}a_{EI}(\mathbf{x}) =\,& (y_{min} - \mu(\mathbf{x}) - \xi) \Lambda_{\nu_{post}}(Z) \\ &+\, \sigma(\mathbf{x})\frac{\nu_{post}}{\nu_{post}-1}(1+\frac{Z^2}{\nu_{post}})\lambda_{\nu_{post}}(Z)\end{aligned}$$
 
 with
 
