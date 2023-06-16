@@ -6,12 +6,14 @@ format:
   html:
     fig-width: 8
     fig-height: 5
-    theme: default
+    theme: none
 html-math-method:
   method: katex
 ---
 
-[Bayesian optimisation](../bayes-opt-r) is a powerful optimisation technique for black-box functions and processes with expensive evaluations. It is popular for hyperparameter tuning in machine learning, but has many real-world applications as well. One of the key components of Bayesian optimisation is the initial experiment design, which forms the foundation for the first fit of the surrogate model. In this post, we will discuss the importance of initial experiment designs in Bayesian optimisation and dive into a few different ways to sample such initial designs.
+[Bayesian optimisation](../bayes-opt-r) is a powerful optimisation technique for black-box functions and processes with expensive evaluations. It is popular for hyperparameter tuning in machine learning, but has many real-world applications as well.
+
+One of the key components of Bayesian optimisation is the initial experiment design, which forms the foundation for the first fit of the surrogate model. In this post, we will discuss the importance of initial experiment designs in Bayesian optimisation and dive into a few different ways to sample such initial designs.
 
 Along with the discussion are example implementations in R.
 
@@ -21,7 +23,7 @@ library(magrittr)
 set.seed(4444)
 ```
 
-## Initial Experiment Designs in Bayesian Optimisation
+## Initial Experiment Designs
 
 Bayesian optimisation works by constructing a surrogate probabilistic model, typically a Gaussian process, of the objective function. The surrogate model is then used to guide the search for an optimum through sequential experimentation. The initial experiment design influences this process in two major ways: it provides initial data points for fitting the surrogate model and it is the initial trade off between exploration and exploitation.
 
@@ -226,7 +228,7 @@ We could have chosen any distribution that fits with our prior intuition or know
 
 ## Designing with Discrete or Categorical Features
 
-So far, we have implicitly assumed that all our features are continuous. This is not always the case and it is easy to imagine a situation where we want to include a discrete or categorical feature in the initial design. Let's look at how we can extend the continuous unit cube designs to include discrete or categorical features.
+So far, we have tacitly assumed that all our features are continuous. This is not always the case and it is easy to imagine a situation where we want to include a discrete or categorical feature in the initial design. Let's look at how we can extend the continuous unit cube designs to include discrete or categorical features.
 
 We can turn a continuous range into a discrete range by cutting it into intervals. For instance, imagine that we had a discrete feature with five possible values. To include it in the initial design, we generate a dimension for this feature, just as we would for a continuous feature. We then define five intervals along the unit range and let each interval correspond to a step in the discrete feature.
 
@@ -284,4 +286,4 @@ tibble::as_tibble(
 
 # License
 
-The content of this project itself is licensed under the [Creative Commons Attribution-ShareAlike 4.0 International license](https://creativecommons.org/licenses/by-sa/4.0/), and the underlying code is licensed under the [GNU General Public License v3.0 license](https://github.com/AnHosu/bespoke-bayesian-biochem/blob/main/LICENSE).
+The content of this project itself is licensed under the [Creative Commons Attribution-ShareAlike 4.0 International license](https://creativecommons.org/licenses/by-sa/4.0/), and the underlying code is licensed under the [GNU General Public License v3.0 license](https://github.com/AnHosu/bayes-opt/blob/6e25a7a4ec88edac9b55dea2b51382d21030a998/LICENSE).
