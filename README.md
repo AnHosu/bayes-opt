@@ -29,7 +29,7 @@ This post contains a comprehensive list and discussion of kernels to use in the 
 This post discusses acquisition functions, which are used to recommend the next point to sample in the experiment sequence. Acquisition functions are the main means of balancing exploration and exploitation during optimisation. The post lists a number of acquisition functions and implements them in R.
 
 
-**[Alternative Surrogate Models](https://anhosu.com/post/alternative-surrogates-r/)**
+**[Alternative Surrogate Models](https://anhosu.com/post/surrogate-alternatives-r/)**
 
 Gaussian processes are almost the default choice for surrogate models in Bayesian optimisation and they do perform well for many diverse tasks. However, a Gaussian process might not always be the right choice. This post discusses and implements four alternatives to Gaussian processes as surrogate models for Bayesian optimisation. 
 
@@ -39,7 +39,7 @@ Gaussian processes are almost the default choice for surrogate models in Bayesia
 The first step in Bayesian optimisation is the initial experiment design, which provides the base data for a surrogate model. This post discusses the significance of initial experiment designs for Bayesian optimisation, and explores a few examples, including Latin Hypercube Sampling (LHS), while highlighting their advantages and limitations.
 
 
-**Benchmarking and Testing Bayesian Optimisation**
+**Testing Bayesian Optimisation**
 
 This post is coming soon.
 
