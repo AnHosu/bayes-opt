@@ -10,13 +10,19 @@ html-math-method:
   method: katex
 ---
 
-Bayesian optimization is a powerful technique for optimizing black-box functions, particularly when the number of evaluations of the objective function is limited. It has found applications in various fields, including hyperparameter tuning, model selection, and optimization of physical experiments. In this blog post, we will discuss the role of the objective function in Bayesian optimization and provide a practical guide on how to benchmark Bayesian optimization algorithms using synthetic test functions. Our aim is to equip engineers with the knowledge and tools required to apply Bayesian optimization to real-world problems effectively.
+[Bayesian optimisation](../bayes-opt-r) is a powerful optimisation technique for black-box functions and processes with expensive evaluations. It is popular for hyperparameter tuning in machine learning, but has many real-world applications as well.
+
+At the centre of Bayesian optimisation is the objective function that we are trying to optimise. The objective function is usually expensive to evaluate, so before we start using Bayesian optimisation on the actual problem, we want to make sure that our code and models are working. In this post, we discuss a set of functions that can help us test and gauge the efficacy of our models. Along with the discussions are implementations in R.
+
 ```{r setup, echo=TRUE}
 library(ggplot2)
 library(magrittr)
-seed <- 4444
-set.seed(seed)
+set.seed(4444)
 ```
+
+## Objective Functions in Bayesian Optimisation
+
+The objective function or process, $f$, 
 
 
 ```{r}
