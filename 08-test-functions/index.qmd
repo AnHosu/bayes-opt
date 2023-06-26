@@ -24,6 +24,12 @@ set.seed(4444)
 
 The objective function or process, $f$, 
 
+The objective function, denoted by $f(\mathbf{x})$, is a mapping from the input space $\mathbf{x} \in \mathcal{X}$ to a scalar output $y \in \mathbb{R}$:
+
+$$f: \mathcal{X} \rightarrow \mathbb{R}$$
+
+In Bayesian optimization, we model the objective function using a surrogate model, typically a Gaussian process, which is cheap to evaluate and provides uncertainty estimates. The algorithm then uses an acquisition function to balance exploration and exploitation and decides on the next point to evaluate in the search space.
+
 #### An Example Model
 
 ```{r}
@@ -271,8 +277,33 @@ acquisition_plot(
 )
 ```
 
-#### 2D example??
+## 2D Functions
 
+#### Branin-Hoo Function
+
+The Branin-Hoo function is a widely used test function in global optimization. It is a continuous, 2-dimensional function with three global minima and a smooth landscape.
+
+$$f(\mathbf{x}) = (x_2 - \frac{5.1}{4\pi^2}x_1^2 + \frac{5}{\pi}x_1 - 6)^2 + 10(1 - \frac{1}{8\pi})\cos(x_1) + 10$$
+
+where $\mathbf{x} = [x_1, x_2] \in [-5, 10] \times [0, 15]$.
+
+```{r}
+# Branin-Hoo Function
+branin_hoo <- function(x) {
+  x1 <- x[1]
+  x2 <- x[2]
+  
+  term1 <- (x2 - (5.1 / (4 * pi^2)) * x1^2 + (5 / pi) * x1 - 6)^2
+  term2 <- 10 * (1 - (1 / (8 * pi))) * cos(x1) + 10
+  
+  return(term1 + term2)
+}
+```
+
+
+## Functions in n Continuous Dimensions
+
+## Ackley
 
 ```{r}
 ackley <- function(X) {
@@ -327,60 +358,10 @@ plotly::plot_ly(
   )
 ```
 
-
-## The Role of the Objective Function in Bayesian Optimization
-
-In Bayesian optimization, the objective function is the black-box function that we aim to optimize. It maps input parameters to a scalar output, which we want to minimize or maximize. The objective function is usually expensive to evaluate, noisy, and lacks an analytical expression. Bayesian optimization aims to find the global optimum of the objective function with the fewest evaluations possible.
-
-The objective function, denoted by $f(\mathbf{x})$, is a mapping from the input space $\mathbf{x} \in \mathcal{X}$ to a scalar output $y \in \mathbb{R}$:
-
-$$f: \mathcal{X} \rightarrow \mathbb{R}$$
-
-In Bayesian optimization, we model the objective function using a surrogate model, typically a Gaussian process, which is cheap to evaluate and provides uncertainty estimates. The algorithm then uses an acquisition function to balance exploration and exploitation and decides on the next point to evaluate in the search space.
-
-## How to Benchmark Bayesian Optimization
-
-Benchmarking Bayesian optimization is essential for understanding its performance, ensuring its reliability, and comparing different algorithms. To benchmark Bayesian optimization, we can use synthetic test functions that exhibit various properties found in real-world problems. These properties include multi-modality, non-convexity, varying levels of noise, and a mix of continuous and discrete features.
-
-A comprehensive benchmark should include:
-
-    Multiple test functions with varying properties.
-    A diverse set of initial points to account for the effect of initial conditions.
-    A fixed budget of evaluations to measure the efficiency of the optimization algorithm.
-    A comparison of the optimization results against the known global optimum.
-
-By comparing the performance of the Bayesian optimization algorithm on these test functions, we can gain insights into its strengths and weaknesses and determine its applicability to real-world problems.
-
-To benchmark Bayesian optimization using the given Gaussian process gp for each of the three test functions, we will follow these steps:
-
-    Define a search space for each test function, including continuous, discrete, and categorical variables as necessary.
-    Implement an acquisition function, such as Expected Improvement (EI), to balance exploration and exploitation.
-    Run the Bayesian optimization algorithm for a fixed budget of evaluations.
-    Compare the optimization results against the known global optima.
+## Michalewicz
 
 
 
-## Examples of Test Functions
-#### Branin-Hoo Function
-
-The Branin-Hoo function is a widely used test function in global optimization. It is a continuous, 2-dimensional function with three global minima and a smooth landscape.
-
-$$f(\mathbf{x}) = (x_2 - \frac{5.1}{4\pi^2}x_1^2 + \frac{5}{\pi}x_1 - 6)^2 + 10(1 - \frac{1}{8\pi})\cos(x_1) + 10$$
-
-where $\mathbf{x} = [x_1, x_2] \in [-5, 10] \times [0, 15]$.
-
-```{r}
-# Branin-Hoo Function
-branin_hoo <- function(x) {
-  x1 <- x[1]
-  x2 <- x[2]
-  
-  term1 <- (x2 - (5.1 / (4 * pi^2)) * x1^2 + (5 / pi) * x1 - 6)^2
-  term2 <- 10 * (1 - (1 / (8 * pi))) * cos(x1) + 10
-  
-  return(term1 + term2)
-}
-```
 
 #### Mixed-Integer Ackley Function
 
@@ -450,60 +431,3 @@ $$w(\mathbf{c}) = \begin{cases}
 #   return(branin_hoo(x) + weight_function(c))
 # }
 ```
-
-
-```{r}
-# bayesian_optimization <- function(gp, acquisition_function, X_initial, y_initial, max_iter, test_function, ...) {
-#   # Start with initial observations
-#   X <- X_initial
-#   y <- y_initial
-#   
-#   for (i in 1:max_iter) {
-#     # Fit the Gaussian process model using the current observations
-#     gp.fit(X, y)
-#     
-#     # Use the acquisition function to select the next point to evaluate
-#     x_next <- acquisition_function(gp, ...)
-#     
-#     # Evaluate the test function at the chosen point
-#     y_next <- test_function(x_next, ...)
-#     
-#     # Update the observations
-#     X <- rbind(X, x_next)
-#     y <- c(y, y_next)
-#   }
-#   
-#   # Return the best solution found
-#   return(list("x_best" = X[which.min(y),], "y_best" = min(y)))
-# }
-# 
-# expected_improvement <- function(gp, X_pred, y_min, xi = 0.01) {
-#   mu <- gp.predict_mean(X_pred)
-#   sigma <- gp.predict_sd(X_pred)
-#   
-#   z <- (mu - y_min - xi) / sigma
-#   ei <- (mu - y_min - xi) * pnorm(z) + sigma * dnorm(z)
-#   return(ei)
-# }
-# 
-# 
-# # Benchmarking for Branin-Hoo Function
-# X_initial_bh <- ... # Initial points for the Branin-Hoo function
-# y_initial_bh <- apply(X_initial_bh, 1, branin_hoo)
-# 
-# result_bh <- bayesian_optimization(gp, expected_improvement, X_initial_bh, y_initial_bh, max_iter = 50, test_function = branin_hoo)
-# 
-# # Benchmarking for Mixed-Integer Ackley Function
-# X_initial_mia <- ... # Initial points for the Mixed-Integer Ackley function
-# y_initial_mia <- apply(X_initial_mia, 1, mixed_integer_ackley, m = ...)
-# 
-# result_mia <- bayesian_optimization(gp, expected_improvement, X_initial_mia, y_initial_mia, max_iter = 50, test_function = mixed_integer_ackley, m = ...)
-# 
-# # Benchmarking for Branin-Hoo Function with Categorical Features
-# X_initial_bhc <- ... # Initial points for the Branin-Hoo function with categorical features
-# y_initial_bhc <- apply(X_initial_bhc[, 1:2], 1, branin_hoo_categorical, c = X_initial_bhc[, 3:5])
-# 
-# result_bhc <- bayesian_optimization(gp, expected_improvement, X_initial_bhc, y_initial_bhc, max_iter = 50, test_function = branin_hoo_categorical)
-
-```
-
