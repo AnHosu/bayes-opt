@@ -17,7 +17,14 @@ Gibbs kernel [@Rasmussen:2006] chapter 4 pg 93.
 
 Applications of Bayesian optimisation [@Reiker2021] & [@Yang2022]
 
+Gaussian processes.
+
+Deep dive into quasi-random sequences.
+
+A deep dive into MLE in Gaussian processes regression. In the posts, we tacitly assume a flat prior on kernel parameters causing the posterior to be proportional to the likelihood, which is why we can use MLE to find kernel parameters. A post could go multiple ways. We could discuss MLE for GPs and TPs, focusing on the prior assumptions. We could also discuss model selection from a set of kernels. BOptBook chapter 4.
+
 Student's t processes. Or sampling from a multivariate Student's t distribution. [@Hofert2013]
+
 
 ```{r}
 #' Random Samples from a Multivariate Student's t Distribution
