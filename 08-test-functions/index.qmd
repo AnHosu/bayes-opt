@@ -18,6 +18,7 @@ At the centre of Bayesian optimisation is the objective function that we are try
 library(ggplot2)
 library(magrittr)
 set.seed(4444)
+with_dim <- `dim<-`
 ```
 
 ## Objective Functions in Bayesian Optimisation
@@ -279,6 +280,54 @@ acquisition_plot(
 
 ## 2D Functions
 
+## Ackley
+
+Seems like Ackley is actually a 2D test function, so the formula should be changed to x1 and x2.
+
+$$f(\mathbf{x}) = -a\exp\left(-b\sqrt{\frac{1}{d}\sum_{i=1}^dx_i^2}\right) - \exp\left(\frac{1}{d}\sum_{i=1}^d \cos(c x_i)\right) \\ + a + \exp(1)$$
+
+```{r}
+ackley <- function(X) {
+  if (is.null(dim(X))) dim(X) <- c(1, length(X))
+  d <- ncol(X)
+  part1 <- -20*exp(-0.2*sqrt(1/d*rowSums(X^2)))
+  part2 <- -exp(1/d*rowSums(cos(2*pi*X)))
+  part1 + part2 + 20 + exp(1)
+}
+
+n <- 300
+x <- seq(-2, 2, length.out = n)
+y <- expand.grid(x , x) %>%
+  ackley() %>%
+  with_dim(c(n, n))
+
+plotly::plot_ly(
+  x = x,
+  y = x,
+  z = y,
+  showscale = FALSE
+) %>%
+  plotly::add_surface(
+    contours = list(
+      z = list(
+        show = TRUE,
+        start = 0.5,
+        end = 7,
+        size = 0.5,
+        color = "white",
+        usecolormap = TRUE,
+        highlightcolor = "#ff0000",
+        project = list(z = TRUE)
+      )
+    )
+  ) %>%
+  plotly::layout(
+    plot_bgcolor = "rgba(0,0,0,0)",
+    paper_bgcolor = "rgba(0,0,0,0)",
+    scene = list(camera = list(eye = list(x = 2.2, y = 1.8, z = 1.5)))
+  )
+```
+
 #### Branin-Hoo Function
 
 The Branin-Hoo function is a widely used test function in global optimization. It is a continuous, 2-dimensional function with three global minima and a smooth landscape.
@@ -303,60 +352,7 @@ branin_hoo <- function(x) {
 
 ## Functions in n Continuous Dimensions
 
-## Ackley
 
-```{r}
-ackley <- function(X) {
-  if (is.null(dim(X))) dim(X) <- c(1, length(X))
-  d <- ncol(X)
-  part1 <- -20*exp(-0.2*sqrt(1/d*rowSums(X^2)))
-  part2 <- -exp(1/d*rowSums(cos(2*pi*X)))
-  part1 + part2 + 20 + exp(1)
-}
-
-lspace <- seq(-1.5, 1.5, 0.01)
-obs <- lspace %>%
-  tidyr::expand_grid(x1 = ., x2 = .) %>%
-  dplyr::mutate(y = ackley(cbind(x1, x2)))
-  
-plotly::plot_ly(
-  x = lspace,
-  y = lspace,
-  z = `dim<-`(obs$y, c(length(lspace), length(lspace))),
-  showscale = FALSE
-) %>%
-  plotly::add_surface(
-    contours = list(
-
-    z = list(
-
-      show=TRUE,
-      start = 0.5, end = 7, size = 0.5, color = "white",
-      usecolormap=TRUE,
-
-      highlightcolor="#ff0000",
-
-      project=list(z=TRUE)
-
-      )
-
-    )
-  ) %>%
-  plotly::layout(
-    plot_bgcolor = "rgba(0,0,0,0)",
-    paper_bgcolor = "rgba(0,0,0,0)",
-    scene = list(
-
-      camera=list(
-
-        eye = list(x=2.2, y=1.8, z=1.5)
-
-        )
-
-      )
-
-  )
-```
 
 ## Michalewicz
 
