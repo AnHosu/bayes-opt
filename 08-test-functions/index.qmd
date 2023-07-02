@@ -237,7 +237,11 @@ acquisition_plot <- function(X_pred,
   cowplot::plot_grid(aligned_plots[[1]], aligned_plots[[2]], ncol = 1)
 }
 
-gp_rbf_ei_1d <- function(X_train, X_pred, demo_function, noise = 1e-8, title = "" ) {
+gp_rbf_ei_1d <- function(X_train,
+                         X_pred,
+                         demo_function,
+                         noise = 1e-8,
+                         title = "" ) {
   y_train <- demo_function(X_train) + rnorm(nrow(X_train), 0, noise)
   gp <- gpr(
     kernel = rbf_kernel,
@@ -285,9 +289,11 @@ gp_rbf_ei_1d(
 )
 ```
 
-## Test Functions in n Continuous Dimensions
+## Test Functions with Continuous Dimensions
 
-## Ackley
+We start out with test functions that are defined for any number, $d$ of continuous dimensions.
+
+#### Ackley
 
 There are several Ackley test functions, one of them is defined as [@Jamil2013]:
 
@@ -358,105 +364,7 @@ gp_rbf_ei_1d(
 ```
 
 
-#### Branin-Hoo Function
 
-The Branin-Hoo function is a widely used test function in global optimization. It is a continuous, 2-dimensional function with three global minima and a smooth landscape.
-
-$$f(\mathbf{x}) = (x_2 - \frac{5.1}{4\pi^2}x_1^2 + \frac{5}{\pi}x_1 - 6)^2 + 10(1 - \frac{1}{8\pi})\cos(x_1) + 10$$
-
-where $\mathbf{x} = [x_1, x_2] \in [-5, 10] \times [0, 15]$.
-
-```{r}
-# Branin-Hoo Function
-branin_hoo <- function(x) {
-  x1 <- x[1]
-  x2 <- x[2]
-  
-  term1 <- (x2 - (5.1 / (4 * pi^2)) * x1^2 + (5 / pi) * x1 - 6)^2
-  term2 <- 10 * (1 - (1 / (8 * pi))) * cos(x1) + 10
-  
-  return(term1 + term2)
-}
-```
-
-
-
-
-
-
-## Michalewicz
-
-
-
-
-#### Mixed-Integer Ackley Function
-
-The Ackley function is another popular test function for optimization, and it can be modified to include both continuous and discrete features. The mixed-integer Ackley function is defined as:
-
-$$f(\mathbf{x}) = -20 \exp\left(-0.2\sqrt{\frac{1}{n}\sum_{i=1}^{n} x_i^2}\right) - \exp\left(\frac{1}{n}\sum_{i=1}^{n} \cos(2\pi x_i)\right) + 20 + e$$
-
-where $\mathbf{x} = [x_1, x_2, ..., x_n] \in \mathcal{X}$, and $\mathcal{X}$ is the mixed-integer search space defined as:
-
-$$\mathcal{X} = \{x_i \in \mathbb{Z} \cap [-5, 5], i = 1, 2, ..., m\} \times \{x_i \in \mathbb{R} \cap [-5, 5], i = m + 1, m + 2, ..., n\}$$
-
-In this definition, the first $m$ dimensions are discrete, and the remaining $n - m$ dimensions are continuous. The global minimum of the Mixed-Integer Ackley function is $f(\mathbf{x^}) = 0$ at $\mathbf{x^} = [0, 0, ..., 0]$.
-
-```{r}
-# Mixed-Integer Ackley Function
-mixed_integer_ackley <- function(x, m) {
-  n <- length(x)
-  sum_sq <- sum(x^2)
-  sum_cos <- sum(cos(2 * pi * x))
-  
-  term1 <- -20 * exp(-0.2 * sqrt(sum_sq / n))
-  term2 <- -exp(sum_cos / n)
-  term3 <- 20 + exp(1)
-  
-  return(term1 + term2 + term3)
-}
-```
-
-#### One-Hot Encoded Categorical Test Function
-
-In real-world applications, we often encounter optimization problems with categorical features. To test Bayesian optimization algorithms on problems with categorical variables, we can create a synthetic test function with one-hot encoded categorical features. One-hot encoding is a common technique used to represent categorical data as binary vectors.
-
-Let's consider a mixed-variable optimization problem with continuous, discrete, and categorical features. The search space is defined as:
-
-$$\mathcal{X} = \{x_i \in \mathbb{Z} \cap [0, 5], i = 1, 2, ..., m\} \times \{x_i \in \mathbb{R} \cap [-5, 5], i = m + 1, m + 2, ..., n\} \times \{x_i \in \mathcal{C}, i = n + 1, n + 2, ..., n + p\}$$
-
-Here, $\mathcal{C}$ represents the one-hot encoded categorical features.
-
-For simplicity, let's create a test function that combines the Branin-Hoo function with an additional categorical variable:
-
-$$f(\mathbf{x}) = \text{Branin-Hoo}(x_1, x_2) + w(\mathbf{c})$$
-
-where $w(\mathbf{c})$ is a weight function that maps the categorical variable $\mathbf{c}$ to a scalar value:
-
-$$w(\mathbf{c}) = \begin{cases}
-10 &amp; \text{if } \mathbf{c} = [1, 0, 0] \\
-20 &amp; \text{if } \mathbf{c} = [0, 1, 0] \\
-30 &amp; \text{if } \mathbf{c} = [0, 0, 1]
-\end{cases}$$
-
-```{r}
-# # Weight function for the categorical variable
-# weight_function <- function(c) {
-#   if (all(c == c(1, 0, 0))) {
-#     return(10)
-#   } else if (all(c == c(0, 1, 0))) {
-#     return(20)
-#   } else if (all(c == c(0, 0, 1))) {
-#     return(30)
-#   } else {
-#     stop("Invalid categorical input")
-#   }
-# }
-# 
-# # Combined Branin-Hoo function with categorical features
-# branin_hoo_categorical <- function(x, c) {
-#   return(branin_hoo(x) + weight_function(c))
-# }
-```
 
 # References {-}
 
