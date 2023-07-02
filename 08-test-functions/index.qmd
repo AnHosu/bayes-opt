@@ -1,5 +1,6 @@
 ---
 title: ""
+bibliography: references.bib
 csl: ../citation_style.csl
 format:
   html:
@@ -18,7 +19,7 @@ At the centre of Bayesian optimisation is the objective function that we are try
 library(ggplot2)
 library(magrittr)
 set.seed(4444)
-with_dim <- `dim<-`
+set_dim <- `dim<-`
 ```
 
 ## Objective Functions in Bayesian Optimisation
@@ -32,15 +33,6 @@ $$f: \mathcal{X} \rightarrow \mathbb{R}$$
 In Bayesian optimization, we model the objective function using a surrogate model, typically a Gaussian process, which is cheap to evaluate and provides uncertainty estimates. The algorithm then uses an acquisition function to balance exploration and exploitation and decides on the next point to evaluate in the search space.
 
 #### An Example Model
-
-```{r}
-demo_objective_function <- function(x) sin(12 * x) * x + 0.5 * x^2
-X_train <-  matrix(c(0.02, 0.3, 0.5, 0.75, 0.98), 5, 1)
-noise <- 0.05
-y_train <- demo_objective_function(X_train) + rnorm(5, 0, noise)
-X_pred <- matrix(seq(0, 1, length.out = 100), 100, 1)
-```
-
 
 ```{r}
 #| code-fold: true
@@ -244,62 +236,87 @@ acquisition_plot <- function(X_pred,
   aligned_plots <- cowplot::align_plots(p2, p1 , align = "v")
   cowplot::plot_grid(aligned_plots[[1]], aligned_plots[[2]], ncol = 1)
 }
+
+gp_rbf_ei_1d <- function(X_train, X_pred, demo_function, noise = 1e-8, title = "" ) {
+  y_train <- demo_function(X_train) + rnorm(nrow(X_train), 0, noise)
+  gp <- gpr(
+    kernel = rbf_kernel,
+    X_train = X_train,
+    y_train = y_train,
+    noise = noise,
+    l = 1,
+    sigma_f = 1
+  )
+  post_pred <- gp(X_pred)
+  mu <- post_pred$mu
+  sigma <- post_pred$sigma
+  ei <- expected_improvement(mu = mu, sigma = sigma, y_best = min(y_train))
+  gp_plot <- gp_1d_plot(
+    mu = mu,
+    sigma = sigma,
+    X_pred = X_pred,
+    X_train = X_train,
+    y_train = y_train,
+    true_function = demo_function
+  )
+  acquisition_plot(
+    X_pred = X_pred,
+    acquisition_function = ei,
+    uncertainty_plot = gp_plot,
+    xt1 = X_pred[which.max(ei)],
+    label = "EI",
+    title = paste("Gaussian Process Surrogate", title)
+  )
+}
 ```
 
 
 ```{r}
-gp <- gpr(
-  kernel = rbf_kernel,
+demo_objective_function <- function(x) sin(12 * x) * x + 0.5 * x^2
+X_train <-  matrix(c(0.02, 0.3, 0.55, 0.75, 0.8, 0.98), 6, 1)
+noise <- 0.05
+y_train <- demo_objective_function(X_train) + rnorm(6, 0, noise)
+X_pred <- matrix(seq(0, 1, length.out = 100), 100, 1)
+gp_rbf_ei_1d(
   X_train = X_train,
-  y_train = y_train,
-  noise = noise,
-  l = 1,
-  sigma_f = 1
-)
-post_pred <- gp(X_pred)
-mu <- post_pred$mu
-sigma <- post_pred$sigma
-ei <- expected_improvement(mu = mu, sigma = sigma, y_best = min(y_train))
-gp_plot <- gp_1d_plot(
-  mu = mu,
-  sigma = sigma,
   X_pred = X_pred,
-  X_train = X_train,
-  y_train = y_train,
-  true_function = demo_objective_function
-)
-acquisition_plot(
-  X_pred = X_pred,
-  acquisition_function = ei,
-  uncertainty_plot = gp_plot,
-  xt1 = X_pred[which.max(ei)],
-  label = "EI",
-  title = "Gaussian Process Surrogate"
+  demo_function = demo_objective_function,
+  noise = noise
 )
 ```
 
-## 2D Functions
+## Test Functions in n Continuous Dimensions
 
 ## Ackley
 
-Seems like Ackley is actually a 2D test function, so the formula should be changed to x1 and x2.
+There are several Ackley test functions, one of them is defined as [@Jamil2013]:
 
 $$f(\mathbf{x}) = -a\exp\left(-b\sqrt{\frac{1}{d}\sum_{i=1}^dx_i^2}\right) - \exp\left(\frac{1}{d}\sum_{i=1}^d \cos(c x_i)\right) \\ + a + \exp(1)$$
 
+where $d$ is the number of dimensions and $a$, $b$, and $c$ are constants, which are set at $a = 20$, $b = 0.2$, and $c = 2\pi$.
+
 ```{r}
 ackley <- function(X) {
-  if (is.null(dim(X))) dim(X) <- c(1, length(X))
+  if (is.null(dim(X))) set_dim(X, c(1, length(X)))
   d <- ncol(X)
-  part1 <- -20*exp(-0.2*sqrt(1/d*rowSums(X^2)))
-  part2 <- -exp(1/d*rowSums(cos(2*pi*X)))
+  part1 <- -20 * exp(-0.2 * sqrt(1 / d * rowSums(X^2)))
+  part2 <- -exp(1 / d * rowSums(cos(2 * pi * X)))
   part1 + part2 + 20 + exp(1)
 }
+```
+
+$\mathbf{x}$ is limited to $-35 > x_i < 35$, though the range $-5 < x_i < 5$ is plenty challenging. The global minimum of the Ackley function is $f(\mathbf{x})=0$ at $\mathbf{x}=(0,0,...,0)$.
+
+```{r}
+#| code-fold: true
+#| code-summary: "Show the code"
+ackley_scale <- function(X) X * 10 - 5
 
 n <- 300
 x <- seq(-2, 2, length.out = n)
 y <- expand.grid(x , x) %>%
   ackley() %>%
-  with_dim(c(n, n))
+  set_dim(c(n, n))
 
 plotly::plot_ly(
   x = x,
@@ -328,6 +345,19 @@ plotly::plot_ly(
   )
 ```
 
+When conditioning a GP with an RBF kernel on the 1D Ackley function, the global trend is fairly easily captured. The periodic component is not captured. The use of a periodic kernel along with the RBF kernel would possibly remedy that, but it is not necessary when we are joust looking for the global minimum.
+
+```{r}
+gp_rbf_ei_1d(
+  X_train = ackley_scale(X_train),
+  X_pred = ackley_scale(X_pred),
+  demo_function = ackley,
+  noise = 0.4,
+  title = "on the 1D Ackley Function"
+)
+```
+
+
 #### Branin-Hoo Function
 
 The Branin-Hoo function is a widely used test function in global optimization. It is a continuous, 2-dimensional function with three global minima and a smooth landscape.
@@ -350,7 +380,7 @@ branin_hoo <- function(x) {
 ```
 
 
-## Functions in n Continuous Dimensions
+
 
 
 
@@ -427,3 +457,11 @@ $$w(\mathbf{c}) = \begin{cases}
 #   return(branin_hoo(x) + weight_function(c))
 # }
 ```
+
+# References {-}
+
+<div id="refs"></div>
+
+# License
+
+The content of this project itself is licensed under the [Creative Commons Attribution-ShareAlike 4.0 International license](https://creativecommons.org/licenses/by-sa/4.0/), and the underlying code is licensed under the [GNU General Public License v3.0 license](https://github.com/AnHosu/bayes-opt/blob/6e25a7a4ec88edac9b55dea2b51382d21030a998/LICENSE).
