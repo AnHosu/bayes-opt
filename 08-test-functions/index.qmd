@@ -299,7 +299,7 @@ There are several Ackley test functions, one of them is defined as [@Jamil2013]:
 
 $$f(\mathbf{x}) = -a\exp\left(-b\sqrt{\frac{1}{d}\sum_{i=1}^dx_i^2}\right) - \exp\left(\frac{1}{d}\sum_{i=1}^d \cos(c x_i)\right) \\ + a + \exp(1)$$
 
-where $d$ is the number of dimensions and $a$, $b$, and $c$ are constants, which are set at $a = 20$, $b = 0.2$, and $c = 2\pi$.
+where $d$ is the number of dimensions and $a$, $b$, and $c$ are constants, which are set at $a = 20$, $b = 0.2$, and $c = 2\pi$ [@molga2005].
 
 ```{r}
 ackley <- function(X) {
