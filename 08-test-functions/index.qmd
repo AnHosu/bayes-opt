@@ -363,7 +363,53 @@ gp_rbf_ei_1d(
 )
 ```
 
+#### Michalewicz
 
+```{r}
+michalewicz <- function(X, m = 10) {
+  i <- seq_len(dim(X)[[2]]) / pi
+  s <- t(i * t(X**2))
+  - rowSums(sin(X) * sin(s)**(2 * m))
+}
+```
+
+```{r}
+#| code-fold: true
+#| code-summary: "Show the code"
+michalewicz_scale <- function(X) X * pi
+
+n <- 300
+x <- seq(0, pi, length.out = n)
+y <- expand.grid(x , x) %>%
+  michalewicz() %>%
+  set_dim(c(n, n))
+
+plotly::plot_ly(
+  x = x,
+  y = x,
+  z = y,
+  showscale = FALSE
+) %>%
+  plotly::add_surface(
+    contours = list(
+      z = list(
+        show = TRUE,
+        start = 0.5,
+        end = 7,
+        size = 0.5,
+        color = "white",
+        usecolormap = TRUE,
+        highlightcolor = "#ff0000",
+        project = list(z = TRUE)
+      )
+    )
+  ) %>%
+  plotly::layout(
+    plot_bgcolor = "rgba(0,0,0,0)",
+    paper_bgcolor = "rgba(0,0,0,0)",
+    scene = list(camera = list(eye = list(x = 2.2, y = 1.8, z = 1.5)))
+  )
+```
 
 
 # References {-}
