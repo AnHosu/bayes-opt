@@ -455,6 +455,52 @@ plotly::plot_ly(
   )
 ```
 
+
+#### Styblinski-Tang
+
+```{r}
+styblinski_tang <- function(X) 0.5 * rowSums(X^4 - 16 * X^2 + 5*X)
+```
+
+```{r}
+#| code-fold: true
+#| code-summary: "Show the code"
+styblinski_tang_scale <- function(X) X * 10 - 5
+
+n <- 300
+x <- seq(-5, 5, length.out = n)
+y <- expand.grid(x , x) %>%
+  styblinski_tang() %>%
+  set_dim(c(n, n))
+
+plotly::plot_ly(
+  x = x,
+  y = x,
+  z = y,
+  showscale = FALSE
+) %>%
+  plotly::add_surface(
+    contours = list(
+      z = list(
+        show = TRUE,
+        start = min(y),
+        end = max(y),
+        size = (max(y) - min(y)) / 15,
+        color = "white",
+        usecolormap = TRUE,
+        highlightcolor = "#ff0000",
+        project = list(z = TRUE)
+      )
+    )
+  ) %>%
+  plotly::layout(
+    plot_bgcolor = "rgba(0,0,0,0)",
+    paper_bgcolor = "rgba(0,0,0,0)",
+    scene = list(camera = list(eye = list(x = 2.2, y = 1.8, z = 1.5)))
+  )
+```
+
+
 # References {-}
 
 <div id="refs"></div>
