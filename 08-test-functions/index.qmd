@@ -411,6 +411,16 @@ plotly::plot_ly(
   )
 ```
 
+```{r}
+gp_rbf_ei_1d(
+  X_train = michalewicz_scale(X_train),
+  X_pred = michalewicz_scale(X_pred),
+  demo_function = michalewicz,
+  noise = 0.1,
+  title = "on the 1D Michalewicz Function"
+)
+```
+
 #### Rastrigin's Function
 
 ```{r}
@@ -455,11 +465,22 @@ plotly::plot_ly(
   )
 ```
 
+```{r}
+gp_rbf_ei_1d(
+  X_train = rastrigin_scale(X_train),
+  X_pred = rastrigin_scale(X_pred),
+  demo_function = rastrigin,
+  noise = 4,
+  title = "on the 1D Rastrigin Function"
+)
+```
+
+
 
 #### Styblinski-Tang
 
 ```{r}
-styblinski_tang <- function(X) 0.5 * rowSums(X^4 - 16 * X^2 + 5*X)
+styblinski_tang <- function(X) 0.5 * rowSums(X^4 - 16 * X^2 + 5 * X)
 ```
 
 ```{r}
@@ -471,6 +492,52 @@ n <- 300
 x <- seq(-5, 5, length.out = n)
 y <- expand.grid(x , x) %>%
   styblinski_tang() %>%
+  set_dim(c(n, n))
+
+plotly::plot_ly(
+  x = x,
+  y = x,
+  z = y,
+  showscale = FALSE
+) %>%
+  plotly::add_surface(
+    contours = list(
+      z = list(
+        show = TRUE,
+        start = min(y),
+        end = max(y),
+        size = (max(y) - min(y)) / 15,
+        color = "white",
+        usecolormap = TRUE,
+        highlightcolor = "#ff0000",
+        project = list(z = TRUE)
+      )
+    )
+  ) %>%
+  plotly::layout(
+    plot_bgcolor = "rgba(0,0,0,0)",
+    paper_bgcolor = "rgba(0,0,0,0)",
+    scene = list(camera = list(eye = list(x = 2.2, y = 1.8, z = 1.5)))
+  )
+```
+
+
+```{r}
+zakharov <- function(X) {
+  sum_ix <- rowSums(t(t(X) + dim(X)[[2]]))
+  rowSums(X^2) + sum_ix^2 + sum_ix^4
+}
+```
+
+```{r}
+#| code-fold: true
+#| code-summary: "Show the code"
+zakharov_scale <- function(X) X * 15 - 10
+
+n <- 300
+x <- seq(-5, 10, length.out = n)
+y <- expand.grid(x , x) %>%
+  zakharov() %>%
   set_dim(c(n, n))
 
 plotly::plot_ly(
