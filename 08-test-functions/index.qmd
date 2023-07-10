@@ -6,7 +6,7 @@ format:
   html:
     fig-width: 8
     fig-height: 5
-    theme: none
+    theme: default
 html-math-method:
   method: katex
 ---
@@ -294,6 +294,8 @@ gp_rbf_ei_1d(
 We start out with test functions that are defined for any number, $d$ of continuous dimensions.
 
 ```{r}
+#| code-fold: true
+#| code-summary: "Show the code"
 surface_plot_2d <- function(fun, scale) {
   n <- 300
   x <- scale(seq(0, 1, length.out = n))
@@ -371,6 +373,8 @@ gp_rbf_ei_1d(
 
 #### Michalewicz
 
+$$f(\mathbf{x}) = -\sum_{i = 1}^d\sin(x_i)\sin^{2m}\left(\frac{ix_i^2}{\pi}\right)$$
+
 ```{r}
 michalewicz <- function(X, m = 10) {
   i <- seq_len(dim(X)[[2]]) / pi
@@ -399,6 +403,8 @@ gp_rbf_ei_1d(
 
 #### Rastrigin's Function
 
+$$f(\mathbf{x}) = 10d + \sum_{i=1}^dx_i^2-10\cos(2\pi x_i)$$
+
 ```{r}
 rastrigin <- function(X) 10 * dim(X)[[2]] + rowSums(X^2 + 10 * cos(2 * pi * X))
 ```
@@ -423,6 +429,8 @@ gp_rbf_ei_1d(
 
 #### Styblinski-Tang
 
+$$f(\mathbf{x}) = 0.5\sum_{i=1}^dx_i^4-16x_i^2+5x_i$$
+
 ```{r}
 styblinski_tang <- function(X) 0.5 * rowSums(X^4 - 16 * X^2 + 5 * X)
 ```
@@ -446,6 +454,8 @@ gp_rbf_ei_1d(
 ```
 
 #### Zakharov
+
+$$f(\mathbf{x}) = \sum_{i=1}^d\left(x_i^2\right) + \left(\sum_{i=1}^d0.5ix_i\right)^2+ \left(\sum_{i=1}^d0.5ix_i\right)^4$$
 
 ```{r}
 zakharov <- function(X) {
@@ -475,6 +485,17 @@ gp_rbf_ei_1d(
 ## Test Functions in 2D
 
 #### Langermann
+
+$$f(\mathbf{x}) = \sum_{j=1}^5c_j\exp\left(-\frac{1}{\pi}\sum_{i=1}^d\left(x_i-A_{ij}\right)^2\right)\cos\left(\pi\sum_{i=1}^d\left(x_i-A_{ij}\right)^2\right)$$
+
+Where $\mathbf{c} = [1, 2, 5, 2, 3]$ and
+
+$$\mathbf{A} = \left[\begin{array}{ccc}
+3 & 5 \\
+5 & 2 \\
+2 & 1 \\
+1 & 4 \\
+7 & 9 \end{array}\right] $$
 
 ```{r}
 langermann <- function(X) {
