@@ -293,13 +293,49 @@ gp_rbf_ei_1d(
 
 We start out with test functions that are defined for any number, $d$ of continuous dimensions.
 
+```{r}
+surface_plot_2d <- function(fun, scale) {
+  n <- 300
+  x <- scale(seq(0, 1, length.out = n))
+  y <- expand.grid(x , x) %>%
+    fun() %>%
+    set_dim(c(n, n))
+  
+  plotly::plot_ly(
+    x = x,
+    y = x,
+    z = y,
+    showscale = FALSE
+  ) %>%
+    plotly::add_surface(
+      contours = list(
+        z = list(
+          show = TRUE,
+          start = min(y),
+          end = max(y),
+          size = (max(y) - min(y)) / 15,
+          color = "white",
+          usecolormap = TRUE,
+          highlightcolor = "#ff0000",
+          project = list(z = TRUE)
+        )
+      )
+    ) %>%
+    plotly::layout(
+      plot_bgcolor = "rgba(0,0,0,0)",
+      paper_bgcolor = "rgba(0,0,0,0)",
+      scene = list(camera = list(eye = list(x = 2.2, y = 1.8, z = 1.5)))
+    )
+}
+```
+
 #### Ackley
 
 There are several Ackley test functions, one of them is defined as [@Jamil2013]:
 
-$$f(\mathbf{x}) = -a\exp\left(-b\sqrt{\frac{1}{d}\sum_{i=1}^dx_i^2}\right) - \exp\left(\frac{1}{d}\sum_{i=1}^d \cos(c x_i)\right) \\ + a + \exp(1)$$
+$$f(\mathbf{x}) = -20\exp\left(-0.2\sqrt{\frac{1}{d}\sum_{i=1}^dx_i^2}\right) - \exp\left(\frac{1}{d}\sum_{i=1}^d \cos(2\pi x_i)\right) \\ + 20 + \exp(1)$$
 
-where $d$ is the number of dimensions and $a$, $b$, and $c$ are constants, which are set at $a = 20$, $b = 0.2$, and $c = 2\pi$ [@molga2005].
+where $d$ is the number of dimensions [@molga2005].
 
 ```{r}
 ackley <- function(X) {
@@ -318,37 +354,7 @@ $\mathbf{x}$ is limited to $-35 > x_i < 35$, though the range $-5 < x_i < 5$ is 
 #| code-summary: "Show the code"
 ackley_scale <- function(X) X * 10 - 5
 
-n <- 300
-x <- seq(-2, 2, length.out = n)
-y <- expand.grid(x , x) %>%
-  ackley() %>%
-  set_dim(c(n, n))
-
-plotly::plot_ly(
-  x = x,
-  y = x,
-  z = y,
-  showscale = FALSE
-) %>%
-  plotly::add_surface(
-    contours = list(
-      z = list(
-        show = TRUE,
-        start = min(y),
-        end = max(y),
-        size = (max(y) - min(y)) / 15,
-        color = "white",
-        usecolormap = TRUE,
-        highlightcolor = "#ff0000",
-        project = list(z = TRUE)
-      )
-    )
-  ) %>%
-  plotly::layout(
-    plot_bgcolor = "rgba(0,0,0,0)",
-    paper_bgcolor = "rgba(0,0,0,0)",
-    scene = list(camera = list(eye = list(x = 2.2, y = 1.8, z = 1.5)))
-  )
+surface_plot_2d(ackley, ackley_scale)
 ```
 
 When conditioning a GP with an RBF kernel on the 1D Ackley function, the global trend is fairly easily captured. The periodic component is not captured. The use of a periodic kernel along with the RBF kernel would possibly remedy that, but it is not necessary when we are joust looking for the global minimum.
@@ -378,37 +384,7 @@ michalewicz <- function(X, m = 10) {
 #| code-summary: "Show the code"
 michalewicz_scale <- function(X) X * pi
 
-n <- 300
-x <- seq(0, pi, length.out = n)
-y <- expand.grid(x , x) %>%
-  michalewicz() %>%
-  set_dim(c(n, n))
-
-plotly::plot_ly(
-  x = x,
-  y = x,
-  z = y,
-  showscale = FALSE
-) %>%
-  plotly::add_surface(
-    contours = list(
-      z = list(
-        show = TRUE,
-        start = max(y),
-        end = min(y),
-        size = (max(y) - min(y)) / 15,
-        color = "white",
-        usecolormap = TRUE,
-        highlightcolor = "#ff0000",
-        project = list(z = TRUE)
-      )
-    )
-  ) %>%
-  plotly::layout(
-    plot_bgcolor = "rgba(0,0,0,0)",
-    paper_bgcolor = "rgba(0,0,0,0)",
-    scene = list(camera = list(eye = list(x = 2.2, y = 1.8, z = 1.5)))
-  )
+surface_plot_2d(michalewicz, michalewicz_scale)
 ```
 
 ```{r}
@@ -432,37 +408,7 @@ rastrigin <- function(X) 10 * dim(X)[[2]] + rowSums(X^2 + 10 * cos(2 * pi * X))
 #| code-summary: "Show the code"
 rastrigin_scale <- function(X) X * 10.24 - 5.12
 
-n <- 300
-x <- seq(-5.12, 5.12, length.out = n)
-y <- expand.grid(x , x) %>%
-  rastrigin() %>%
-  set_dim(c(n, n))
-
-plotly::plot_ly(
-  x = x,
-  y = x,
-  z = y,
-  showscale = FALSE
-) %>%
-  plotly::add_surface(
-    contours = list(
-      z = list(
-        show = TRUE,
-        start = min(y),
-        end = max(y),
-        size = (max(y) - min(y)) / 15,
-        color = "white",
-        usecolormap = TRUE,
-        highlightcolor = "#ff0000",
-        project = list(z = TRUE)
-      )
-    )
-  ) %>%
-  plotly::layout(
-    plot_bgcolor = "rgba(0,0,0,0)",
-    paper_bgcolor = "rgba(0,0,0,0)",
-    scene = list(camera = list(eye = list(x = 2.2, y = 1.8, z = 1.5)))
-  )
+surface_plot_2d(rastrigin, rastrigin_scale)
 ```
 
 ```{r}
@@ -475,8 +421,6 @@ gp_rbf_ei_1d(
 )
 ```
 
-
-
 #### Styblinski-Tang
 
 ```{r}
@@ -488,39 +432,20 @@ styblinski_tang <- function(X) 0.5 * rowSums(X^4 - 16 * X^2 + 5 * X)
 #| code-summary: "Show the code"
 styblinski_tang_scale <- function(X) X * 10 - 5
 
-n <- 300
-x <- seq(-5, 5, length.out = n)
-y <- expand.grid(x , x) %>%
-  styblinski_tang() %>%
-  set_dim(c(n, n))
-
-plotly::plot_ly(
-  x = x,
-  y = x,
-  z = y,
-  showscale = FALSE
-) %>%
-  plotly::add_surface(
-    contours = list(
-      z = list(
-        show = TRUE,
-        start = min(y),
-        end = max(y),
-        size = (max(y) - min(y)) / 15,
-        color = "white",
-        usecolormap = TRUE,
-        highlightcolor = "#ff0000",
-        project = list(z = TRUE)
-      )
-    )
-  ) %>%
-  plotly::layout(
-    plot_bgcolor = "rgba(0,0,0,0)",
-    paper_bgcolor = "rgba(0,0,0,0)",
-    scene = list(camera = list(eye = list(x = 2.2, y = 1.8, z = 1.5)))
-  )
+surface_plot_2d(styblinski_tang, styblinski_tang_scale)
 ```
 
+```{r}
+gp_rbf_ei_1d(
+  X_train = styblinski_tang_scale(X_train),
+  X_pred = styblinski_tang_scale(X_pred),
+  demo_function = styblinski_tang,
+  noise = 4,
+  title = "on the 1D Styblinski-Tang Function"
+)
+```
+
+#### Zakharov
 
 ```{r}
 zakharov <- function(X) {
@@ -534,39 +459,22 @@ zakharov <- function(X) {
 #| code-summary: "Show the code"
 zakharov_scale <- function(X) X * 15 - 10
 
-n <- 300
-x <- seq(-5, 10, length.out = n)
-y <- expand.grid(x , x) %>%
-  zakharov() %>%
-  set_dim(c(n, n))
-
-plotly::plot_ly(
-  x = x,
-  y = x,
-  z = y,
-  showscale = FALSE
-) %>%
-  plotly::add_surface(
-    contours = list(
-      z = list(
-        show = TRUE,
-        start = min(y),
-        end = max(y),
-        size = (max(y) - min(y)) / 15,
-        color = "white",
-        usecolormap = TRUE,
-        highlightcolor = "#ff0000",
-        project = list(z = TRUE)
-      )
-    )
-  ) %>%
-  plotly::layout(
-    plot_bgcolor = "rgba(0,0,0,0)",
-    paper_bgcolor = "rgba(0,0,0,0)",
-    scene = list(camera = list(eye = list(x = 2.2, y = 1.8, z = 1.5)))
-  )
+surface_plot_2d(zakharov, zakharov_scale)
 ```
 
+```{r}
+gp_rbf_ei_1d(
+  X_train = zakharov_scale(X_train),
+  X_pred = zakharov_scale(X_pred),
+  demo_function = zakharov,
+  noise = 100,
+  title = "on the 1D Zakharov Function"
+)
+```
+
+## Test Functions in 2D
+
+#### Langermann
 
 ```{r}
 langermann <- function(X) {
@@ -587,37 +495,7 @@ langermann <- function(X) {
 #| code-summary: "Show the code"
 langermann_scale <- function(X) X * 10
 
-n <- 300
-x <- seq(0, 10, length.out = n)
-y <- expand.grid(x , x) %>%
-  langermann() %>%
-  set_dim(c(n, n))
-
-plotly::plot_ly(
-  x = x,
-  y = x,
-  z = y,
-  showscale = FALSE
-) %>%
-  plotly::add_surface(
-    contours = list(
-      z = list(
-        show = TRUE,
-        start = min(y),
-        end = max(y),
-        size = (max(y) - min(y)) / 15,
-        color = "white",
-        usecolormap = TRUE,
-        highlightcolor = "#ff0000",
-        project = list(z = TRUE)
-      )
-    )
-  ) %>%
-  plotly::layout(
-    plot_bgcolor = "rgba(0,0,0,0)",
-    paper_bgcolor = "rgba(0,0,0,0)",
-    scene = list(camera = list(eye = list(x = 2.2, y = 1.8, z = 1.5)))
-  )
+surface_plot_2d(langermann, langermann_scale)
 ```
 
 ```{r}
