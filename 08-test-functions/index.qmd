@@ -24,15 +24,17 @@ set_dim <- `dim<-`
 
 ## Objective Functions in Bayesian Optimisation
 
-The objective function or process, $f$, 
-
-The objective function, denoted by $f(\mathbf{x})$, is a mapping from the input space $\mathbf{x} \in \mathcal{X}$ to a scalar output $y \in \mathbb{R}$:
+The objective function or process, $f(\mathbf{x})$, is a map from the input space $\mathbf{x} \in \mathcal{X}$ to a scalar output $y \in \mathbb{R}$:
 
 $$f: \mathcal{X} \rightarrow \mathbb{R}$$
 
-In Bayesian optimization, we model the objective function using a surrogate model, typically a Gaussian process, which is cheap to evaluate and provides uncertainty estimates. The algorithm then uses an acquisition function to balance exploration and exploitation and decides on the next point to evaluate in the search space.
+The true nature of this process is unknown and, for real world problems, might often be very difficult to traverse. A good set of test functions should challenge a model with different scenarios so we can gauge the strengths and weaknesses of our model.
 
 #### An Example Model
+
+In Bayesian optimisation, we model the objective function using a surrogate model, typically a Gaussian process (GP), which is cheap to evaluate and provides uncertainty estimates. Bayesian optimisation then uses an acquisition function to decide on the next point to evaluate in the search space.
+
+To demonstrate the test functions we will implement a GP with an RBF [kernel](../kernels-r). For the [acquisition function](../acquisition-functions-r), we will use Expected Improvement (EI).
 
 ```{r}
 #| code-fold: true
@@ -274,6 +276,7 @@ gp_rbf_ei_1d <- function(X_train,
 }
 ```
 
+For each test function, we will condition the GP on a set of six training points. Here is an example on a simple function:
 
 ```{r}
 demo_objective_function <- function(x) sin(12 * x) * x + 0.5 * x^2
@@ -289,9 +292,19 @@ gp_rbf_ei_1d(
 )
 ```
 
+The vertical dashed line indicates the next point that would be evaluated in our hypothetical Bayesian optimisation scenario.
+
 ## Test Functions with Continuous Dimensions
 
 We start out with test functions that are defined for any number, $d$ of continuous dimensions.
+
+When doing Bayesian optimisation, it is prudent to normalise the input dimensions such that the search space is confined to the unit hypercube:
+
+$$\mathcal{X} = [0,1]^d$$
+
+Most of the following functions are not defined in the unit hypercube, however. So along with each function, we also define a scaling function to scale the input dimensions from the unit hypercube to the range of the function.
+
+Before we get started, we define a nice surface plot to visualise each function.
 
 ```{r}
 #| code-fold: true
@@ -337,7 +350,7 @@ There are several Ackley test functions, one of them is defined as [@Jamil2013]:
 
 $$f(\mathbf{x}) = -20\exp\left(-0.2\sqrt{\frac{1}{d}\sum_{i=1}^dx_i^2}\right) - \exp\left(\frac{1}{d}\sum_{i=1}^d \cos(2\pi x_i)\right) \\ + 20 + \exp(1)$$
 
-where $d$ is the number of dimensions [@molga2005].
+where $d$ is the number of dimensions. Sometimes the function is defined with adjustable parameters in place of the constants, but the constants used here appear often [@molga2005].
 
 ```{r}
 ackley <- function(X) {
@@ -359,7 +372,7 @@ ackley_scale <- function(X) X * 10 - 5
 surface_plot_2d(ackley, ackley_scale)
 ```
 
-When conditioning a GP with an RBF kernel on the 1D Ackley function, the global trend is fairly easily captured. The periodic component is not captured. The use of a periodic kernel along with the RBF kernel would possibly remedy that, but it is not necessary when we are joust looking for the global minimum.
+When conditioning a GP with an RBF kernel on the 1D Ackley function, the global trend is fairly easily captured. However, the local periodic component is not captured. The use of a periodic kernel along with the RBF kernel would possibly remedy that, but it is not necessary when we are looking for the global minimum.
 
 ```{r}
 gp_rbf_ei_1d(
