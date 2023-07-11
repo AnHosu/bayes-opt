@@ -396,7 +396,7 @@ gp_rbf_ei_1d(
   X_train = michalewicz_scale(X_train),
   X_pred = michalewicz_scale(X_pred),
   demo_function = michalewicz,
-  noise = 0.1,
+  noise = 0.05,
   title = "on the 1D Michalewicz Function"
 )
 ```
@@ -528,6 +528,37 @@ gp_rbf_ei_1d(
   title = "on the 1D Langermann Function"
 )
 ```
+
+#### Shubert
+
+$$\sum_{j=1}^5\cos\left((j+1)x_1+j\right)\cos\left((j+1)x_2+j\right)$$
+
+```{r}
+shubert <- function(X) {
+  apply(purrr::reduce(purrr::map(1:5, ~ cos((.x + 1) * X + .x)), `+`), 1, prod)
+}
+```
+
+```{r}
+#| code-fold: true
+#| code-summary: "Show the code"
+shubert_scale <- function(X) X*20 - 10
+
+surface_plot_2d(shubert, shubert_scale)
+```
+
+18 global maxima in 2D.
+
+```{r}
+gp_rbf_ei_1d(
+  X_train = shubert_scale(X_train),
+  X_pred = shubert_scale(X_pred),
+  demo_function = shubert,
+  noise = 0.1,
+  title = "on the 1D Shubert Function"
+)
+```
+
 
 # References {-}
 
