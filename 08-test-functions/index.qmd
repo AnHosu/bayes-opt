@@ -386,6 +386,8 @@ gp_rbf_ei_1d(
 
 #### Michalewicz
 
+The Michalewicz test function defined as [@Jamil2013]:
+
 $$f(\mathbf{x}) = -\sum_{i = 1}^d\sin(x_i)\sin^{2m}\left(\frac{ix_i^2}{\pi}\right)$$
 
 ```{r}
@@ -396,6 +398,10 @@ michalewicz <- function(X, m = 10) {
 }
 ```
 
+The function is usually evaluated in the range $x_i \in [0, \pi]$ for all dimensions.
+
+The Michalewicz test function features large swaths of space with virtually no gradient, making it very hard to optimise unless a training point happens to be close to the global optimum.
+
 ```{r}
 #| code-fold: true
 #| code-summary: "Show the code"
@@ -403,6 +409,12 @@ michalewicz_scale <- function(X) X * pi
 
 surface_plot_2d(michalewicz, michalewicz_scale)
 ```
+
+The elusiveness of the global optimum is only exacerbated in higher dimensions. The location and value of the global minimum depends on the number of dimensions, but in two dimensions it is [@yang2010]
+
+$$f(x_1 = 2.20, x_2 = 1.57) \approx -1.80$$
+
+It is difficult to capture the overall trend of the Michalewicz function with a GP, even in 1D. Unless a training point happens to be close to the optimum, there is very little information to go on. When looking at the uncertainties of the GP, this results in an almost uniform band along the main plane of the function.
 
 ```{r}
 gp_rbf_ei_1d(
