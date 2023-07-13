@@ -390,6 +390,8 @@ The Michalewicz test function defined as [@Jamil2013]:
 
 $$f(\mathbf{x}) = -\sum_{i = 1}^d\sin(x_i)\sin^{2m}\left(\frac{ix_i^2}{\pi}\right)$$
 
+where $m$ is a constant commonly set to 10.
+
 ```{r}
 michalewicz <- function(X, m = 10) {
   i <- seq_len(dim(X)[[2]]) / pi
@@ -410,11 +412,11 @@ michalewicz_scale <- function(X) X * pi
 surface_plot_2d(michalewicz, michalewicz_scale)
 ```
 
-The elusiveness of the global optimum is only exacerbated in higher dimensions. The location and value of the global minimum depends on the number of dimensions, but in two dimensions it is [@yang2010]
+The elusiveness of the global optimum is only exacerbated in higher dimensions. The location and value of the global minimum depends on the number of dimensions, but in two dimensions it is [@yang2010]:
 
 $$f(x_1 = 2.20, x_2 = 1.57) \approx -1.80$$
 
-It is difficult to capture the overall trend of the Michalewicz function with a GP, even in 1D. Unless a training point happens to be close to the optimum, there is very little information to go on. When looking at the uncertainties of the GP, this results in an almost uniform band along the main plane of the function.
+It is difficult to capture the overall trend of the Michalewicz function with a GP, even in 1D. Unless a training point happens to be close to the optimum, there is very little information to go on. When looking at the uncertainties reported by the GP, this results in an almost uniform band along the main plane of the function.
 
 ```{r}
 gp_rbf_ei_1d(
@@ -428,11 +430,17 @@ gp_rbf_ei_1d(
 
 #### Rastrigin's Function
 
+Rastigrin's function is defined as [@yang2010]:
+
 $$f(\mathbf{x}) = 10d + \sum_{i=1}^dx_i^2-10\cos(2\pi x_i)$$
 
 ```{r}
-rastrigin <- function(X) 10 * dim(X)[[2]] + rowSums(X^2 + 10 * cos(2 * pi * X))
+rastrigin <- function(X) 10 * dim(X)[[2]] + rowSums(X^2 - 10 * cos(2 * pi * X))
 ```
+
+The usual evaluation range is $-5.12 < x_i < 5.12$.
+
+The function is essentially a large bowl shape with a periodic element that causes the function to have many local minima. The global minimum of the Rastrigin function is $f(\mathbf{x})=0$ at $\mathbf{x}=(0,0,...,0)$.
 
 ```{r}
 #| code-fold: true
@@ -441,6 +449,8 @@ rastrigin_scale <- function(X) X * 10.24 - 5.12
 
 surface_plot_2d(rastrigin, rastrigin_scale)
 ```
+
+Like for the Ackley function, a GP with an RBF kernel is incapable of capturing the periodic element of the test function but is enough for capturing the large scale trend, which is sufficient to find the global optimum. Bayesian optimisation is hampered by the deep local minima though.
 
 ```{r}
 gp_rbf_ei_1d(
