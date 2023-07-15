@@ -500,6 +500,8 @@ Note how the next evaluation would have yielded the global minimum.
 
 #### Zakharov
 
+The Zakharov function is defined as [@Jamil2013]:
+
 $$f(\mathbf{x}) = \sum_{i=1}^d\left(x_i^2\right) + \left(\sum_{i=1}^d0.5ix_i\right)^2+ \left(\sum_{i=1}^d0.5ix_i\right)^4$$
 
 ```{r}
@@ -509,6 +511,10 @@ zakharov <- function(X) {
 }
 ```
 
+The usual evaluation range is $-5 < x_i < 10$ for all dimensions and the global minimum is $f(\mathbf{x}) = 0$ for $x_i = 0$ in all dimensions.
+
+The function is a bent plane that has a very small derivative close to the global minimum.
+
 ```{r}
 #| code-fold: true
 #| code-summary: "Show the code"
@@ -516,6 +522,8 @@ zakharov_scale <- function(X) X * 15 - 10
 
 surface_plot_2d(zakharov, zakharov_scale)
 ```
+
+Despite the relatively simple looks of the function, it is very difficult for our GP with an RBF kernel to find the global minimum, even in 1D. This is because the RBF kernel is stationary, and the Zakharov function has vastly different length scales for different areas of search space. Combining the RBF kernel with a non-stationary kernel could probably remedy that.
 
 ```{r}
 gp_rbf_ei_1d(
