@@ -464,11 +464,17 @@ gp_rbf_ei_1d(
 
 #### Styblinski-Tang
 
+The Styblinski-Tang function is defined as [@Jamil2013]:
+
 $$f(\mathbf{x}) = 0.5\sum_{i=1}^dx_i^4-16x_i^2+5x_i$$
 
 ```{r}
 styblinski_tang <- function(X) 0.5 * rowSums(X^4 - 16 * X^2 + 5 * X)
 ```
+
+The usual evaluation range is $-5 < x_i < 5$ for all dimensions and the global minimum is $f(\mathbf{x}) = -39.17d$ for $x_i = -2.903534$ in all dimensions.
+
+The function is a large bowl with multiple local minima that are close in absolute value to the global minimum.
 
 ```{r}
 #| code-fold: true
@@ -477,6 +483,8 @@ styblinski_tang_scale <- function(X) X * 10 - 5
 
 surface_plot_2d(styblinski_tang, styblinski_tang_scale)
 ```
+
+A GP with an RBF kernel makes quick work of the Styblinski-Tang function, and we should be able to find the global minimum with just a few evaluations in 1D.
 
 ```{r}
 gp_rbf_ei_1d(
@@ -487,6 +495,8 @@ gp_rbf_ei_1d(
   title = "on the 1D Styblinski-Tang Function"
 )
 ```
+
+Note how the next evaluation would have yielded the global minimum.
 
 #### Zakharov
 
