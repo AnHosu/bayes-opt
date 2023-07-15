@@ -537,18 +537,24 @@ gp_rbf_ei_1d(
 
 ## Test Functions in 2D
 
+While it is rare to have a real world problem that features exactly two input dimensions, limiting ourselves to just two continuous inputs allows us to employ some quite difficult test functions.
+
 #### Langermann
+
+The Langermann functions is defined as [@molga2005]
 
 $$f(\mathbf{x}) = \sum_{j=1}^5c_j\exp\left(-\frac{1}{\pi}\sum_{i=1}^d\left(x_i-A_{ij}\right)^2\right)\cos\left(\pi\sum_{i=1}^d\left(x_i-A_{ij}\right)^2\right)$$
 
 Where $\mathbf{c} = [1, 2, 5, 2, 3]$ and
 
-$$\mathbf{A} = \left[\begin{array}{ccc}
+$$
+\mathbf{A} = \left[\begin{array}{ccc}
 3 & 5 \\
 5 & 2 \\
 2 & 1 \\
 1 & 4 \\
-7 & 9 \end{array}\right] $$
+7 & 9 \end{array}\right]
+$$
 
 ```{r}
 langermann <- function(X) {
@@ -564,6 +570,10 @@ langermann <- function(X) {
 }
 ```
 
+The usual evaluation range is $0 < x_i < 10$ for each dimension and the global minimum is $f(\mathbf{x}) = 0$ for $x_i = 0$ in all dimensions.
+
+The function features a very diverse landscape with many local minima as well as areas with relatively small gradients.
+
 ```{r}
 #| code-fold: true
 #| code-summary: "Show the code"
@@ -571,6 +581,8 @@ langermann_scale <- function(X) X * 10
 
 surface_plot_2d(langermann, langermann_scale)
 ```
+
+It is very difficult for a GP with an RBF kernel to capture the structure of the Langerman function, even in 1D. Given a small budget for training points, the best we can hope for is a good local minimum.
 
 ```{r}
 gp_rbf_ei_1d(
