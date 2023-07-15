@@ -596,13 +596,23 @@ gp_rbf_ei_1d(
 
 #### Shubert
 
+The Shubert function is defined as [@molga2005]
+
 $$\sum_{j=1}^5\cos\left((j+1)x_1+j\right)\cos\left((j+1)x_2+j\right)$$
+
+The function is easily extended to any number of $d$ dimensions [@Jamil2013] [@yang2010], and the implementation below reflects that. However, given the product across dimensions, the function may be numerically challenged in higher dimensions.
 
 ```{r}
 shubert <- function(X) {
-  apply(purrr::reduce(purrr::map(1:5, ~ cos((.x + 1) * X + .x)), `+`), 1, prod)
+  purrr::map(1:5, ~ .x*cos((.x + 1) * X + .x)) %>%
+    purrr::reduce(`+`) %>%
+    apply(1, prod)
 }
 ```
+
+The usual range of evaluation is $-10 < x_i < 10$ for all dimensions.
+
+The function features multiple global minima at $f(\mathbf{x}) = −186.73$. I 2D there are 18 of them in the evaluation range.
 
 ```{r}
 #| code-fold: true
@@ -612,7 +622,7 @@ shubert_scale <- function(X) X*20 - 10
 surface_plot_2d(shubert, shubert_scale)
 ```
 
-18 global maxima in 2D.
+The Shubert function features periodic elements at different scales, which an RBF kernel cannot model. In 1D, Bayesian optimisation using a GP with an RBF kernel will probably still find a global minimum fairly quickly, however.
 
 ```{r}
 gp_rbf_ei_1d(
@@ -623,7 +633,6 @@ gp_rbf_ei_1d(
   title = "on the 1D Shubert Function"
 )
 ```
-
 
 # References {-}
 
