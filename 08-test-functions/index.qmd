@@ -6,7 +6,7 @@ format:
   html:
     fig-width: 8
     fig-height: 5
-    theme: default
+    theme: none
 html-math-method:
   method: katex
 ---
@@ -32,9 +32,9 @@ The true nature of this process is unknown and, for real world problems, might o
 
 #### An Example Model
 
-In Bayesian optimisation, we model the objective function using a surrogate model, typically a Gaussian process (GP), which is cheap to evaluate and provides uncertainty estimates. Bayesian optimisation then uses an acquisition function to decide on the next point to evaluate in the search space.
+In [Bayesian optimisation](../bayes-opt-r), we model the objective function using a surrogate model, typically a Gaussian process (GP), which is cheap to evaluate and provides uncertainty estimates. Bayesian optimisation then uses an [acquisition function](../acquisition-functions-r) to decide on the next point to evaluate in the search space.
 
-To demonstrate the test functions we will implement a GP with an RBF [kernel](../kernels-r). For the [acquisition function](../acquisition-functions-r), we will use Expected Improvement (EI).
+To demonstrate the test functions we will implement a GP with an RBF [kernel](../kernels-r). For the acquisition function, we will use Expected Improvement (EI).
 
 ```{r}
 #| code-fold: true
@@ -276,7 +276,7 @@ gp_rbf_ei_1d <- function(X_train,
 }
 ```
 
-For each test function, we will condition the GP on a set of six training points. Here is an example on a simple function:
+For each test function, we will condition the GP on a set of six training points. Here is an example applied to a simple function:
 
 ```{r}
 demo_objective_function <- function(x) sin(12 * x) * x + 0.5 * x^2
@@ -428,9 +428,9 @@ gp_rbf_ei_1d(
 )
 ```
 
-#### Rastrigin's Function
+#### Rastrigin
 
-Rastigrin's function is defined as [@yang2010]:
+The Rastrigin function is defined as [@yang2010]:
 
 $$f(\mathbf{x}) = 10d + \sum_{i=1}^dx_i^2-10\cos(2\pi x_i)$$
 
@@ -440,7 +440,7 @@ rastrigin <- function(X) 10 * dim(X)[[2]] + rowSums(X^2 - 10 * cos(2 * pi * X))
 
 The usual evaluation range is $-5.12 < x_i < 5.12$.
 
-The function is essentially a large bowl shape with a periodic element that causes the function to have many local minima. The global minimum of the Rastrigin function is $f(\mathbf{x})=0$ at $\mathbf{x}=(0,0,...,0)$.
+The function is essentially a large bowl shape with a periodic element that causes the function to have many local minima. The global minimum of th Rastrigin function is $f(\mathbf{x})=0$ at $\mathbf{x}=(0,0,...,0)$.
 
 ```{r}
 #| code-fold: true
