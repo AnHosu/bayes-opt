@@ -541,7 +541,7 @@ While it is rare to have a real world problem that features exactly two input di
 
 #### Langermann
 
-The Langermann functions is defined as [@molga2005]
+The Langermann functions is defined as [@molga2005]:
 
 $$f(\mathbf{x}) = \sum_{j=1}^5c_j\exp\left(-\frac{1}{\pi}\sum_{i=1}^d\left(x_i-A_{ij}\right)^2\right)\cos\left(\pi\sum_{i=1}^d\left(x_i-A_{ij}\right)^2\right)$$
 
@@ -596,7 +596,7 @@ gp_rbf_ei_1d(
 
 #### Shubert
 
-The Shubert function is defined as [@molga2005]
+The Shubert function is defined as [@molga2005]:
 
 $$\sum_{j=1}^5\cos\left((j+1)x_1+j\right)\cos\left((j+1)x_2+j\right)$$
 
