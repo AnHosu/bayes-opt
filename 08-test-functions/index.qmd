@@ -8,7 +8,7 @@ format:
     fig-height: 5
     theme: none
 html-math-method:
-  method: katex
+  method: mathjax
 ---
 
 [Bayesian optimisation](../bayes-opt-r) is a powerful optimisation technique for black-box functions and processes with expensive evaluations. It is popular for hyperparameter tuning in machine learning, but has many real-world applications as well.
@@ -348,7 +348,13 @@ surface_plot_2d <- function(fun, scale) {
 
 There are several Ackley test functions, one of them is defined as [@Jamil2013]:
 
-$$f(\mathbf{x}) = -20\exp\left(-0.2\sqrt{\frac{1}{d}\sum_{i=1}^dx_i^2}\right) - \exp\left(\frac{1}{d}\sum_{i=1}^d \cos(2\pi x_i)\right) \\ + 20 + \exp(1)$$
+$$
+\begin{array}{cc}
+f(\mathbf{x}) = & -20\exp\left(-0.2\sqrt{\frac{1}{d}\sum_{i=1}^dx_i^2}\right) \\ 
+& - \exp\left(\frac{1}{d}\sum_{i=1}^d \cos(2\pi x_i)\right) \\
+& + 20 + \exp(1)
+\end{array}
+$$
 
 where $d$ is the number of dimensions. Sometimes the function is defined with adjustable parameters in place of the constants, but the constants used here appear often [@molga2005].
 
