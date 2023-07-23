@@ -39,9 +39,9 @@ Gaussian processes are almost the default choice for surrogate models in Bayesia
 The first step in Bayesian optimisation is the initial experiment design, which provides the base data for a surrogate model. This post discusses the significance of initial experiment designs for Bayesian optimisation, and explores a few examples, including Latin Hypercube Sampling (LHS), while highlighting their advantages and limitations.
 
 
-**Testing Bayesian Optimisation**
+**[Testing Bayesian Optimisation](https://anhosu.com/post/test-functions-r/)**
 
-This post is coming soon.
+The objective function is usually expensive to evaluate, so before starting Bayesian optimisation on an actual problem, the code and models should be tested. This post discusses a set of functions that can help test and gauge the efficacy of potential surrogate models and optimisation policies.
 
 ## License
 
